@@ -1,0 +1,19 @@
+{
+  "tabWidth": 2,
+  "proseWrap": "preserve",
+  "printWidth": 120,
+  "bracketSpacing": true,
+  "arrowParens": "always",
+  "htmlWhitespaceSensitivity": "css",
+  "semi": true,
+  "singleQuote": false,
+  "useTabs": false,
+  "quoteProps": "as-needed",
+  "requirePragma": false,
+
+  "importOrderBuiltinModulesToTop": true,
+  "importOrderParserPlugins": ["typescript", "decorators-legacy"],
+  "importOrderCombineTypeAndValueImports": true,
+  "plugins": ["@ianvs/prettier-plugin-sort-imports"],
+  "importOrder": ["tevm", "^tevm/(.*)$", "<THIRD_PARTY_MODULES>", "", "^@/(.*)$", "", "^[./]"]
+}

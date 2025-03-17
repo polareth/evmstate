@@ -9,7 +9,11 @@
     "skipLibCheck": true,
     "outDir": "./dist",
     "rootDir": ".",
-    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@test/*": ["test/*"]
+    },
     "plugins": [{ "name": "@tevm/ts-plugin" }]
   },
   "include": ["src", "test"],
