@@ -1,0 +1,22 @@
+{
+  "name": "transaction-access-list",
+  "version": "0.0.0-semantically-released",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "0xpolarzero",
+  "license": "MIT",
+  "dependencies": {
+    "tevm": "1.0.0-next.132"
+  },
+  "devDependencies": {
+    "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
+    "@tevm/ts-plugin": "1.0.0-next.131",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}
