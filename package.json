@@ -1,0 +1,21 @@
+{
+  "name": "transaction-access-list",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "tevm": "1.0.0-next.132",
+    "viem": "^2.23.11"
+  },
+  "devDependencies": {
+    "@tevm/ts-plugin": "1.0.0-next.131",
+    "typescript": "^5.8.2",
+    "vitest": "^3.0.9"
+  }
+}
