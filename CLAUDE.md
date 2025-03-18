@@ -8,7 +8,7 @@
 
 ## Code Style
 
-- **Imports**: Use `@test` paths for test imports (from tsconfig paths)
+- **Imports**: Use relative paths for imports (e.g., '../src/lib/accessList')
 - **Formatting**: Uses Prettier with sort-imports plugin
 - **Types**: Strong typing with TypeScript, avoid `any`
 - **Naming**:

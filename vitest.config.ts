@@ -6,5 +6,14 @@ export default defineConfig({
   plugins: [vitePluginTevm(), tsconfigPaths()],
   test: {
     testTimeout: 60_000,
+    deps: {
+      inline: ['tevm', '@shazow/whatsabi', 'viem']
+    }
   },
+  resolve: {
+    alias: {
+      'tevm': 'tevm',
+      'viem': 'viem'
+    }
+  }
 });
