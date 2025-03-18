@@ -17,6 +17,7 @@
     "@tevm/ts-plugin": "1.0.0-next.131",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2",
+    "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.0.9"
   }
 }
