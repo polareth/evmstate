@@ -2,7 +2,7 @@ import { createMemoryClient, createTevmNode, http } from "tevm";
 import { createAddress } from "tevm/address";
 import { mainnet } from "tevm/common";
 
-import { Counter } from "./Counter.s.sol";
+import { Counter } from "./contracts/Counter.s.sol";
 
 /* -------------------------------- CONSTANTS ------------------------------- */
 const rpcUrl = "https://eth.llamarpc.com";
