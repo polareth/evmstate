@@ -7,6 +7,7 @@
 
 - provide provider
 - provide from address to impersonate
+- maybe return two objects: "read" and "write" so we can include labeled slots that got only read as well
 
 1. Run tx and see affected accounts
 2. Backward fork, dump storage of these accounts
