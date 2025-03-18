@@ -2,18 +2,18 @@ import { createMemoryClient, encodeFunctionData } from "tevm";
 import { CONTRACTS } from "@test/constants";
 import { beforeAll, describe, it } from "vitest";
 
-import { getAccessList } from "@/index";
+import { traceStorageAccess } from "@/index";
 
 const client = createMemoryClient();
 const MultiSlot = CONTRACTS.MultiSlot.withAddress(`0x${"1".repeat(40)}`);
 
-describe("access-list", () => {
+describe("basic", () => {
   beforeAll(async () => {
     await client.tevmSetAccount(MultiSlot);
   });
 
   it("should get access list from transaction data", async () => {
-    const accessList = await getAccessList({
+    const accessList = await traceStorageAccess({
       client,
       from: "0x",
       to: MultiSlot.address,

@@ -1,71 +1,57 @@
-import { Address, createMemoryClient, Hex, http, MemoryClient } from "tevm";
-import { Common } from "tevm/common";
-import { ForkOptions } from "tevm/state";
+import { Address, Hex, MemoryClient } from "tevm";
 
-export type GetAccessListOptions = {
-  from: Address;
-  to?: Address;
-  data: Hex;
-
-  // Need to provide either client or fork or rpcUrl
-  client?: MemoryClient;
-  fork?: ForkOptions;
-  rpcUrl?: string;
-  // Makes it faster cause no need to fetch chain info
-  common?: Common;
-};
-
-export type GetAccessListResult = Array<{
+/**
+ * Detailed information about storage reads and writes during transaction execution.
+ */
+export type StorageStatesDiff = Array<{
+  /** Contract address */
   address: Address;
-  // TODO: values should probably be decoded using the abi, but we will modify to label anyway
-  writes: Array<{ slot: Hex; current: Hex; next: Hex }>;
-  reads: Array<{ slot: Hex; current: Hex }>;
+  /** Storage slots that were modified during transaction execution */
+  writes: Array<{
+    /** Storage slot location */
+    slot: Hex;
+    /** Value before transaction */
+    current: Hex;
+    /** Value after transaction */
+    next: Hex;
+  }>;
+  /** Storage slots that were read but not modified during transaction execution */
+  reads: Array<{
+    /** Storage slot location */
+    slot: Hex;
+    /** Current value */
+    current: Hex;
+  }>;
 }>;
 
-export const getAccessList = async (options: GetAccessListOptions): Promise<GetAccessListResult> => {
-  const { from, to, data, client: _client, fork, rpcUrl, common } = options;
-  if (!_client && !fork && !rpcUrl)
-    throw new Error("You need to provide either rpcUrl or fork options that include a transport");
+/**
+ * Internal type representing the access list format from tevm.
+ */
+type AccessList = Record<Address, Set<Hex>>;
 
-  // Create the tevm client
-  const client =
-    _client ??
-    createMemoryClient({
-      common,
-      fork: fork ?? {
-        transport: http(rpcUrl),
-      },
-    });
-
-  const callResult = await client.tevmCall({
-    from,
-    to,
-    data,
-    blockTag: "latest",
-    skipBalance: true,
-    createAccessList: true,
-    createTransaction: true,
-  });
-
-  if (!callResult.accessList) return [];
-
-  // Get the storage values for all accessed slots before the transaction is mined
-  const storagePreTx = await getStorageForAccessList(client, callResult.accessList);
-  await client.tevmMine({ blockCount: 1 });
-  // Get values after the transaction has been included
-  const storagePostTx = await getStorageForAccessList(client, callResult.accessList);
-
-  return getAccessListsDiff(storagePreTx, storagePostTx);
-};
-
-type StorageForAccessList = Array<{
+/**
+ * Internal type representing storage values at a specific point in time.
+ */
+type StorageState = Array<{
+  /** Contract address */
   address: Address;
-  storage: Array<{ slot: Hex; value: Hex | undefined }>;
+  /** Storage slot values */
+  storage: Array<{
+    /** Storage slot location */
+    slot: Hex;
+    /** Current storage value (may be undefined) */
+    value: Hex | undefined;
+  }>;
 }>;
-const getStorageForAccessList = async (
-  client: MemoryClient,
-  accessList: Record<Address, Set<Hex>>,
-): Promise<StorageForAccessList> => {
+
+/**
+ * Fetches storage values for all slots in an access list.
+ *
+ * @param client - The memory client to use for storage queries
+ * @param accessList - The access list containing addresses and slots to query
+ * @returns Storage values for all addresses and slots in the access list
+ */
+export const fetchStorageValues = async (client: MemoryClient, accessList: AccessList): Promise<StorageState> => {
   return await Promise.all(
     Object.entries(accessList).map(async ([contractAddress, slots]) => {
       const slotValues = await Promise.all(
@@ -74,16 +60,20 @@ const getStorageForAccessList = async (
 
       return {
         address: contractAddress as Address,
-        storage: Array.from(slots).map((slot) => ({ slot, value: slotValues[slotValues.length - 1] })),
+        storage: Array.from(slots).map((slot, index) => ({ slot, value: slotValues[index] })),
       };
     }),
   );
 };
 
-const getAccessListsDiff = (
-  storagePreTx: StorageForAccessList,
-  storagePostTx: StorageForAccessList,
-): GetAccessListResult => {
+/**
+ * Analyzes storage by comparing pre and post transaction states to identify reads and writes.
+ *
+ * @param storagePreTx - Storage values before transaction execution
+ * @param storagePostTx - Storage values after transaction execution
+ * @returns Detailed analysis of storage reads and writes
+ */
+export const compareStorageStates = (storagePreTx: StorageState, storagePostTx: StorageState): StorageStatesDiff => {
   return storagePostTx.map(({ address, storage: post }) => {
     const pre = storagePreTx.find(({ address: addressPreTx }) => addressPreTx === address);
     if (!pre) throw new Error("Storage pre tx not found");
@@ -105,7 +95,7 @@ const getAccessListsDiff = (
         return !writes.some((write) => write.slot === slot);
       })
       .map(({ slot, value }) => ({ slot, current: value }))
-      // TODO: same here, no mercy
+      // TODO: no mercy here as well
       .filter((item): item is { slot: Hex; current: Hex } => item.current !== undefined);
 
     return {
