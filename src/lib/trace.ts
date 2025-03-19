@@ -3,6 +3,9 @@ import { Address, createMemoryClient, http } from "tevm";
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
 import { StorageAccessTrace, TraceStorageAccessOptions } from "@/lib/types";
 
+import { getContracts, getStorageLayout } from "./storage-layout";
+import { uniqueAddresses } from "./utils";
+
 /**
  * Analyzes storage access patterns during transaction execution.
  * Identifies which contract slots are read from and written to.
@@ -21,7 +24,7 @@ import { StorageAccessTrace, TraceStorageAccessOptions } from "@/lib/types";
 export const traceStorageAccess = async (
   options: TraceStorageAccessOptions,
 ): Promise<Record<Address, StorageAccessTrace>> => {
-  const { from, to, data, client: _client, fork, rpcUrl, common } = options;
+  const { from, to, data, client: _client, fork, rpcUrl, common, explorers } = options;
   if (!_client && !fork && !rpcUrl)
     throw new Error("You need to provide either rpcUrl or fork options that include a transport");
 
@@ -47,9 +50,12 @@ export const traceStorageAccess = async (
   });
 
   // Get all relevant addresses (contract addresses + sender + target + any created contracts)
-  const addresses = Array.from(
-    new Set([...Object.keys(callResult.accessList ?? {}), from, to, ...(callResult.createdAddresses ?? [])]),
-  ) as Address[];
+  const addresses = uniqueAddresses([
+    ...(Object.keys(callResult.accessList ?? {}) as Address[]),
+    from,
+    to,
+    ...((callResult.createdAddresses ?? []) as Address[]),
+  ]);
 
   // Get the storage and account values before the transaction is mined
   const storagePreTx = await storageSnapshot(client, callResult.accessList ?? {});
@@ -62,13 +68,8 @@ export const traceStorageAccess = async (
   const storagePostTx = await storageSnapshot(client, callResult.accessList ?? {});
   const intrinsicsPostTx = await intrinsicSnapshot(client, addresses);
 
-  // Combine results for all addresses that had activity
-  const allAddresses = Array.from(
-    new Set([...Object.keys(storagePreTx), ...Object.keys(intrinsicsPreTx)]),
-  ) as Address[];
-
   // Process each address without duplicate sorting or find operations
-  return allAddresses.reduce(
+  const trace = addresses.reduce(
     (acc, address) => {
       const preTxStorage = storagePreTx[address];
       const postTxStorage = storagePostTx[address];
@@ -92,4 +93,20 @@ export const traceStorageAccess = async (
     },
     {} as Record<Address, StorageAccessTrace>,
   );
+
+  // Filter out contracts that have no storage writes or reads (will also filter out EOAs)
+  const filteredContracts = Object.keys(trace).filter(
+    (address) =>
+      Object.keys(trace[address as Address].writes).length > 0 ||
+      Object.keys(trace[address as Address].reads).length > 0,
+  ) as Address[];
+
+  const res = await getContracts({ client, addresses: filteredContracts, explorers });
+  await Promise.all(
+    Object.entries(res).map(async ([address, contract]) => {
+      await getStorageLayout({ ...contract, address: address as Address });
+    }),
+  );
+
+  return trace;
 };

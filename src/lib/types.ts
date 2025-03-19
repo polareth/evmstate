@@ -35,6 +35,18 @@ export type TraceStorageAccessOptions = {
   rpcUrl?: string;
   /** EVM chain configuration (improves performance by avoiding fetching chain info) */
   common?: Common;
+
+  /** Explorers urls and keys to use for fetching contract sources and ABI */
+  explorers?: {
+    etherscan?: {
+      baseUrl: string;
+      apiKey?: string;
+    };
+    blockscout?: {
+      baseUrl: string;
+      apiKey?: string;
+    };
+  };
 };
 
 // TODO: change when we have something more specific (basically AccountDiff with optional labels)
