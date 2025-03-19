@@ -1,14 +1,14 @@
 import { createMemoryClient } from "tevm";
 import { createAddress } from "tevm/address";
 import { EthjsAccount } from "tevm/utils";
-import { CONTRACTS } from "@test/constants";
+import { ACCOUNTS, CONTRACTS } from "@test/constants";
 import { beforeAll, describe, it } from "vitest";
 
 import { traceStorageAccess } from "@/index";
 
 const client = createMemoryClient();
 const TransparentProxy = CONTRACTS.TransparentProxy.withAddress(`0x${"tp".repeat(20)}`);
-const admin = createAddress(`0x${"ad".repeat(20)}`);
+const { admin } = ACCOUNTS;
 
 describe("proxies", () => {
   beforeAll(async () => {

@@ -4,17 +4,18 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest run"
+    "test": "dotenvx run -f .env.test --quiet -- vitest run"
   },
   "keywords": [],
   "author": "0xpolarzero",
   "license": "MIT",
   "dependencies": {
-    "@shazow/whatsabi": "^0.20.0",
+    "@shazow/whatsabi": "^0.21.0",
     "tevm": "1.0.0-next.132",
     "viem": "^2.21.1"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "^1.39.0",
     "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
     "@tevm/ts-plugin": "1.0.0-next.131",
     "prettier": "^3.5.3",

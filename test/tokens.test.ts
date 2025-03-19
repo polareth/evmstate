@@ -1,14 +1,11 @@
-import { Address, createMemoryClient, encodeFunctionData } from "tevm";
-import { createAddress } from "tevm/address";
+import { createMemoryClient } from "tevm";
 import { EthjsAccount } from "tevm/utils";
-import { CONTRACTS } from "@test/constants";
+import { ACCOUNTS, CONTRACTS } from "@test/constants";
 import { beforeAll, describe, it } from "vitest";
-
-import { traceStorageAccess } from "@/index";
 
 const client = createMemoryClient();
 const SimpleERC20 = CONTRACTS.SimpleERC20.withAddress(`0x${"erc20".repeat(4)}`);
-const recipient = createAddress(`0x${"3".repeat(40)}`);
+const { recipient } = ACCOUNTS;
 
 describe("tokens", () => {
   beforeAll(async () => {

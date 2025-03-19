@@ -1,8 +1,6 @@
 import { createMemoryClient } from "tevm";
-import { CALLER, CONTRACTS } from "@test/constants";
+import { CONTRACTS } from "@test/constants";
 import { beforeAll, describe, it } from "vitest";
-
-import { traceStorageAccess } from "@/index";
 
 const client = createMemoryClient();
 const DelegateBase = CONTRACTS.DelegateBase.withAddress(`0x${"dc1".repeat(10)}`);

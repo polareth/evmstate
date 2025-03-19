@@ -1,16 +1,14 @@
 import { createMemoryClient } from "tevm";
 import { createAddress } from "tevm/address";
-import { EthjsAccount } from "tevm/utils";
+import { EthjsAccount, parseEther } from "tevm/utils";
 import { CONTRACTS } from "@test/constants";
-import { parseEther } from "viem";
 import { beforeAll, describe, it } from "vitest";
-
-import { traceStorageAccess } from "@/index";
 
 const client = createMemoryClient();
 const NativeTransfer = CONTRACTS.NativeTransfer.withAddress(`0x${"nt".repeat(20)}`);
 const ETHReceiver = CONTRACTS.ETHReceiver.withAddress(`0x${"rcv".repeat(10)}`);
 
+// TODO: also test with a contract sending native tokens to an EOA
 describe("native-transfers", () => {
   beforeAll(async () => {
     // Store the contracts in the accounts

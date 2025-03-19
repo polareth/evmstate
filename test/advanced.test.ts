@@ -1,8 +1,6 @@
 import { createMemoryClient } from "tevm";
-import { CALLER, CONTRACTS } from "@test/constants";
+import { CONTRACTS } from "@test/constants";
 import { beforeAll, describe, it } from "vitest";
-
-import { traceStorageAccess } from "@/index";
 
 const client = createMemoryClient();
 const AssemblyStorage = CONTRACTS.AssemblyStorage.withAddress(`0x${"a".repeat(40)}`);
