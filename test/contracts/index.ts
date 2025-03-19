@@ -13,3 +13,5 @@ export { InternalLibrary } from "./libraries/InternalLibrary.s.sol";
 export { LibraryUser } from "./libraries/LibraryUser.s.sol";
 export { TransparentProxy } from "./proxies/TransparentProxy.s.sol";
 export { SimpleERC20 } from "./tokens/SimpleERC20.s.sol";
+export { Factory, SimpleContract } from "./contract-creation/Factory.s.sol";
+export { NativeTransfer, ETHReceiver } from "./native-transfers/NativeTransfer.s.sol";
