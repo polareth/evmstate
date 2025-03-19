@@ -1,106 +1,15 @@
-import { Address, GetAccountResult, Hex, MemoryClient } from "tevm";
+import { Address, Hex, MemoryClient } from "tevm";
 
-/* --------------------------- STORAGE SLOT TYPES --------------------------- */
-/**
- * Type representing the storage at a defined slot at a specific point in time.
- */
-export type StorageSnapshot = {
-  /** Storage slot location */
-  [slot: Hex]: {
-    /** Current storage value (may be undefined) */
-    value: Hex | undefined;
-  };
-};
+import {
+  AccessList,
+  AccountDiff,
+  IntrinsicsDiff,
+  IntrinsicsSnapshot,
+  StorageReads,
+  StorageSnapshot,
+  StorageWrites,
+} from "@/lib/types";
 
-/**
- * Type representing a list of storage reads without modification.
- */
-export type StorageReads = {
-  /** Storage slot location */
-  [slot: Hex]: {
-    /** Current storage value */
-    current: Hex;
-  };
-};
-
-/**
- * Type representing a list of storage writes with modification.
- */
-export type StorageWrites = {
-  /** Storage slot location */
-  [slot: Hex]: {
-    /** Current storage value before transaction */
-    current: Hex;
-    /** New storage value after transaction */
-    next: Hex;
-  };
-};
-
-/* -------------------------- ACCOUNT STORAGE TYPES ------------------------- */
-/**
- * State fields at the intrinsic level of an account.
- *
- * @internal
- */
-type Intrinsics = Pick<GetAccountResult, "balance" | "codeHash" | "deployedBytecode" | "nonce" | "storageRoot">;
-
-/**
- * Type representing the intrinsic state of an account at a specific point in time.
- */
-export type IntrinsicsSnapshot = {
-  /** Account field identifier */
-  [K in keyof Intrinsics]: {
-    /** Current value of the field */
-    value: Intrinsics[K];
-  };
-};
-
-/**
- * Type representing the difference in intrinsic account state during transaction.
- */
-export type IntrinsicsDiff = {
-  /** Account field identifier */
-  [K in keyof Intrinsics]: {
-    /** Value before transaction */
-    current: Intrinsics[K];
-    /** Value after transaction (undefined if not modified) */
-    next?: Intrinsics[K];
-  };
-};
-
-/* -------------------------- AGGREGATED STATE TYPES -------------------------- */
-/**
- * Complete snapshot of an account's storage and account state at a point in time.
- *
- * This can represent either a contract or an EOA.
- */
-export type AccountSnapshot<EOA extends boolean = false> = {
-  /** Storage slots state (only applicable for contracts) */
-  storage: EOA extends false ? StorageSnapshot : never;
-  /** Account fields state */
-  intrinsic: IntrinsicsSnapshot;
-};
-
-/**
- * Complete difference between pre-transaction and post-transaction states for an address.
- *
- * This can represent either a contract or an EOA (Externally Owned Account).
- */
-export type AccountDiff<EOA extends boolean = false> = {
-  /** Storage slots that were read but not modified during transaction (only applicable for contracts) */
-  reads: EOA extends false ? StorageReads : never;
-  /** Storage slots that were modified during transaction (only applicable for contracts) */
-  writes: EOA extends false ? StorageWrites : never;
-  /** Account field changes during transaction */
-  intrinsic: IntrinsicsDiff;
-};
-
-/**
- * Internal type representing the access list format from tevm.
- */
-type AccessList = Record<Address, Set<Hex>>;
-
-/* -------------------------------- FUNCTIONS ------------------------------- */
 /**
  * Fetches storage values for all slots in an access list.
  *
