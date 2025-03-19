@@ -2,7 +2,15 @@ import { Address, createMemoryClient, Hex, http, MemoryClient } from "tevm";
 import { Common } from "tevm/common";
 import { ForkOptions } from "tevm/state";
 
-import { compareStorageStates, fetchStorageValues, StorageStatesDiff } from "@/lib/access-list";
+import {
+  AccountDiff,
+  createAccountDiff,
+  intrinsicDiff,
+  intrinsicSnapshot,
+  storageDiff,
+  storageSnapshot,
+} from "@/lib/access-list";
+import { getUniqueAddresses } from "@/lib/utils";
 
 /**
  * Options for analyzing storage access patterns during transaction simulation.
@@ -35,8 +43,8 @@ export type TraceStorageAccessOptions = {
   common?: Common;
 };
 
-// TODO: temp
-export type StorageAccessTrace = StorageStatesDiff;
+// Export the main diff type for external use
+export type StorageAccessTrace = AccountDiff;
 
 /**
  * Analyzes storage access patterns during transaction execution.
@@ -45,7 +53,6 @@ export type StorageAccessTrace = StorageStatesDiff;
  * @param options - {@link TraceStorageAccessOptions}
  * @returns Promise<{@link StorageAccessTrace}>
  *
- * TODO:
  * @example
  * const analysis = await traceStorageAccess({
  *   from: "0x123",
@@ -54,7 +61,9 @@ export type StorageAccessTrace = StorageStatesDiff;
  *   client: memoryClient,
  * });
  */
-export const traceStorageAccess = async (options: TraceStorageAccessOptions): Promise<StorageAccessTrace> => {
+export const traceStorageAccess = async (
+  options: TraceStorageAccessOptions,
+): Promise<Record<Address, StorageAccessTrace>> => {
   const { from, to, data, client: _client, fork, rpcUrl, common } = options;
   if (!_client && !fork && !rpcUrl)
     throw new Error("You need to provide either rpcUrl or fork options that include a transport");
@@ -80,11 +89,48 @@ export const traceStorageAccess = async (options: TraceStorageAccessOptions): Pr
     createTransaction: true,
   });
 
-  // Get the storage values for all accessed slots before the transaction is mined
-  const storagePreTx = await fetchStorageValues(client, callResult.accessList ?? {});
-  await client.tevmMine({ blockCount: 1 });
-  // Get values after the transaction has been included
-  const storagePostTx = await fetchStorageValues(client, callResult.accessList ?? {});
+  // Get all relevant addresses (contract addresses + sender)
+  const addresses = [...Object.keys(callResult.accessList ?? {}), from] as Address[];
 
-  return compareStorageStates(storagePreTx, storagePostTx);
+  // Get the storage and account values before the transaction is mined
+  const storagePreTx = await storageSnapshot(client, callResult.accessList ?? {});
+  const intrinsicsPreTx = await intrinsicSnapshot(client, addresses);
+
+  // Mine the transaction and get post-state values
+  await client.tevmMine({ blockCount: 1 });
+
+  // Get values after the transaction has been included
+  const storagePostTx = await storageSnapshot(client, callResult.accessList ?? {});
+  const intrinsicsPostTx = await intrinsicSnapshot(client, addresses);
+
+  // Combine results for all addresses that had activity
+  const allAddresses = Array.from(
+    new Set([...Object.keys(storagePreTx), ...Object.keys(intrinsicsPreTx)]),
+  ) as Address[];
+
+  // Process each address without duplicate sorting or find operations
+  return allAddresses.reduce(
+    (acc, address) => {
+      const preTxStorage = storagePreTx[address];
+      const postTxStorage = storagePostTx[address];
+      const preTxIntrinsics = intrinsicsPreTx[address];
+      const postTxIntrinsics = intrinsicsPostTx[address];
+
+      // Skip if this address has no relevant data
+      if (!preTxIntrinsics || !postTxIntrinsics)
+        throw new Error(`Missing account state information for address ${address}`);
+
+      // For EOAs (accounts without code) we won't have storage data
+      const slotsDiff =
+        preTxStorage && postTxStorage ? storageDiff(preTxStorage, postTxStorage) : { reads: {}, writes: {} };
+
+      // Compare account state changes
+      const accountDiff = intrinsicDiff(preTxIntrinsics, postTxIntrinsics);
+
+      // Combine into complete diff
+      acc[address] = createAccountDiff(slotsDiff, accountDiff);
+      return acc;
+    },
+    {} as Record<Address, StorageAccessTrace>,
+  );
 };
