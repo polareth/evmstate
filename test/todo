@@ -1,3 +1,0 @@
-Check that we have tests for (or implement):
-- tx creates a new contract (need to get its account diff at least)
-- tx sends native tokens to another account (need to get account diff, and it's probably not included in access list bc no storage access)
