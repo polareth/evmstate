@@ -1,5 +1,5 @@
 import { createMemoryClient, encodeFunctionData } from "tevm";
-import { CALLER, CONTRACTS } from "@test/constants";
+import { CONTRACTS } from "@test/constants";
 import { beforeAll, describe, it } from "vitest";
 
 import { traceStorageAccess } from "@/index";

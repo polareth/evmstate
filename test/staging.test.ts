@@ -46,6 +46,6 @@ describe("staging", () => {
       return value;
     };
 
-    // console.log(JSON.stringify(accessList, replacer, 2));
+    console.log(JSON.stringify(accessList, replacer, 2));
   });
 });

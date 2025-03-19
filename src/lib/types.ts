@@ -3,6 +3,26 @@ import { Common } from "tevm/common";
 import { ForkOptions } from "tevm/state";
 
 /* -------------------------------------------------------------------------- */
+/*                                 STORAGE LAYOUT                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Type for representing labeled storage slots
+ */
+export type LabeledStorageSlot = {
+  slot: string;
+  label: string;
+  path: string;
+  type: string;
+  encoding: string;
+  isComputed: boolean;
+  baseSlot?: string;
+  keyType?: string;
+  valueType?: string;
+  baseType?: string;
+};
+
+/* -------------------------------------------------------------------------- */
 /*                                    TRACE                                   */
 /* -------------------------------------------------------------------------- */
 

@@ -1,10 +1,26 @@
-import { Address, createMemoryClient, http } from "tevm";
+import { Address, createMemoryClient, Hex, http } from "tevm";
 
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
-import { StorageAccessTrace, TraceStorageAccessOptions } from "@/lib/types";
+import { LabeledStorageSlot, StorageAccessTrace, TraceStorageAccessOptions } from "@/lib/types";
 
-import { getContracts, getStorageLayout } from "./storage-layout";
+import { findStorageSlotLabel, getContracts, getStorageLayout, LabeledStorageSlot as StorageSlotInfo } from "./storage-layout";
 import { uniqueAddresses } from "./utils";
+
+// Type for storage slot with labels
+export type LabeledStorageAccess = {
+  label: string | null;
+  match: 'exact' | 'mapping-base' | 'array-base' | null;
+  slotInfo: StorageSlotInfo | null;
+  value: Hex; // For reads
+  oldValue?: Hex; // For writes (previous value)
+  newValue?: Hex; // For writes (new value)
+};
+
+// Enhanced trace with labels
+export type EnhancedStorageAccessTrace = StorageAccessTrace & {
+  labeledReads: Record<Hex, LabeledStorageAccess>;
+  labeledWrites: Record<Hex, LabeledStorageAccess>;
+};
 
 /**
  * Analyzes storage access patterns during transaction execution.
@@ -23,7 +39,7 @@ import { uniqueAddresses } from "./utils";
  */
 export const traceStorageAccess = async (
   options: TraceStorageAccessOptions,
-): Promise<Record<Address, StorageAccessTrace>> => {
+): Promise<Record<Address, EnhancedStorageAccessTrace>> => {
   const { from, to, data, client: _client, fork, rpcUrl, common, explorers } = options;
   if (!_client && !fork && !rpcUrl)
     throw new Error("You need to provide either rpcUrl or fork options that include a transport");
@@ -68,8 +84,30 @@ export const traceStorageAccess = async (
   const storagePostTx = await storageSnapshot(client, callResult.accessList ?? {});
   const intrinsicsPostTx = await intrinsicSnapshot(client, addresses);
 
-  // Process each address without duplicate sorting or find operations
-  const trace = addresses.reduce(
+  // Get contracts' storage layouts
+  const filteredContracts = addresses.filter(address => {
+    const preTxStorage = storagePreTx[address];
+    const postTxStorage = storagePostTx[address];
+    return preTxStorage && postTxStorage;
+  });
+
+  const contractsInfo = await getContracts({ client, addresses: filteredContracts, explorers });
+  
+  // Map to store storage layouts per contract
+  const storageLayouts: Record<Address, Array<LabeledStorageSlot>> = {};
+  
+  // Get storage layouts for each contract
+  await Promise.all(
+    Object.entries(contractsInfo).map(async ([address, contract]) => {
+      const layoutResult = await getStorageLayout({ ...contract, address: address as Address });
+      if (layoutResult?.labeledSlots) {
+        storageLayouts[address as Address] = layoutResult.labeledSlots;
+      }
+    }),
+  );
+
+  // Process each address and create enhanced trace with labels
+  const enhancedTrace = addresses.reduce(
     (acc, address) => {
       const preTxStorage = storagePreTx[address];
       const postTxStorage = storagePostTx[address];
@@ -88,25 +126,48 @@ export const traceStorageAccess = async (
       const accountDiff = intrinsicDiff(preTxIntrinsics, postTxIntrinsics);
 
       // Combine into complete diff
-      acc[address] = createAccountDiff(slotsDiff, accountDiff);
+      const trace = createAccountDiff(slotsDiff, accountDiff);
+      
+      // Get storage layout for this contract
+      const contractLayout = storageLayouts[address];
+      
+      // Create labeled reads
+      const labeledReads: Record<Hex, LabeledStorageAccess> = {};
+      if (contractLayout) {
+        Object.entries(trace.reads).forEach(([slotHex, { current }]) => {
+          const slotLabel = findStorageSlotLabel(slotHex.slice(2), contractLayout);
+          labeledReads[slotHex as Hex] = {
+            ...slotLabel,
+            value: current,
+          };
+        });
+      }
+      
+      // Create labeled writes
+      const labeledWrites: Record<Hex, LabeledStorageAccess> = {};
+      if (contractLayout) {
+        Object.entries(trace.writes).forEach(([slotHex, { current, next }]) => {
+          const slotLabel = findStorageSlotLabel(slotHex.slice(2), contractLayout);
+          labeledWrites[slotHex as Hex] = {
+            ...slotLabel,
+            value: next, // Use the new value as the "value" property
+            oldValue: current,
+            newValue: next,
+          };
+        });
+      }
+      
+      // Create enhanced trace with labels
+      acc[address] = {
+        ...trace,
+        labeledReads,
+        labeledWrites,
+      };
+      
       return acc;
     },
-    {} as Record<Address, StorageAccessTrace>,
+    {} as Record<Address, EnhancedStorageAccessTrace>,
   );
 
-  // Filter out contracts that have no storage writes or reads (will also filter out EOAs)
-  const filteredContracts = Object.keys(trace).filter(
-    (address) =>
-      Object.keys(trace[address as Address].writes).length > 0 ||
-      Object.keys(trace[address as Address].reads).length > 0,
-  ) as Address[];
-
-  const res = await getContracts({ client, addresses: filteredContracts, explorers });
-  await Promise.all(
-    Object.entries(res).map(async ([address, contract]) => {
-      await getStorageLayout({ ...contract, address: address as Address });
-    }),
-  );
-
-  return trace;
+  return enhancedTrace;
 };

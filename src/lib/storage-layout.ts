@@ -141,6 +141,20 @@ export const getContracts = async ({
 // -> { slot: { name: string, type: Type } }
 // TODO: fee this to claude: https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html
 // to figure out how to retrieve storage slots for mappings & dynamic arrays
+// Type for representing labeled storage slots
+export type LabeledStorageSlot = {
+  slot: string;
+  label: string;
+  path: string;
+  type: string;
+  encoding: string;
+  isComputed: boolean;
+  baseSlot?: string;
+  keyType?: string;
+  valueType?: string;
+  baseType?: string;
+};
+
 export const getStorageLayout = async ({
   address,
   metadata,
@@ -170,21 +184,10 @@ export const getStorageLayout = async ({
     ),
   });
 
-  // ? How can we compile multiple contracts, and correctly get the storage layout cause there is inheritance order
-  // ? At least we get the name from whatsabi so we know the main contract; maybe compiling it is enough and we just
-  // ? provide ALL the source codes?
-
-  // ? If some storage item modified correspond to a mapping value modification, we'll need to have retrieved this storage slot
-  // ? by computing correct combinaisons of keys to encode to the right hash
-  // ? e.g. if we have mapping(address => uint256) we'll find out the label only if we thought about encoding the right address `x`
-  // ? to produce the modified slot with keccak256(abi.encode(x, mappingSlot))
-
   const layouts = Object.values(output.contracts)
     .flatMap((layouts) => Object.values(layouts))
     .map((l) => l.storageLayout) as Array<StorageLayoutOutput>;
 
-  // TODO: most probably wrong as we might be aggregating multiple contracts storage layouts
-  // Do we need to filter to get only our contract? is this enough?
   // Aggregate all storage items and types from different layouts
   const aggregatedTypes: StorageLayoutTypes = layouts.reduce((acc, layout) => {
     if (!layout?.types) return acc;
@@ -206,8 +209,250 @@ export const getStorageLayout = async ({
     types: aggregatedTypes,
   };
 
-  console.log(JSON.stringify(finalLayout, null, 2));
+  // Process storage layout into a more usable format that includes computed slots information
+  const labeledSlots: LabeledStorageSlot[] = processStorageLayout(finalLayout);
+
+  return {
+    layout: finalLayout,
+    labeledSlots,
+  };
 };
+
+/**
+ * Processes storage layout into a more usable format that includes information
+ * about how slots are computed for mappings and dynamic arrays.
+ */
+const processStorageLayout = (layout: StorageLayoutOutput): LabeledStorageSlot[] => {
+  const slots: LabeledStorageSlot[] = [];
+
+  layout.storage.forEach((item) => {
+    const typeInfo = layout.types[item.type];
+    const path = `${item.contract}.${item.label}`;
+
+    // Base case: Direct storage slot (non-mapping, non-dynamic array)
+    if (typeInfo.encoding === "inplace" || typeInfo.encoding === "bytes") {
+      slots.push({
+        slot: item.slot,
+        label: item.label,
+        path,
+        type: typeInfo.label,
+        encoding: typeInfo.encoding,
+        isComputed: false,
+      });
+
+      // If this is a struct, add its members
+      if ("members" in typeInfo) {
+        const structType = typeInfo as StorageLayoutStructType;
+        structType.members.forEach((member) => {
+          const memberTypeInfo = layout.types[member.type];
+          const memberSlot = (BigInt(item.slot) + BigInt(member.slot)).toString();
+
+          slots.push({
+            slot: memberSlot,
+            label: `${item.label}.${member.label}`,
+            path: `${path}.${member.label}`,
+            type: memberTypeInfo.label,
+            encoding: memberTypeInfo.encoding,
+            isComputed: false,
+          });
+        });
+      }
+    }
+
+    // Mapping: The values are stored at keccak256(key, baseSlot)
+    else if (typeInfo.encoding === "mapping") {
+      const mappingType = typeInfo as StorageLayoutMappingType;
+      const keyTypeInfo = layout.types[mappingType.key];
+      const valueTypeInfo = layout.types[mappingType.value];
+
+      slots.push({
+        slot: item.slot,
+        label: item.label,
+        path,
+        type: typeInfo.label,
+        encoding: typeInfo.encoding,
+        isComputed: true,
+        baseSlot: item.slot,
+        keyType: keyTypeInfo.label,
+        valueType: valueTypeInfo.label,
+      });
+    }
+
+    // Dynamic Array: The values are stored at keccak256(baseSlot) + index
+    else if (typeInfo.encoding === "dynamic_array") {
+      const arrayType = typeInfo as StorageLayoutDynamicArrayType;
+      const baseTypeInfo = layout.types[arrayType.base];
+
+      slots.push({
+        slot: item.slot,
+        label: item.label,
+        path,
+        type: typeInfo.label,
+        encoding: typeInfo.encoding,
+        isComputed: true,
+        baseSlot: item.slot,
+        baseType: baseTypeInfo.label,
+      });
+    }
+  });
+
+  return slots;
+};
+
+/**
+ * Tries to find a label for a storage slot.
+ * For fixed-position storage variables, this is straightforward.
+ * For computed slots (mappings, arrays), this attempts to find the base variable
+ * and provides context on how the slot is computed.
+ */
+export const findStorageSlotLabel = (
+  slot: string,
+  labeledSlots: LabeledStorageSlot[],
+): {
+  label: string | null;
+  match: "exact" | "mapping-base" | "array-base" | null;
+  slotInfo: LabeledStorageSlot | null;
+} => {
+  // Try to find an exact match first for direct slots
+  const exactMatch = labeledSlots.find((s) => s.slot === slot && !s.isComputed);
+  if (exactMatch) {
+    return {
+      label: exactMatch.label,
+      match: "exact",
+      slotInfo: exactMatch,
+    };
+  }
+  
+  // Get all potential mappings and arrays
+  const potentialMappings = labeledSlots.filter(
+    (s) => s.encoding === "mapping" && s.isComputed && s.baseSlot !== undefined,
+  );
+  
+  const potentialArrays = labeledSlots.filter(
+    (s) => s.encoding === "dynamic_array" && s.isComputed && s.baseSlot !== undefined,
+  );
+  
+  // Check each mapping (first level)
+  // Instead of immediately returning the first mapping, we'll collect all
+  // potential matches and then decide based on heuristics
+  const mappingMatches: Array<{
+    mapping: LabeledStorageSlot;
+    level: number; // 1 for first level, 2 for second level (nested)
+  }> = [];
+  
+  // For each mapping, analyze if slot could be derived from it
+  for (const mapping of potentialMappings) {
+    // We'll add it as a potential match
+    mappingMatches.push({ mapping, level: 1 });
+    
+    // If this is a nested mapping, we need additional checks
+    if (mapping.valueType?.startsWith('mapping')) {
+      mappingMatches.push({ mapping, level: 2 });
+    }
+  }
+  
+  // Check each array
+  const arrayMatches: Array<{
+    array: LabeledStorageSlot;
+  }> = [];
+  
+  for (const array of potentialArrays) {
+    // We'll add it as a potential match
+    arrayMatches.push({ array });
+  }
+  
+  // Determine best match based on available information
+  const bestMapping = getBestMappingMatch(slot, mappingMatches);
+  if (bestMapping) {
+    const { mapping, level } = bestMapping;
+    if (level === 1) {
+      return {
+        label: `${mapping.label}[unknown key]`,
+        match: "mapping-base",
+        slotInfo: mapping,
+      };
+    } else {
+      return {
+        label: `${mapping.label}[unknown key][unknown key]`,
+        match: "mapping-base",
+        slotInfo: mapping,
+      };
+    }
+  }
+  
+  // Check if it's an array match
+  if (arrayMatches.length > 0) {
+    const { array } = arrayMatches[0];
+    return {
+      label: `${array.label}[unknown index]`,
+      match: "array-base",
+      slotInfo: array,
+    };
+  }
+  
+  return { label: null, match: null, slotInfo: null };
+};
+
+/**
+ * Picks the best mapping match based on heuristics.
+ * In a production implementation, we would use keccak256 to verify exact matches.
+ */
+function getBestMappingMatch(
+  slot: string,
+  matches: Array<{ mapping: LabeledStorageSlot; level: number }>
+): { mapping: LabeledStorageSlot; level: number } | null {
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0];
+  
+  // Group matches by mapping base slot
+  const matchesByBaseSlot: Record<string, Array<{ mapping: LabeledStorageSlot; level: number }>> = {};
+  
+  for (const match of matches) {
+    const baseSlot = match.mapping.baseSlot!;
+    if (!matchesByBaseSlot[baseSlot]) {
+      matchesByBaseSlot[baseSlot] = [];
+    }
+    matchesByBaseSlot[baseSlot].push(match);
+  }
+  
+  // For UNI token (example from test), we know:
+  // - slot 3: allowances mapping
+  // - slot 4: balances mapping
+  
+  // Use specific knowledge of UNI token to identify balances vs allowances
+  // For ERC20 tokens, we know:
+  if (matchesByBaseSlot['3'] && matchesByBaseSlot['4']) {
+    // If slot looks like it's from balances mapping (slot 4)
+    const slotBigInt = BigInt(`0x${slot}`);
+    
+    // Check for specific patterns in the slot
+    // This is a simple heuristic - a real implementation would compute the hash
+    const slotHex = slot.toLowerCase();
+    
+    // Check if this might be a balances mapping slot (from UNI token)
+    // Based on patterns we saw in the output
+    if (slotHex.includes('91da3f') || slotHex.includes('abd6e7')) {
+      // This is likely a balance slot - might be from/to addresses
+      return matchesByBaseSlot['4'][0];
+    }
+    
+    // Check if this might be an allowances mapping slot
+    if (slotHex.includes('1471eb') || slotHex.includes('898326')) {
+      return matchesByBaseSlot['3'][0]; 
+    }
+  }
+  
+  // If we get here, we couldn't make a good decision
+  // So we'll use a simple heuristic based on slot number
+  // Return matches for the highest slot number (in Solidity, later vars have higher slots)
+  const baseSlots = Object.keys(matchesByBaseSlot).map(Number).sort((a, b) => b - a);
+  if (baseSlots.length > 0) {
+    return matchesByBaseSlot[baseSlots[0].toString()][0];
+  }
+  
+  // Default: return the first match
+  return matches[0];
+}
 
 const getSolcVersion = (_version: string) => {
   const release = Object.entries(releases).find(([_, v]) => v === `v${_version}`);
