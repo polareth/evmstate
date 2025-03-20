@@ -26,6 +26,14 @@ contract StoragePacking {
         someAddress = _addr;
     }
     
+    function setData(bytes32 _data) public {
+        data = _data;
+    }
+    
+    function getData() public view returns (bytes32) {
+        return data;
+    }
+    
     function setSmallValue1(uint8 _value) public {
         smallValue1 = _value;
     }
