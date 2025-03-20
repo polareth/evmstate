@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.23;
 
 contract StoragePacking {
     // These variables will be packed into a single storage slot
@@ -24,6 +24,14 @@ contract StoragePacking {
         smallValue2 = _value2;
         flag = _flag;
         someAddress = _addr;
+    }
+    
+    function setData(bytes32 _data) public {
+        data = _data;
+    }
+    
+    function getData() public view returns (bytes32) {
+        return data;
     }
     
     function setSmallValue1(uint8 _value) public {

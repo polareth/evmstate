@@ -1,3 +1,6 @@
 node_modules
 dist
 .tevm
+.env.test
+.tsbuildinfo
+.llm_refs

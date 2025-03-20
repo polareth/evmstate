@@ -20,5 +20,5 @@
     "tsBuildInfoFile": "./.tsbuildinfo"
   },
   "include": ["src", "test"],
-  "exclude": ["node_modules", "dist", ".tevm", "**/*.sol", "**/*.s.sol"]
+  "exclude": ["node_modules", "dist", ".tevm"]
 }

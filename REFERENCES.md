@@ -14,6 +14,10 @@
 3. Run tx with tevm, dump storage of these accounts
 4. Compare for each and interpret
 
+## TODO
+
+- create a Tracer class that takes the args and env and can be user to trace by just providing tx
+
 ## Listen to steps during call
 
 This might be useful for listening to EVM steps and maybe grab all storage updates accurately
