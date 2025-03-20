@@ -1,5 +1,5 @@
-export { traceStorageAccess, type LabeledStorageAccess, type EnhancedStorageAccessTrace } from "@/lib/trace";
-export { findStorageSlotLabel } from "@/lib/storage-layout";
+export { traceStorageAccess } from "@/lib/trace";
+export { findBestStorageSlotLabel } from "@/lib/slot-engine";
 export type {
   StorageAccessTrace,
   TraceStorageAccessOptions,
@@ -7,5 +7,6 @@ export type {
   StorageWrites,
   IntrinsicsDiff,
   AccountDiff,
-  LabeledStorageSlot,
+  LabeledStorageRead,
+  LabeledStorageWrite,
 } from "@/lib/types";

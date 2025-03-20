@@ -62,7 +62,7 @@ const setupContractsMock = () => {
               compilerVersion: "0.8.23+commit.f704f362",
             },
             sources: [{ path: contract.name, content: getContractCode(contract.name ?? "") }],
-          } as const satisfies storageLayout.GetContractsResult[Address],
+          },
         ];
       }),
     );

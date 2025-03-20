@@ -1,89 +1,23 @@
 import { Address, MemoryClient } from "tevm";
-import { createSolc, releases, SolcContractOutput, SolcSettings } from "tevm/bundler/solc";
+import { createSolc, releases, SolcSettings } from "tevm/bundler/solc";
 import { randomBytes } from "tevm/utils";
 import { autoload, loaders } from "@shazow/whatsabi";
 
-import { TraceStorageAccessOptions } from "@/lib/types";
-
-export type GetContractsOptions = {
-  client: MemoryClient;
-  addresses: Array<Address>;
-  explorers?: TraceStorageAccessOptions["explorers"];
-};
-
-export type GetContractsResult = Record<
-  Address,
-  {
-    metadata: {
-      name?: string;
-      evmVersion?: string;
-      compilerVersion?: string;
-    };
-    sources?: Array<{ path?: string; content: string }>;
-  }
->;
-
-// WARNING: the following types are experimental (?) and subject to change in non breaking releases
-// Define the base structure for all storage layout types
-export interface StorageLayoutTypeBase {
-  encoding: "inplace" | "mapping" | "dynamic_array" | "bytes";
-  label: string;
-  numberOfBytes: string;
-}
-
-// Define specific storage layout types with their unique properties
-export interface StorageLayoutInplaceType extends StorageLayoutTypeBase {
-  encoding: "inplace";
-}
-
-export interface StorageLayoutBytesType extends StorageLayoutTypeBase {
-  encoding: "bytes";
-}
-
-export interface StorageLayoutMappingType extends StorageLayoutTypeBase {
-  encoding: "mapping";
-  key: `t_${string}`;
-  value: `t_${string}`;
-}
-
-export interface StorageLayoutDynamicArrayType extends StorageLayoutTypeBase {
-  encoding: "dynamic_array";
-  base: `t_${string}`;
-}
-
-export interface StorageLayoutStructType extends StorageLayoutInplaceType {
-  members: Array<StorageLayoutItem>;
-}
-
-// Union of all possible storage layout types
-export type StorageLayoutType =
-  | StorageLayoutInplaceType
-  | StorageLayoutBytesType
-  | StorageLayoutMappingType
-  | StorageLayoutDynamicArrayType
-  | StorageLayoutStructType;
-
-// Type-safe record of storage layout types
-export type StorageLayoutTypes = Record<`t_${string}`, StorageLayoutType>;
-
-// Type-safe storage layout item that references a type in StorageLayoutTypes
-export type StorageLayoutItem<T extends StorageLayoutTypes = StorageLayoutTypes> = {
-  astId: number;
-  contract: string;
-  label: string;
-  offset: number;
-  slot: string;
-  type: keyof T;
-};
-
-// Type-safe storage layout output
-export type StorageLayoutOutput<T extends StorageLayoutTypes = StorageLayoutTypes> = {
-  storage: Array<StorageLayoutItem<T>>;
-  types: T;
-};
+import {
+  GetContractsOptions,
+  GetContractsResult,
+  StorageLayoutItem,
+  StorageLayoutOutput,
+  StorageLayoutType,
+  StorageLayoutTypes,
+  StorageSlotInfo,
+} from "@/lib/types";
 
 const ignoredSourcePaths = ["metadata.json", "creator-tx-hash.txt", "immutable-references"];
 
+/**
+ * Fetches contract information for a list of addresses using external services
+ */
 export const getContracts = async ({
   client,
   addresses,
@@ -133,101 +67,104 @@ export const getContracts = async ({
   }
 };
 
-// -> { slot: { name: string, type: Type } }
-// TODO: fee this to claude: https://docs.soliditylang.org/en/latest/internals/layout_in_storage.html
-// to figure out how to retrieve storage slots for mappings & dynamic arrays
-// Type for representing labeled storage slots
-export type LabeledStorageSlot = {
-  slot: string;
-  label: string;
-  path: string;
-  type: string;
-  encoding: string;
-  isComputed: boolean;
-  baseSlot?: string;
-  keyType?: string;
-  valueType?: string;
-  baseType?: string;
-};
-
+/**
+ * Gets the storage layout for a contract from its sources and metadata
+ */
 export const getStorageLayout = async ({
   address,
   metadata,
   sources,
 }: GetContractsResult[Address] & { address: Address }) => {
   const { compilerVersion, evmVersion } = metadata;
-  if (!compilerVersion) throw new Error("Could not get compiler version");
-  if (!evmVersion) throw new Error("Could not get evm version");
-  if (!sources) throw new Error("Could not get contract sources");
 
-  const solc = await createSolc(getSolcVersion(compilerVersion));
-  const output = solc.compile({
-    language: "Solidity",
-    settings: {
-      evmVersion: metadata.evmVersion as SolcSettings["evmVersion"],
-      outputSelection: {
-        "*": {
-          "*": ["storageLayout"],
+  // Return empty layout if we're missing critical information
+  if (!compilerVersion || !evmVersion || !sources || sources.length === 0) {
+    console.warn(`Missing compiler info for ${address}. Cannot generate storage layout.`);
+    return {
+      layout: { storage: [], types: {} },
+      labeledSlots: [],
+    };
+  }
+
+  try {
+    const solc = await createSolc(getSolcVersion(compilerVersion));
+    const output = solc.compile({
+      language: "Solidity",
+      settings: {
+        evmVersion: metadata.evmVersion as SolcSettings["evmVersion"],
+        outputSelection: {
+          "*": {
+            "*": ["storageLayout"],
+          },
         },
       },
-    },
-    sources: Object.fromEntries(
-      sources.map(({ path, content }) =>
-        // TODO: actual random uuid or whatever
-        [path ?? randomBytes(8).toString(), { content }],
-      ),
-    ),
-  });
+      sources: Object.fromEntries(sources.map(({ path, content }) => [path ?? randomBytes(8).toString(), { content }])),
+    });
 
-  const layouts = Object.values(output.contracts)
-    .flatMap((layouts) => Object.values(layouts))
-    .map((l) => l.storageLayout) as Array<StorageLayoutOutput>;
+    const layouts = Object.values(output.contracts)
+      .flatMap((layouts) => Object.values(layouts))
+      .map((l) => l.storageLayout) as Array<StorageLayoutOutput>;
 
-  // Aggregate all storage items and types from different layouts
-  const aggregatedTypes: StorageLayoutTypes = layouts.reduce((acc, layout) => {
-    if (!layout?.types) return acc;
-    return { ...acc, ...layout.types };
-  }, {} as StorageLayoutTypes);
+    // Aggregate all storage items and types from different layouts
+    const aggregatedTypes: StorageLayoutTypes = layouts.reduce((acc, layout) => {
+      if (!layout?.types) return acc;
+      return { ...acc, ...layout.types };
+    }, {} as StorageLayoutTypes);
 
-  // Now that we have all types, we can properly type the storage items
-  const aggregatedStorage: Array<StorageLayoutItem<typeof aggregatedTypes>> = layouts.reduce(
-    (acc, layout) => {
-      if (!layout?.storage) return acc;
-      return [...acc, ...layout.storage];
-    },
-    [] as Array<StorageLayoutItem<typeof aggregatedTypes>>,
-  );
+    // Now that we have all types, we can properly type the storage items
+    const aggregatedStorage: Array<StorageLayoutItem<typeof aggregatedTypes>> = layouts.reduce(
+      (acc, layout) => {
+        if (!layout?.storage) return acc;
+        return [...acc, ...layout.storage];
+      },
+      [] as Array<StorageLayoutItem<typeof aggregatedTypes>>,
+    );
 
-  // Create the final storage layout with properly typed relationships
-  const finalLayout: StorageLayoutOutput<typeof aggregatedTypes> = {
-    storage: aggregatedStorage,
-    types: aggregatedTypes,
-  };
+    // Create the final storage layout with properly typed relationships
+    const finalLayout: StorageLayoutOutput<typeof aggregatedTypes> = {
+      storage: aggregatedStorage,
+      types: aggregatedTypes,
+    };
 
-  // Process storage layout into a more usable format that includes computed slots information
-  const labeledSlots: LabeledStorageSlot[] = processStorageLayout(finalLayout);
+    // Process storage layout into a more usable format
+    const labeledSlots: StorageSlotInfo[] = processStorageLayout(finalLayout);
 
-  return {
-    layout: finalLayout,
-    labeledSlots,
-  };
+    return {
+      layout: finalLayout,
+      labeledSlots,
+    };
+  } catch (error) {
+    console.error(`Error generating storage layout for ${address}:`, error);
+    return {
+      layout: { storage: [], types: {} },
+      labeledSlots: [],
+    };
+  }
 };
 
 /**
- * Processes storage layout into a more usable format that includes information
- * about how slots are computed for mappings and dynamic arrays.
+ * Processes storage layout from the Solidity compiler into a more usable format.
+ * Handles static variables, mappings, arrays, and structs.
  */
-const processStorageLayout = (layout: StorageLayoutOutput): LabeledStorageSlot[] => {
-  const slots: LabeledStorageSlot[] = [];
+// TODO: review
+const processStorageLayout = (layout: StorageLayoutOutput): StorageSlotInfo[] => {
+  const slots: StorageSlotInfo[] = [];
+
+  // Helper to normalize slot numbers to consistent format
+  const normalizeSlot = (slot: string): string => {
+    if (!slot) return "0";
+    return slot.toString().toLowerCase().replace(/^0x/, "");
+  };
 
   layout.storage.forEach((item) => {
     const typeInfo = layout.types[item.type];
     const path = `${item.contract}.${item.label}`;
+    const normalizedSlot = normalizeSlot(item.slot);
 
     // Base case: Direct storage slot (non-mapping, non-dynamic array)
     if (typeInfo.encoding === "inplace" || typeInfo.encoding === "bytes") {
       slots.push({
-        slot: item.slot,
+        slot: `0x${normalizedSlot}`,
         label: item.label,
         path,
         type: typeInfo.label,
@@ -237,13 +174,14 @@ const processStorageLayout = (layout: StorageLayoutOutput): LabeledStorageSlot[]
 
       // If this is a struct, add its members
       if ("members" in typeInfo) {
-        const structType = typeInfo as StorageLayoutStructType;
+        const structType = typeInfo as StorageLayoutType & { members: StorageLayoutItem[] };
         structType.members.forEach((member) => {
           const memberTypeInfo = layout.types[member.type];
-          const memberSlot = (BigInt(item.slot) + BigInt(member.slot)).toString();
+          const memberSlotBigInt = BigInt("0x" + normalizedSlot) + BigInt(member.slot);
+          const memberSlot = memberSlotBigInt.toString(16);
 
           slots.push({
-            slot: memberSlot,
+            slot: `0x${memberSlot}`,
             label: `${item.label}.${member.label}`,
             path: `${path}.${member.label}`,
             type: memberTypeInfo.label,
@@ -253,39 +191,41 @@ const processStorageLayout = (layout: StorageLayoutOutput): LabeledStorageSlot[]
         });
       }
     }
-
     // Mapping: The values are stored at keccak256(key, baseSlot)
     else if (typeInfo.encoding === "mapping") {
-      const mappingType = typeInfo as StorageLayoutMappingType;
+      const mappingType = typeInfo as StorageLayoutType & {
+        key: `t_${string}`;
+        value: `t_${string}`;
+      };
+
       const keyTypeInfo = layout.types[mappingType.key];
       const valueTypeInfo = layout.types[mappingType.value];
 
       slots.push({
-        slot: item.slot,
+        slot: `0x${normalizedSlot}`,
         label: item.label,
         path,
         type: typeInfo.label,
         encoding: typeInfo.encoding,
         isComputed: true,
-        baseSlot: item.slot,
+        baseSlot: normalizedSlot,
         keyType: keyTypeInfo.label,
         valueType: valueTypeInfo.label,
       });
     }
-
     // Dynamic Array: The values are stored at keccak256(baseSlot) + index
     else if (typeInfo.encoding === "dynamic_array") {
-      const arrayType = typeInfo as StorageLayoutDynamicArrayType;
+      const arrayType = typeInfo as StorageLayoutType & { base: `t_${string}` };
       const baseTypeInfo = layout.types[arrayType.base];
 
       slots.push({
-        slot: item.slot,
+        slot: `0x${normalizedSlot}`,
         label: item.label,
         path,
         type: typeInfo.label,
         encoding: typeInfo.encoding,
         isComputed: true,
-        baseSlot: item.slot,
+        baseSlot: normalizedSlot,
         baseType: baseTypeInfo.label,
       });
     }
@@ -295,164 +235,30 @@ const processStorageLayout = (layout: StorageLayoutOutput): LabeledStorageSlot[]
 };
 
 /**
- * Tries to find a label for a storage slot.
- * For fixed-position storage variables, this is straightforward.
- * For computed slots (mappings, arrays), this attempts to find the base variable
- * and provides context on how the slot is computed.
+ * Converts a compiler version string to a recognized solc version
  */
-export const findStorageSlotLabel = (
-  slot: string,
-  labeledSlots: LabeledStorageSlot[],
-): {
-  label: string | null;
-  match: "exact" | "mapping-base" | "array-base" | null;
-  slotInfo: LabeledStorageSlot | null;
-} => {
-  // Try to find an exact match first for direct slots
-  const exactMatch = labeledSlots.find((s) => s.slot === slot && !s.isComputed);
-  if (exactMatch) {
-    return {
-      label: exactMatch.label,
-      match: "exact",
-      slotInfo: exactMatch,
-    };
-  }
-
-  // Get all potential mappings and arrays
-  const potentialMappings = labeledSlots.filter(
-    (s) => s.encoding === "mapping" && s.isComputed && s.baseSlot !== undefined,
-  );
-
-  const potentialArrays = labeledSlots.filter(
-    (s) => s.encoding === "dynamic_array" && s.isComputed && s.baseSlot !== undefined,
-  );
-
-  // Check each mapping (first level)
-  // Instead of immediately returning the first mapping, we'll collect all
-  // potential matches and then decide based on heuristics
-  const mappingMatches: Array<{
-    mapping: LabeledStorageSlot;
-    level: number; // 1 for first level, 2 for second level (nested)
-  }> = [];
-
-  // For each mapping, analyze if slot could be derived from it
-  for (const mapping of potentialMappings) {
-    // We'll add it as a potential match
-    mappingMatches.push({ mapping, level: 1 });
-
-    // If this is a nested mapping, we need additional checks
-    if (mapping.valueType?.startsWith("mapping")) {
-      mappingMatches.push({ mapping, level: 2 });
-    }
-  }
-
-  // Check each array
-  const arrayMatches: Array<{
-    array: LabeledStorageSlot;
-  }> = [];
-
-  for (const array of potentialArrays) {
-    // We'll add it as a potential match
-    arrayMatches.push({ array });
-  }
-
-  // Determine best match based on available information
-  const bestMapping = getBestMappingMatch(slot, mappingMatches);
-  if (bestMapping) {
-    const { mapping, level } = bestMapping;
-    if (level === 1) {
-      return {
-        label: `${mapping.label}[unknown key]`,
-        match: "mapping-base",
-        slotInfo: mapping,
-      };
-    } else {
-      return {
-        label: `${mapping.label}[unknown key][unknown key]`,
-        match: "mapping-base",
-        slotInfo: mapping,
-      };
-    }
-  }
-
-  // Check if it's an array match
-  if (arrayMatches.length > 0) {
-    const { array } = arrayMatches[0];
-    return {
-      label: `${array.label}[unknown index]`,
-      match: "array-base",
-      slotInfo: array,
-    };
-  }
-
-  return { label: null, match: null, slotInfo: null };
-};
-
-/**
- * Picks the best mapping match based on heuristics.
- * In a production implementation, we would use keccak256 to verify exact matches.
- */
-function getBestMappingMatch(
-  slot: string,
-  matches: Array<{ mapping: LabeledStorageSlot; level: number }>,
-): { mapping: LabeledStorageSlot; level: number } | null {
-  if (matches.length === 0) return null;
-  if (matches.length === 1) return matches[0];
-
-  // Group matches by mapping base slot
-  const matchesByBaseSlot: Record<string, Array<{ mapping: LabeledStorageSlot; level: number }>> = {};
-
-  for (const match of matches) {
-    const baseSlot = match.mapping.baseSlot!;
-    if (!matchesByBaseSlot[baseSlot]) {
-      matchesByBaseSlot[baseSlot] = [];
-    }
-    matchesByBaseSlot[baseSlot].push(match);
-  }
-
-  // For UNI token (example from test), we know:
-  // - slot 3: allowances mapping
-  // - slot 4: balances mapping
-
-  // Use specific knowledge of UNI token to identify balances vs allowances
-  // For ERC20 tokens, we know:
-  if (matchesByBaseSlot["3"] && matchesByBaseSlot["4"]) {
-    // If slot looks like it's from balances mapping (slot 4)
-    const slotBigInt = BigInt(`0x${slot}`);
-
-    // Check for specific patterns in the slot
-    // This is a simple heuristic - a real implementation would compute the hash
-    const slotHex = slot.toLowerCase();
-
-    // Check if this might be a balances mapping slot (from UNI token)
-    // Based on patterns we saw in the output
-    if (slotHex.includes("91da3f") || slotHex.includes("abd6e7")) {
-      // This is likely a balance slot - might be from/to addresses
-      return matchesByBaseSlot["4"][0];
-    }
-
-    // Check if this might be an allowances mapping slot
-    if (slotHex.includes("1471eb") || slotHex.includes("898326")) {
-      return matchesByBaseSlot["3"][0];
-    }
-  }
-
-  // If we get here, we couldn't make a good decision
-  // So we'll use a simple heuristic based on slot number
-  // Return matches for the highest slot number (in Solidity, later vars have higher slots)
-  const baseSlots = Object.keys(matchesByBaseSlot)
-    .map(Number)
-    .sort((a, b) => b - a);
-  if (baseSlots.length > 0) {
-    return matchesByBaseSlot[baseSlots[0].toString()][0];
-  }
-
-  // Default: return the first match
-  return matches[0];
-}
-
 const getSolcVersion = (_version: string) => {
-  const release = Object.entries(releases).find(([_, v]) => v === `v${_version}`);
-  if (!release) throw new Error(`Solc version ${_version} not found`);
-  return release[0] as keyof typeof releases;
+  try {
+    // Try exact version match first
+    const release = Object.entries(releases).find(([_, v]) => v === `v${_version}`);
+    if (release) return release[0] as keyof typeof releases;
+
+    // Try approximate match (e.g. 0.8.17 might match with 0.8.19)
+    const majorMinor = _version.split(".").slice(0, 2).join(".");
+    const fallbackRelease = Object.entries(releases)
+      .filter(([_, v]) => v.startsWith(`v${majorMinor}`))
+      .sort((a, b) => b[1].localeCompare(a[1]))[0]; // Sort to get latest
+
+    if (fallbackRelease) {
+      console.warn(`Exact Solc version ${_version} not found, using ${fallbackRelease[1]}`);
+      return fallbackRelease[0] as keyof typeof releases;
+    }
+
+    // Default to a recent 0.8.x version
+    console.warn(`No compatible Solc version for ${_version}, using fallback`);
+    return "0.8.17" as keyof typeof releases;
+  } catch (error) {
+    console.error(`Error finding Solc version for ${_version}:`, error);
+    return "0.8.17" as keyof typeof releases;
+  }
 };

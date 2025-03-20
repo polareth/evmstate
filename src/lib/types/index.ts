@@ -2,25 +2,7 @@ import { Address, GetAccountResult, Hex, MemoryClient } from "tevm";
 import { Common } from "tevm/common";
 import { ForkOptions } from "tevm/state";
 
-/* -------------------------------------------------------------------------- */
-/*                                 STORAGE LAYOUT                             */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Type for representing labeled storage slots
- */
-export type LabeledStorageSlot = {
-  slot: string;
-  label: string;
-  path: string;
-  type: string;
-  encoding: string;
-  isComputed: boolean;
-  baseSlot?: string;
-  keyType?: string;
-  valueType?: string;
-  baseType?: string;
-};
+import { AbiType, AbiTypeToPrimitiveType } from "./schema";
 
 /* -------------------------------------------------------------------------- */
 /*                                    TRACE                                   */
@@ -69,8 +51,26 @@ export type TraceStorageAccessOptions = {
   };
 };
 
-// TODO: change when we have something more specific (basically AccountDiff with optional labels)
-export type StorageAccessTrace = AccountDiff;
+export type StorageAccessTrace<EOA extends boolean = false> = {
+  /** Storage slots that were read but not modified during transaction (only applicable for contracts) */
+  reads: EOA extends false ? { [slot: Hex]: LabeledStorageRead } : never;
+  /** Storage slots that were modified during transaction (only applicable for contracts) */
+  writes: EOA extends false ? { [slot: Hex]: LabeledStorageWrite } : never;
+  /** Account field changes during transaction */
+  intrinsic: IntrinsicsDiff;
+};
+
+export type LabeledStorageRead<T extends AbiType = AbiType> = {
+  current: AbiTypeToPrimitiveType<T>;
+  type?: T;
+  label?: string;
+  keys?: Array<string | number | bigint>;
+};
+
+export type LabeledStorageWrite<T extends AbiType = AbiType> = Omit<LabeledStorageRead<T>, "current"> & {
+  current: AbiTypeToPrimitiveType<T>;
+  next: AbiTypeToPrimitiveType<T>;
+};
 
 /* -------------------------------------------------------------------------- */
 /*                                 ACCESS LIST                                */
@@ -174,4 +174,134 @@ export type AccountDiff<EOA extends boolean = false> = {
   writes: EOA extends false ? StorageWrites : never;
   /** Account field changes during transaction */
   intrinsic: IntrinsicsDiff;
+};
+
+/* -------------------------------------------------------------------------- */
+/*                                 STORAGE LAYOUT                             */
+/* -------------------------------------------------------------------------- */
+
+/* ---------------------------------- SLOTS --------------------------------- */
+/**
+ * Type for representing labeled storage slots
+ */
+// TODO: review
+export type StorageSlotInfo = {
+  slot: Hex;
+  label?: string;
+  path: string;
+  type: AbiType;
+  encoding: string;
+  isComputed: boolean;
+  baseSlot?: string;
+  // TODO: are these abi types?
+  keyType?: AbiType;
+  valueType?: AbiType;
+  baseType?: AbiType;
+};
+
+// TODO: review
+export interface TraceValue {
+  // Raw value from EVM trace or transaction
+  value: string | number | bigint;
+  // Source of the value (stack, op, function arg, etc)
+  source: "stack" | "argument" | "address" | "constant";
+  // Position in the source (e.g., stack index, arg index)
+  position?: number;
+  // Operation where this value was observed (e.g., SLOAD, SHA3)
+  operation?: string;
+}
+
+// TODO: review
+export interface SlotLabelResult {
+  // The variable name with formatted keys
+  label: string;
+  // The slot being accessed
+  slot: string;
+  // The type of match that was found
+  matchType: "exact" | "mapping" | "nested-mapping" | "array" | "struct";
+  // The variable type (from Solidity)
+  type?: AbiType;
+  // The detected keys or indices (if applicable)
+  keys?: Array<string | number | bigint>;
+  // The positions of the keys in the source trace (for debugging)
+  keySources?: Array<TraceValue>;
+}
+
+/* -------------------------------- WHATSABI -------------------------------- */
+export type GetContractsOptions = {
+  client: MemoryClient;
+  addresses: Array<Address>;
+  explorers?: TraceStorageAccessOptions["explorers"];
+};
+
+export type GetContractsResult = Record<
+  Address,
+  {
+    metadata: {
+      name?: string;
+      evmVersion?: string;
+      compilerVersion?: string;
+    };
+    sources?: Array<{ path?: string; content: string }>;
+  }
+>;
+
+/* ------------------------------- TODO: TEMP ------------------------------- */
+// WARNING: the following types are experimental (?) and subject to change in non breaking releases
+// Define the base structure for all storage layout types
+export interface StorageLayoutTypeBase {
+  encoding: "inplace" | "mapping" | "dynamic_array" | "bytes";
+  label: AbiType;
+  numberOfBytes: string;
+}
+
+// Define specific storage layout types with their unique properties
+export interface StorageLayoutInplaceType extends StorageLayoutTypeBase {
+  encoding: "inplace";
+}
+
+export interface StorageLayoutBytesType extends StorageLayoutTypeBase {
+  encoding: "bytes";
+}
+
+export interface StorageLayoutMappingType extends StorageLayoutTypeBase {
+  encoding: "mapping";
+  key: `t_${string}`;
+  value: `t_${string}`;
+}
+
+export interface StorageLayoutDynamicArrayType extends StorageLayoutTypeBase {
+  encoding: "dynamic_array";
+  base: `t_${string}`;
+}
+
+export interface StorageLayoutStructType extends StorageLayoutInplaceType {
+  members: Array<StorageLayoutItem>;
+}
+
+// Union of all possible storage layout types
+export type StorageLayoutType =
+  | StorageLayoutInplaceType
+  | StorageLayoutBytesType
+  | StorageLayoutMappingType
+  | StorageLayoutDynamicArrayType
+  | StorageLayoutStructType;
+
+// Type-safe record of storage layout types
+export type StorageLayoutTypes = Record<`t_${string}`, StorageLayoutType>;
+
+// Type-safe storage layout item that references a type in StorageLayoutTypes
+export type StorageLayoutItem<T extends StorageLayoutTypes = StorageLayoutTypes> = {
+  astId: number;
+  contract: string;
+  label: string;
+  offset: number;
+  slot: string;
+  type: keyof T;
+};
+
+// Type-safe storage layout output
+export type StorageLayoutOutput<T extends StorageLayoutTypes = StorageLayoutTypes> = {
+  storage: Array<StorageLayoutItem<T>>;
+  types: T;
 };
