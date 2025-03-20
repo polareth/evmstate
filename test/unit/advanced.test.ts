@@ -1,16 +1,11 @@
-import { createMemoryClient } from "tevm";
-import { CONTRACTS } from "@test/constants";
-import { beforeAll, describe, it } from "vitest";
+import { describe, it } from "vitest";
 
-const client = createMemoryClient();
-const AssemblyStorage = CONTRACTS.AssemblyStorage.withAddress(`0x${"a".repeat(40)}`);
+import { CONTRACTS } from "@test/constants";
+import { getClient } from "@test/utils";
+
+const { AssemblyStorage } = CONTRACTS;
 
 describe("advanced", () => {
-  beforeAll(async () => {
-    // Store the contract in the account
-    await client.tevmSetAccount(AssemblyStorage);
-  });
-
   it.todo("should trace storage access from assembly sload operations");
   it.todo("should trace storage access from assembly sstore operations");
   it.todo("should capture complex assembly storage access in mappings");

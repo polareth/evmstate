@@ -1,18 +1,11 @@
-import { createMemoryClient } from "tevm";
-import { CONTRACTS } from "@test/constants";
-import { beforeAll, describe, it } from "vitest";
+import { describe, it } from "vitest";
 
-const client = createMemoryClient();
-const Arrays = CONTRACTS.Arrays.withAddress(`0x${"d1".repeat(20)}`);
-const Mappings = CONTRACTS.Mappings.withAddress(`0x${"d2".repeat(20)}`);
+import { CONTRACTS } from "@test/constants";
+import { getClient } from "@test/utils";
+
+const { Arrays, Mappings } = CONTRACTS;
 
 describe("data-structures", () => {
-  beforeAll(async () => {
-    // Store the contracts in the accounts
-    await client.tevmSetAccount(Arrays);
-    await client.tevmSetAccount(Mappings);
-  });
-
   describe("arrays", () => {
     it.todo("should trace fixed array slot access");
     it.todo("should trace dynamic array length slot access when pushing elements");

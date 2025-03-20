@@ -3,3 +3,4 @@ dist
 .tevm
 .env.test
 .tsbuildinfo
+.llm_refs

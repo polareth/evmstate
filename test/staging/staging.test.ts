@@ -1,10 +1,9 @@
 // TODO: find better naming for test file
 
 import { createMemoryClient, encodeFunctionData, http, parseEther } from "tevm";
-import { createAddress } from "tevm/address";
-import { ACCOUNTS, FORK } from "@test/constants";
-import { beforeAll, describe, it } from "vitest";
+import { describe, it } from "vitest";
 
+import { ACCOUNTS, FORK } from "@test/constants";
 import { traceStorageAccess } from "@/index";
 
 const mainnet = FORK.mainnet;

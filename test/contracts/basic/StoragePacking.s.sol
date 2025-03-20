@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.23;
 
 contract StoragePacking {
     // These variables will be packed into a single storage slot

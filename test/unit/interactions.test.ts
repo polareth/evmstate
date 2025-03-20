@@ -1,19 +1,12 @@
-import { createMemoryClient } from "tevm";
-import { CONTRACTS } from "@test/constants";
 import { beforeAll, describe, it } from "vitest";
 
-const client = createMemoryClient();
-const ContractA = CONTRACTS.ContractA.withAddress(`0x${"ca".repeat(20)}`);
-const ContractB = CONTRACTS.ContractB.withAddress(`0x${"cb".repeat(20)}`);
-const ContractC = CONTRACTS.ContractC.withAddress(`0x${"cc".repeat(20)}`);
+import { CONTRACTS } from "@test/constants";
+import { getClient } from "@test/utils";
+
+const { ContractA, ContractB, ContractC } = CONTRACTS;
 
 describe("interactions", () => {
   beforeAll(async () => {
-    // Store the contracts in the accounts
-    await client.tevmSetAccount(ContractA);
-    await client.tevmSetAccount(ContractB);
-    await client.tevmSetAccount(ContractC);
-
     // Set ContractB address in ContractA constructor
     // This would need implementation
   });

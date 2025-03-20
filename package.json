@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "dotenvx run -f .env.test --quiet -- vitest run"
+    "test": "pnpm test:unit && pnpm test:staging",
+    "test:unit": "dotenvx run -f .env.test --quiet -- vitest run test/unit",
+    "test:staging": "TEST_ENV=staging dotenvx run -f .env.test --quiet -- vitest run test/staging.test"
   },
   "keywords": [],
   "author": "0xpolarzero",
