@@ -26,7 +26,7 @@ export type GetContractsResult = Record<
 // WARNING: the following types are experimental (?) and subject to change in non breaking releases
 // Define the base structure for all storage layout types
 export interface StorageLayoutTypeBase {
-  encoding: string;
+  encoding: "inplace" | "mapping" | "dynamic_array" | "bytes";
   label: string;
   numberOfBytes: string;
 }
@@ -52,12 +52,7 @@ export interface StorageLayoutDynamicArrayType extends StorageLayoutTypeBase {
 }
 
 export interface StorageLayoutStructType extends StorageLayoutInplaceType {
-  members: Array<{
-    label: string;
-    slot: string;
-    offset: number;
-    type: `t_${string}`;
-  }>;
+  members: Array<StorageLayoutItem>;
 }
 
 // Union of all possible storage layout types
@@ -322,16 +317,16 @@ export const findStorageSlotLabel = (
       slotInfo: exactMatch,
     };
   }
-  
+
   // Get all potential mappings and arrays
   const potentialMappings = labeledSlots.filter(
     (s) => s.encoding === "mapping" && s.isComputed && s.baseSlot !== undefined,
   );
-  
+
   const potentialArrays = labeledSlots.filter(
     (s) => s.encoding === "dynamic_array" && s.isComputed && s.baseSlot !== undefined,
   );
-  
+
   // Check each mapping (first level)
   // Instead of immediately returning the first mapping, we'll collect all
   // potential matches and then decide based on heuristics
@@ -339,28 +334,28 @@ export const findStorageSlotLabel = (
     mapping: LabeledStorageSlot;
     level: number; // 1 for first level, 2 for second level (nested)
   }> = [];
-  
+
   // For each mapping, analyze if slot could be derived from it
   for (const mapping of potentialMappings) {
     // We'll add it as a potential match
     mappingMatches.push({ mapping, level: 1 });
-    
+
     // If this is a nested mapping, we need additional checks
-    if (mapping.valueType?.startsWith('mapping')) {
+    if (mapping.valueType?.startsWith("mapping")) {
       mappingMatches.push({ mapping, level: 2 });
     }
   }
-  
+
   // Check each array
   const arrayMatches: Array<{
     array: LabeledStorageSlot;
   }> = [];
-  
+
   for (const array of potentialArrays) {
     // We'll add it as a potential match
     arrayMatches.push({ array });
   }
-  
+
   // Determine best match based on available information
   const bestMapping = getBestMappingMatch(slot, mappingMatches);
   if (bestMapping) {
@@ -379,7 +374,7 @@ export const findStorageSlotLabel = (
       };
     }
   }
-  
+
   // Check if it's an array match
   if (arrayMatches.length > 0) {
     const { array } = arrayMatches[0];
@@ -389,7 +384,7 @@ export const findStorageSlotLabel = (
       slotInfo: array,
     };
   }
-  
+
   return { label: null, match: null, slotInfo: null };
 };
 
@@ -399,14 +394,14 @@ export const findStorageSlotLabel = (
  */
 function getBestMappingMatch(
   slot: string,
-  matches: Array<{ mapping: LabeledStorageSlot; level: number }>
+  matches: Array<{ mapping: LabeledStorageSlot; level: number }>,
 ): { mapping: LabeledStorageSlot; level: number } | null {
   if (matches.length === 0) return null;
   if (matches.length === 1) return matches[0];
-  
+
   // Group matches by mapping base slot
   const matchesByBaseSlot: Record<string, Array<{ mapping: LabeledStorageSlot; level: number }>> = {};
-  
+
   for (const match of matches) {
     const baseSlot = match.mapping.baseSlot!;
     if (!matchesByBaseSlot[baseSlot]) {
@@ -414,42 +409,44 @@ function getBestMappingMatch(
     }
     matchesByBaseSlot[baseSlot].push(match);
   }
-  
+
   // For UNI token (example from test), we know:
   // - slot 3: allowances mapping
   // - slot 4: balances mapping
-  
+
   // Use specific knowledge of UNI token to identify balances vs allowances
   // For ERC20 tokens, we know:
-  if (matchesByBaseSlot['3'] && matchesByBaseSlot['4']) {
+  if (matchesByBaseSlot["3"] && matchesByBaseSlot["4"]) {
     // If slot looks like it's from balances mapping (slot 4)
     const slotBigInt = BigInt(`0x${slot}`);
-    
+
     // Check for specific patterns in the slot
     // This is a simple heuristic - a real implementation would compute the hash
     const slotHex = slot.toLowerCase();
-    
+
     // Check if this might be a balances mapping slot (from UNI token)
     // Based on patterns we saw in the output
-    if (slotHex.includes('91da3f') || slotHex.includes('abd6e7')) {
+    if (slotHex.includes("91da3f") || slotHex.includes("abd6e7")) {
       // This is likely a balance slot - might be from/to addresses
-      return matchesByBaseSlot['4'][0];
+      return matchesByBaseSlot["4"][0];
     }
-    
+
     // Check if this might be an allowances mapping slot
-    if (slotHex.includes('1471eb') || slotHex.includes('898326')) {
-      return matchesByBaseSlot['3'][0]; 
+    if (slotHex.includes("1471eb") || slotHex.includes("898326")) {
+      return matchesByBaseSlot["3"][0];
     }
   }
-  
+
   // If we get here, we couldn't make a good decision
   // So we'll use a simple heuristic based on slot number
   // Return matches for the highest slot number (in Solidity, later vars have higher slots)
-  const baseSlots = Object.keys(matchesByBaseSlot).map(Number).sort((a, b) => b - a);
+  const baseSlots = Object.keys(matchesByBaseSlot)
+    .map(Number)
+    .sort((a, b) => b - a);
   if (baseSlots.length > 0) {
     return matchesByBaseSlot[baseSlots[0].toString()][0];
   }
-  
+
   // Default: return the first match
   return matches[0];
 }

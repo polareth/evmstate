@@ -1,5 +1,5 @@
 import { createMemoryClient, encodeFunctionData } from "tevm";
-import { CONTRACTS } from "@test/constants";
+import { ACCOUNTS, CONTRACTS } from "@test/constants";
 import { beforeAll, describe, it } from "vitest";
 
 import { traceStorageAccess } from "@/index";
@@ -7,6 +7,7 @@ import { traceStorageAccess } from "@/index";
 const client = createMemoryClient();
 const MultiSlot = CONTRACTS.MultiSlot.withAddress(`0x${"1".repeat(40)}`);
 const StoragePacking = CONTRACTS.StoragePacking.withAddress(`0x${"4".repeat(40)}`);
+const { caller } = ACCOUNTS;
 
 describe("basic", () => {
   beforeAll(async () => {
@@ -18,7 +19,7 @@ describe("basic", () => {
   it("should get access list from transaction data", async () => {
     const accessList = await traceStorageAccess({
       client,
-      from: CALLER.toString(),
+      from: caller.toString(),
       to: MultiSlot.address,
       data: encodeFunctionData(MultiSlot.write.setMultipleValues(1n, 2n, 3n)),
     });
