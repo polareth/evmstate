@@ -1,5 +1,18 @@
-import { Address, BlockTag, createMemoryClient, Hex, http } from "tevm";
+import {
+  Address,
+  BlockTag,
+  createMemoryClient,
+  getAddress,
+  Hex,
+  hexToBigInt,
+  hexToNumber,
+  hexToString,
+  http,
+  isHex,
+  toHex,
+} from "tevm";
 import { Common } from "tevm/common";
+import { padHex } from "viem";
 
 import { AbiType } from "@/lib/types/schema";
 
@@ -39,14 +52,15 @@ export const uniqueAddresses = (addresses: Array<Address | undefined>): Array<Ad
 // TODO: review
 export function decodeStorageValue(hexValue: Hex, type?: AbiType, offset?: number): any {
   if (!type) return hexValue;
-  const cleanHex = hexValue.startsWith("0x") ? hexValue : `0x${hexValue}`;
+  // Ensure we have a proper hex value with 0x prefix
+  const cleanHex = isHex(hexValue) ? hexValue : (`0x${String(hexValue).replace(/^0x/, "")}` as Hex);
 
   try {
     // For packed values, extract the relevant part of the storage slot
     let valueToProcess = cleanHex;
 
     if (offset !== undefined) {
-      const fullValue = BigInt(cleanHex);
+      const fullValue = hexToBigInt(cleanHex);
       let bitOffset = offset * 8; // Convert byte offset to bit offset
       let bitSize = 256; // Default full slot
 
@@ -73,8 +87,8 @@ export function decodeStorageValue(hexValue: Hex, type?: AbiType, offset?: numbe
       // Shift and mask to extract the value
       const extractedValue = (fullValue >> BigInt(bitOffset)) & mask;
 
-      // Convert back to hex for further processing
-      valueToProcess = "0x" + extractedValue.toString(16);
+      // Convert back to hex for further processing using toHex
+      valueToProcess = toHex(extractedValue);
     }
 
     // Handle boolean
@@ -84,23 +98,12 @@ export function decodeStorageValue(hexValue: Hex, type?: AbiType, offset?: numbe
 
     // Handle address
     if (type === "address") {
-      // Ensure proper address format (0x + 40 hex chars)
-      if (valueToProcess.length <= 42) {
-        // Add the 0x prefix if needed
-        const withPrefix = valueToProcess.startsWith("0x") ? valueToProcess : `0x${valueToProcess}`;
-        // Remove 0x, pad with leading zeros, then add 0x back
-        const addressHex = withPrefix.replace(/^0x/, "");
-        return `0x${addressHex.padStart(40, "0")}`.toLowerCase();
-      } else {
-        // If it's longer than 42 chars, take the last 40 chars
-        return `0x${valueToProcess.slice(valueToProcess.length - 40)}`.toLowerCase();
-      }
+      // Use padHex for proper address formatting (20 bytes = 40 hex chars)
+      return getAddress(padHex(valueToProcess, { size: 20 }));
     }
 
     // Handle integers (uint/int variants)
     if (type.startsWith("uint") || type.startsWith("int")) {
-      const bigIntValue = BigInt(valueToProcess || "0");
-
       // For smaller integers that fit in regular JavaScript numbers, return as number
       if (
         type.includes("8") ||
@@ -110,11 +113,14 @@ export function decodeStorageValue(hexValue: Hex, type?: AbiType, offset?: numbe
         type.includes("40") ||
         type.includes("48")
       ) {
-        return Number(bigIntValue);
+        // Handle empty hex value
+        const safeHex = valueToProcess === "0x" ? "0x0" : valueToProcess;
+        return hexToNumber(safeHex);
       }
 
-      // For larger integers, return as bigint
-      return bigIntValue;
+      // For larger integers, return as bigint using hexToBigInt
+      const safeHex = valueToProcess === "0x" ? "0x0" : valueToProcess;
+      return hexToBigInt(safeHex);
     }
 
     // Handle bytes
@@ -127,26 +133,14 @@ export function decodeStorageValue(hexValue: Hex, type?: AbiType, offset?: numbe
       // Dynamic bytes or string - attempt to decode as UTF-8 string if it looks like text
       if (type === "string") {
         try {
-          // Remove the 0x prefix
-          let hexString = valueToProcess.startsWith("0x") ? valueToProcess.slice(2) : valueToProcess;
-
           // Skip if it's just zeros
-          if (/^0*$/.test(hexString)) return "";
+          if (valueToProcess === "0x" || valueToProcess === "0x0" || valueToProcess === "0x00") return "";
 
-          // Remove trailing zeros (often used as padding)
-          hexString = hexString.replace(/0+$/, "");
-
-          // Convert hex pairs to bytes
-          const bytes = [];
-          for (let i = 0; i < hexString.length; i += 2) {
-            bytes.push(parseInt(hexString.substring(i, i + 2), 16));
-          }
-
-          // Convert bytes to string
-          const decoded = new TextDecoder().decode(new Uint8Array(bytes));
+          // Use viem's hexToString for better string conversion
+          const decoded = hexToString(valueToProcess as Hex);
 
           // If the decoded string looks valid (contains printable chars), return it
-          if (/^[\x20-\x7E]*$/.test(decoded)) {
+          if (decoded && /^[\x20-\x7E]*$/.test(decoded)) {
             return decoded;
           }
         } catch (e) {

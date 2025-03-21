@@ -1,4 +1,4 @@
-import { Address, MemoryClient } from "tevm";
+import { Address, isHex, toHex } from "tevm";
 import { createSolc, releases, SolcSettings } from "tevm/bundler/solc";
 import { randomBytes } from "tevm/utils";
 import { autoload, loaders } from "@shazow/whatsabi";
@@ -147,9 +147,20 @@ const processStorageLayout = (layout: StorageLayoutOutput): StorageSlotInfo[] =>
   const slots: StorageSlotInfo[] = [];
 
   // Helper to normalize slot numbers to consistent format
-  const normalizeSlot = (slot: string): string => {
+  const normalizeSlot = (slot: string | number | bigint): string => {
     if (!slot) return "0";
-    return slot.toString().toLowerCase().replace(/^0x/, "");
+
+    // Use viem's toHex for consistent hex conversion
+    let hexValue: string;
+
+    if (typeof slot === "string") {
+      hexValue = isHex(slot) ? slot : `0x${slot.replace(/^0x/, "")}`;
+    } else {
+      hexValue = toHex(slot);
+    }
+
+    // Return without 0x prefix, as storage layout processing expects this format
+    return hexValue.slice(2).toLowerCase();
   };
 
   layout.storage.forEach((item) => {

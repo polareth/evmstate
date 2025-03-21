@@ -1,73 +1,65 @@
-import { Address, Hex, keccak256 } from "tevm";
+import { Address, Hex, hexToBigInt, isHex, keccak256, toHex } from "tevm";
+import { padHex } from "viem";
 
 import { SlotLabelResult, StorageSlotInfo, TraceValue } from "@/lib/types";
 
 /**
- * A slot computation engine that implements Solidity's storage layout rules
- * to accurately compute and label storage slots.
+ * A slot computation engine that implements Solidity's storage layout rules to accurately compute and label storage
+ * slots.
  */
 
 // TODO: review (entire file)
 
-/**
- * Computes the storage slot for a mapping given the base slot and key
- */
+/** Computes the storage slot for a mapping given the base slot and key */
 export function computeMappingSlot(
   baseSlot: string | number | bigint,
   key: string | number | bigint,
   keyType: string = "address",
 ): string {
-  // Normalize inputs to strings
-  const slotBigInt = typeof baseSlot === "bigint" ? baseSlot : BigInt(baseSlot.toString());
+  // Convert key to appropriate hex format based on its type
+  let keyHex: Hex;
 
-  // Normalize and pad the key based on its type
-  let paddedKey: string;
-
-  if (typeof key === "string" && key.startsWith("0x")) {
+  if (typeof key === "string" && isHex(key)) {
     // Handle hex string inputs (addresses, bytes, etc.)
-    const cleanKey = key.slice(2).toLowerCase().padStart(64, "0");
-    paddedKey = cleanKey;
+    keyHex = padHex(key as Hex, { size: 32 });
   } else if (keyType.includes("address")) {
-    // Handle address type
-    let hexKey = typeof key === "string" && key.startsWith("0x") ? key.slice(2) : key.toString(16);
-
-    paddedKey = hexKey.toLowerCase().padStart(64, "0");
+    // Handle address type - ensure it's a properly formatted address hex
+    keyHex = padHex(toHex(key), { size: 32 });
   } else if (keyType.includes("uint") || keyType.includes("int")) {
     // Handle integer types
-    const numKey = BigInt(key.toString());
-    paddedKey = numKey.toString(16).padStart(64, "0");
+    keyHex = padHex(toHex(BigInt(key.toString())), { size: 32 });
   } else {
-    // Default case
-    paddedKey = key.toString().padStart(64, "0");
+    // Default case - convert to hex and pad
+    keyHex = padHex(toHex(key), { size: 32 });
   }
 
-  // Pad the slot number to 32 bytes
-  const paddedSlot = slotBigInt.toString(16).padStart(64, "0");
+  // Convert and pad the base slot to 32 bytes
+  const slotHex = padHex(toHex(baseSlot), { size: 32 });
+
+  // Remove the '0x' prefix for concatenation
+  const keyWithoutPrefix = keyHex.slice(2);
+  const slotWithoutPrefix = slotHex.slice(2);
 
   // Concatenate the key and slot for hashing
-  const dataToHash = paddedKey + paddedSlot;
+  const dataToHash = `0x${keyWithoutPrefix}${slotWithoutPrefix}` as Hex;
 
   // Compute keccak256 hash
-  const hash = keccak256(`0x${dataToHash}`);
-
-  return "0x" + hash;
+  return keccak256(dataToHash);
 }
 
-/**
- * Computes the storage slot for a nested mapping with arbitrary depth
- */
+/** Computes the storage slot for a nested mapping with arbitrary depth */
 export function computeNestedMappingSlot(
   baseSlot: string | number | bigint,
   keys: Array<string | number | bigint>,
   keyTypes: Array<string | undefined> = [],
-): string {
+): string | number | bigint {
   // Return early if no keys
   if (!keys.length) {
-    return typeof baseSlot === "string" ? baseSlot : "0x" + BigInt(baseSlot).toString(16);
+    return toHex(baseSlot);
   }
 
   // Start with the base slot
-  let slot = baseSlot;
+  let slot: string | number | bigint = baseSlot;
 
   // Recursively apply mapping hash for each key
   for (let i = 0; i < keys.length; i++) {
@@ -76,34 +68,30 @@ export function computeNestedMappingSlot(
     slot = computeMappingSlot(slot, key, keyType);
   }
 
-  return slot.toString();
+  return slot;
 }
 
-/**
- * Computes the storage slot for a dynamic array element
- */
+/** Computes the storage slot for a dynamic array element */
 export function computeArraySlot(baseSlot: string | number | bigint, index: string | number | bigint): string {
-  // Normalize parameters
-  const slotBigInt = typeof baseSlot === "bigint" ? baseSlot : BigInt(baseSlot.toString());
-
+  // Convert index to BigInt for calculation
   const indexBigInt = typeof index === "bigint" ? index : BigInt(index.toString());
 
   // For dynamic arrays, Solidity stores data at keccak256(slot) + index
-  const paddedSlot = slotBigInt.toString(16).padStart(64, "0");
+  // Convert and pad the base slot to 32 bytes
+  const slotHex = padHex(toHex(baseSlot), { size: 32 });
 
   // Compute keccak256 hash of the base slot
-  const hash = keccak256(`0x${paddedSlot}`);
+  const hash = keccak256(slotHex);
 
   // Convert the hash to a slot number and add the index
-  const hashBigInt = BigInt("0x" + hash);
+  const hashBigInt = hexToBigInt(hash);
   const resultSlot = hashBigInt + indexBigInt;
 
-  return "0x" + resultSlot.toString(16);
+  // Convert back to hex
+  return toHex(resultSlot);
 }
 
-/**
- * Extract potential values from a transaction trace that might be used as keys or indices
- */
+/** Extract potential values from a transaction trace that might be used as keys or indices */
 export function extractPotentialValuesFromTrace(
   trace:
     | {
@@ -273,9 +261,7 @@ export function extractPotentialValuesFromTrace(
   return Array.from(uniqueMap.values());
 }
 
-/**
- * Finds all matching labels for a storage slot, including packed variables
- */
+/** Finds all matching labels for a storage slot, including packed variables */
 export function findBestStorageSlotLabel(
   slot: string,
   storageLayout: StorageSlotInfo[],
@@ -305,29 +291,33 @@ export function findBestStorageSlotLabel(
 
   // 1. Check for all direct variable matches at this slot (packed or unpacked)
   const directSlots = storageLayout.filter((item) => !item.isComputed);
-  
+
   // Group variables by slot to identify packed variables
   const slotToVariables = new Map<string, StorageSlotInfo[]>();
-  
+
   for (const directSlot of directSlots) {
-    const normalizedDirectSlot = normalizeSlot(directSlot.slot);
+    // Strip "0x" prefix for consistent map lookups
+    const normalizedDirectSlot = normalizeSlot(directSlot.slot).replace(/^0x/, "");
     if (!slotToVariables.has(normalizedDirectSlot)) {
       slotToVariables.set(normalizedDirectSlot, []);
     }
     slotToVariables.get(normalizedDirectSlot)?.push(directSlot);
   }
-  
+
+  // Strip "0x" prefix for consistent map lookups
+  const slotWithoutPrefix = normalizedSlot.replace(/^0x/, "");
+
   // If we have any direct matches for this slot
-  if (slotToVariables.has(normalizedSlot)) {
-    const matchingVariables = slotToVariables.get(normalizedSlot)!;
-    
+  if (slotToVariables.has(slotWithoutPrefix)) {
+    const matchingVariables = slotToVariables.get(slotWithoutPrefix)!;
+
     // Sort by offset to ensure consistent order (helps when there are packed variables)
     matchingVariables.sort((a, b) => {
-      const offsetA = 'offset' in a ? a.offset || 0 : 0;
-      const offsetB = 'offset' in b ? b.offset || 0 : 0;
+      const offsetA = "offset" in a ? a.offset || 0 : 0;
+      const offsetB = "offset" in b ? b.offset || 0 : 0;
       return offsetA - offsetB;
     });
-    
+
     // Add all variables at this slot to results
     for (const variable of matchingVariables) {
       results.push({
@@ -337,10 +327,10 @@ export function findBestStorageSlotLabel(
         type: variable.type,
         keys: [],
         keySources: [],
-        offset: 'offset' in variable ? variable.offset : undefined
+        offset: "offset" in variable ? variable.offset : undefined,
       });
     }
-    
+
     // If we found direct matches, we can return immediately
     if (results.length > 0) {
       return results;
@@ -361,8 +351,9 @@ export function findBestStorageSlotLabel(
     for (const keyValue of potentialValues) {
       try {
         const computedSlot = computeMappingSlot(mapping.baseSlot, keyValue.value, mapping.keyType);
+        const normalizedComputedSlot = normalizeSlot(computedSlot);
 
-        if (normalizeSlot(computedSlot) === normalizedSlot) {
+        if (normalizedComputedSlot === normalizedSlot) {
           results.push({
             label: `${mapping.label}[${formatKey(keyValue.value, mapping.keyType)}]`,
             slot: slot,
@@ -399,8 +390,9 @@ export function findBestStorageSlotLabel(
 
         try {
           const computedSlot = computeNestedMappingSlot(mapping.baseSlot, keys, keyTypes);
+          const normalizedComputedSlot = normalizeSlot(computedSlot);
 
-          if (normalizeSlot(computedSlot) === normalizedSlot) {
+          if (normalizedComputedSlot === normalizedSlot) {
             // Create a formatted label with the appropriate number of brackets
             const formattedKeys = keys.map((k, idx) => formatKey(k, keyTypes[idx] || undefined));
             const label = `${mapping.label}[${formattedKeys.join("][")}]`;
@@ -439,8 +431,9 @@ export function findBestStorageSlotLabel(
       try {
         const index = Number(BigInt(indexValue.value.toString()));
         const computedSlot = computeArraySlot(array.baseSlot, index);
+        const normalizedComputedSlot = normalizeSlot(computedSlot);
 
-        if (normalizeSlot(computedSlot) === normalizedSlot) {
+        if (normalizedComputedSlot === normalizedSlot) {
           results.push({
             label: `${array.label}[${index}]`,
             slot: slot,
@@ -475,9 +468,7 @@ export function findBestStorageSlotLabel(
   return results;
 }
 
-/**
- * Formats a key value for display based on its type
- */
+/** Formats a key value for display based on its type */
 function formatKey(key: any, type?: string): string {
   if (key === undefined || key === null) return "unknown";
 
@@ -499,9 +490,7 @@ function formatKey(key: any, type?: string): string {
   return String(key);
 }
 
-/**
- * Checks if a value can be used as an array index
- */
+/** Checks if a value can be used as an array index */
 function isValidArrayIndex(value: any): boolean {
   if (typeof value === "number" && Number.isInteger(value) && value >= 0) {
     return true;
@@ -530,21 +519,22 @@ function isValidArrayIndex(value: any): boolean {
   return false;
 }
 
-/**
- * Normalizes a slot value to a consistent format for comparison
- */
-function normalizeSlot(slot: string): string {
+/** Normalizes a slot value to a consistent format for comparison */
+function normalizeSlot(slot: string | number | bigint): string {
   if (!slot) return "0x0";
 
-  // Convert to lowercase and ensure 0x prefix
-  let normalized = slot.toLowerCase();
-  if (!normalized.startsWith("0x")) {
-    normalized = "0x" + normalized;
+  // Use viem's toHex for consistent hex conversion
+  let hexValue: Hex;
+  if (typeof slot === "string") {
+    hexValue = isHex(slot) ? (slot as Hex) : (`0x${slot.replace(/^0x/, "")}` as Hex);
+  } else {
+    hexValue = toHex(slot);
   }
 
-  // Remove leading zeros after 0x prefix
-  let cleanSlot = normalized.replace(/^0x0+/, "0x");
-  if (cleanSlot === "0x") cleanSlot = "0x0";
+  // Ensure lowercase for consistency
+  const normalized = hexValue.toLowerCase() as Hex;
 
-  return cleanSlot;
+  // Remove leading zeros after 0x prefix but ensure at least 0x0
+  const cleanSlot = normalized.replace(/^0x0+/, "0x");
+  return cleanSlot === "0x" ? "0x0" : cleanSlot;
 }

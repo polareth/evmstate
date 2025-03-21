@@ -114,7 +114,7 @@ describe("Basic Storage Access", () => {
 
       // Also find the other values in the same slot
       const mediumValue2 = contractTrace.writes[mediumPackedSlot].find((v) => v.label === "mediumValue2");
-      
+
       // Check that another value exists in this slot
       expect(mediumValue2).toBeDefined();
       expect(mediumValue2?.type).toContain("uint");
@@ -149,11 +149,11 @@ describe("Basic Storage Access", () => {
       const smallValueSlot = getSlotHex(0);
       const smallValue1 = contractTrace.writes[smallValueSlot].find((v) => v.label === "smallValue1");
       const smallValue2 = contractTrace.writes[smallValueSlot].find((v) => v.label === "smallValue2");
-      
+
       expect(smallValue1).toBeDefined();
       expect(smallValue1?.type).toBe("uint8");
       expect(Number(smallValue1?.next)).toBe(10);
-      
+
       expect(smallValue2).toBeDefined();
       expect(smallValue2?.type).toBe("uint8");
       expect(Number(smallValue2?.next)).toBe(20);
@@ -162,11 +162,11 @@ describe("Basic Storage Access", () => {
       const mediumValueSlot = getSlotHex(3);
       const mediumValue1 = contractTrace.writes[mediumValueSlot].find((v) => v.label === "mediumValue1");
       const mediumValue2 = contractTrace.writes[mediumValueSlot].find((v) => v.label === "mediumValue2");
-      
+
       expect(mediumValue1).toBeDefined();
       expect(mediumValue1?.type).toContain("uint");
       expect(Number(mediumValue1?.next)).toBe(1000);
-      
+
       expect(mediumValue2).toBeDefined();
       expect(mediumValue2?.type).toContain("uint");
       expect(Number(mediumValue2?.next)).toBe(2000);
@@ -251,7 +251,7 @@ describe("Basic Storage Access", () => {
       // Avoid exact matching which might fail with hex casing differences
       const nextValue = String(dataWrite.next).toLowerCase();
       expect(nextValue).toContain(testBytes32.slice(2, 10).toLowerCase());
-      
+
       // Check that the entire bytes32 value is correctly stored (not just the prefix)
       expect(nextValue.length).toBeGreaterThan(32); // At least 32 bytes (64 hex chars + 0x prefix)
     });
@@ -322,9 +322,9 @@ describe("Basic Storage Access", () => {
 
       // Verify that the flag was set correctly
       const contractTrace = trace[StoragePacking.address];
-      const slotHex = Object.keys(contractTrace.writes)[0];
+      const slotHex = Object.keys(contractTrace.writes)[0] as Hex;
       const flagVariable = contractTrace.writes[slotHex].find((v) => v.label === "flag");
-      
+
       expect(flagVariable).toBeDefined();
       expect(flagVariable?.type).toBe("bool");
       expect(flagVariable?.next).toBe(true);
@@ -338,10 +338,10 @@ describe("Basic Storage Access", () => {
       expect(smallValue2).toBeDefined();
       expect(smallValue2?.next).toBe(20);
     });
-    
+
     it("should produce different traces for different operations", async () => {
       const client = getClient();
-      
+
       // Run two different operations
       const trace1 = await traceStorageAccess({
         client,
@@ -349,30 +349,29 @@ describe("Basic Storage Access", () => {
         to: StoragePacking.address,
         data: encodeFunctionData(StoragePacking.write.setSmallValues(1, 2, true, caller.toString())),
       });
-      
+
       const trace2 = await traceStorageAccess({
         client,
         from: caller.toString(),
         to: StoragePacking.address,
         data: encodeFunctionData(StoragePacking.write.setLargeValue1(42n)),
       });
-      
+
       // Check traces have different slot accesses
       const contractTrace1 = trace1[StoragePacking.address];
       const contractTrace2 = trace2[StoragePacking.address];
-      
+
       // First trace should touch slot 0 (small values)
       expect(contractTrace1.writes).toHaveProperty(getSlotHex(0));
-      expect(contractTrace1.writes[getSlotHex(0)].some(v => v.label === "smallValue1")).toBe(true);
-      
+      expect(contractTrace1.writes[getSlotHex(0)].some((v) => v.label === "smallValue1")).toBe(true);
+
       // Second trace should touch slot 1 (large value)
       expect(contractTrace2.writes).toHaveProperty(getSlotHex(1));
-      expect(contractTrace2.writes[getSlotHex(1)].some(v => v.label === "largeValue1")).toBe(true);
-      
+      expect(contractTrace2.writes[getSlotHex(1)].some((v) => v.label === "largeValue1")).toBe(true);
+
       // Check that the correct value is written in each case
-      expect(contractTrace1.writes[getSlotHex(0)].find(v => v.label === "smallValue1")?.next).toBe(1);
+      expect(contractTrace1.writes[getSlotHex(0)].find((v) => v.label === "smallValue1")?.next).toBe(1);
       expect(contractTrace2.writes[getSlotHex(1)][0].next).toBe(42n);
     });
   });
-
 });

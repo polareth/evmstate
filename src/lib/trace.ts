@@ -49,7 +49,7 @@ export const traceStorageAccess = async (
   if (isReplay) {
     try {
       const tx = await client.getTransaction({ hash: args.txHash });
-      ({ from, to, data } = { from: tx.from, to: tx.to ?? undefined, data: tx.data ?? tx.input });
+      ({ from, to, data } = { from: tx.from, to: tx.to ?? undefined, data: tx.input ? tx.input as Hex : tx.data as Hex });
 
       // TODO: can't run tx at past block so we need to recreate the client; this won't work on the default chain so to-test in staging
       // Also it's ugly to recreate the client here
