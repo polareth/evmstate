@@ -36,20 +36,28 @@ import { createClient, decodeStorageValue /* , uniqueAddresses */ } from "@/lib/
 export const traceStorageAccess = async (
   args: TraceStorageAccessOptions & TraceStorageAccessTxParams,
 ): Promise<Record<Address, StorageAccessTrace>> => {
-  const { client: _client, fork, rpcUrl, common, explorers } = args;
+  const { client: _client, rpcUrl, common, explorers } = args;
 
   // Extract parameters based on mode
   const isReplay = "txHash" in args && args.txHash !== undefined;
   let { from, to, data } = isReplay ? { from: undefined, to: undefined, data: undefined } : args;
 
   // Create the tevm client
-  const client = _client ?? createClient({ fork, rpcUrl, common });
+  let client = _client ?? createClient({ rpcUrl, common });
 
   // If we're replaying a transaction, extract the from, to, and data from the transaction
   if (isReplay) {
     try {
       const tx = await client.getTransaction({ hash: args.txHash });
-      ({ from, to, data } = { from: tx.from, to: tx.to ?? undefined, data: tx.input });
+      ({ from, to, data } = { from: tx.from, to: tx.to ?? undefined, data: tx.data ?? tx.input });
+
+      // TODO: can't run tx at past block so we need to recreate the client; this won't work on the default chain so to-test in staging
+      // Also it's ugly to recreate the client here
+      client = createClient({
+        rpcUrl: rpcUrl ?? client.chain?.rpcUrls.default.http[0],
+        common,
+        blockTag: tx.blockNumber > 0 ? tx.blockNumber - BigInt(1) : BigInt(0),
+      });
     } catch (err) {
       debug(`Failed to get transaction for replaying ${args.txHash}: ${err}`);
       throw err;
@@ -63,7 +71,6 @@ export const traceStorageAccess = async (
       from,
       to,
       data,
-      blockTag: fork?.blockTag ?? "latest",
       skipBalance: true,
       createAccessList: true,
       createTransaction: true,
@@ -104,6 +111,20 @@ export const traceStorageAccess = async (
 
   // Mine the pending transaction to get post-state values
   await client.tevmMine();
+
+  // const debugCall = await client.request({
+  //   method: "debug_traceTransaction",
+  //   params: [
+  //     callResult.txHash,
+  //     {
+  //       tracer: "prestateTracer",
+  //       tracerConfig: {
+  //         diffMode: true,
+  //       },
+  //     },
+  //   ],
+  // });
+  // console.log(debugCall);
 
   // Get values after the transaction has been included
   const storagePostTx = await storageSnapshot(client, callResult.accessList ?? {});
@@ -182,23 +203,26 @@ export const traceStorageAccess = async (
       debug(`Extracted ${potentialValues.length} unique potential values from the trace`);
 
       // Create labeled reads
-      const labeledReads: Record<Hex, LabeledStorageRead> = {};
+      const labeledReads: Record<Hex, [LabeledStorageRead, ...LabeledStorageRead[]]> = {};
       if (contractLayout) {
         Object.entries(trace.reads).forEach(([slotHex, { current }]) => {
-          // Find the best label for this slot using our slot engine
-          const slotLabel = findBestStorageSlotLabel(slotHex, contractLayout, potentialValues);
+          // Find all labels for this slot using our slot engine
+          const slotLabels = findBestStorageSlotLabel(slotHex, contractLayout, potentialValues);
 
-          if (slotLabel) {
-            // Found a match
-            // Decode the value based on its type
-            const decodedValue = decodeStorageValue(current, slotLabel.type);
+          if (slotLabels.length > 0) {
+            // Found matches - create an array of labeled reads for this slot
+            labeledReads[slotHex as Hex] = slotLabels.map((slotLabel) => {
+              // Decode the value based on its type and offset (if applicable)
+              const decodedValue = decodeStorageValue(current, slotLabel.type, slotLabel.offset);
 
-            labeledReads[slotHex as Hex] = {
-              label: slotLabel.label,
-              current: decodedValue,
-              type: slotLabel.type,
-              keys: slotLabel.keys,
-            };
+              return {
+                label: slotLabel.label,
+                current: decodedValue,
+                type: slotLabel.type,
+                keys: slotLabel.keys,
+                offset: slotLabel.offset,
+              };
+            }) as [LabeledStorageRead, ...LabeledStorageRead[]];
           } else {
             // No match found, use a fallback label
             const slotNumber = parseInt(slotHex.replace(/^0x0*/, ""), 16);
@@ -208,35 +232,40 @@ export const traceStorageAccess = async (
             const defaultType = "uint256";
             const decodedValue = decodeStorageValue(current, defaultType);
 
-            labeledReads[slotHex as Hex] = {
-              label: fallbackLabel,
-              current: decodedValue,
-              type: defaultType,
-            };
+            labeledReads[slotHex as Hex] = [
+              {
+                label: fallbackLabel,
+                current: decodedValue,
+                type: defaultType,
+              },
+            ];
           }
         });
       }
 
       // Create labeled writes
-      const labeledWrites: Record<Hex, LabeledStorageWrite> = {};
+      const labeledWrites: Record<Hex, [LabeledStorageWrite, ...LabeledStorageWrite[]]> = {};
       if (contractLayout) {
         Object.entries(trace.writes).forEach(([slotHex, { current, next }]) => {
-          // Find the best label for this slot using our slot engine
-          const slotLabel = findBestStorageSlotLabel(slotHex, contractLayout, potentialValues);
+          // Find all labels for this slot using our slot engine
+          const slotLabels = findBestStorageSlotLabel(slotHex, contractLayout, potentialValues);
 
-          if (slotLabel) {
-            // Found a match
-            // Decode both current and next values based on the same type
-            const decodedCurrent = decodeStorageValue(current, slotLabel.type);
-            const decodedNext = decodeStorageValue(next, slotLabel.type);
+          if (slotLabels.length > 0) {
+            // Found matches - create an array of labeled writes for this slot
+            labeledWrites[slotHex as Hex] = slotLabels.map((slotLabel) => {
+              // Decode both current and next values based on the same type and offset
+              const decodedCurrent = decodeStorageValue(current, slotLabel.type, slotLabel.offset);
+              const decodedNext = decodeStorageValue(next, slotLabel.type, slotLabel.offset);
 
-            labeledWrites[slotHex as Hex] = {
-              label: slotLabel.label,
-              current: decodedCurrent,
-              next: decodedNext,
-              type: slotLabel.type,
-              keys: slotLabel.keys,
-            };
+              return {
+                label: slotLabel.label,
+                current: decodedCurrent,
+                next: decodedNext,
+                type: slotLabel.type,
+                keys: slotLabel.keys,
+                offset: slotLabel.offset,
+              };
+            }) as [LabeledStorageWrite, ...LabeledStorageWrite[]];
           } else {
             // No match found, use a fallback label
             const slotNumber = parseInt(slotHex.replace(/^0x0*/, ""), 16);
@@ -247,12 +276,14 @@ export const traceStorageAccess = async (
             const decodedCurrent = decodeStorageValue(current, defaultType);
             const decodedNext = decodeStorageValue(next, defaultType);
 
-            labeledWrites[slotHex as Hex] = {
-              label: fallbackLabel,
-              current: decodedCurrent,
-              next: decodedNext,
-              type: defaultType,
-            };
+            labeledWrites[slotHex as Hex] = [
+              {
+                label: fallbackLabel,
+                current: decodedCurrent,
+                next: decodedNext,
+                type: defaultType,
+              },
+            ];
           }
         });
       }
@@ -287,7 +318,7 @@ export class Tracer {
    * @param options Configuration options for the tracer
    */
   constructor(options: TraceStorageAccessOptions) {
-    this.client = createClient(options);
+    this.client = options.client ?? createClient(options);
     this.explorers = options.explorers;
   }
 

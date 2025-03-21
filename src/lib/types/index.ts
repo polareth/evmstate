@@ -11,10 +11,9 @@ import { AbiType, AbiTypeToPrimitiveType } from "./schema";
 /**
  * Base options for analyzing storage access patterns during transaction simulation.
  *
- * Note: You will need to provide either a memory client, fork options, or a JSON-RPC URL.
+ * Note: You will need to provide either a memory client or a JSON-RPC URL.
  *
  * @param client - Use existing memory client (either this or fork/rpcUrl is required)
- * @param fork - Fork configuration for creating a memory client
  * @param rpcUrl - JSON-RPC URL for creating a memory client
  * @param common - EVM chain configuration (improves performance by avoiding fetching chain info)
  * @param explorers - Explorers urls and keys to use for fetching contract sources and ABI
@@ -22,8 +21,6 @@ import { AbiType, AbiTypeToPrimitiveType } from "./schema";
 export type TraceStorageAccessOptions = {
   /** Use existing memory client (either this or fork/rpcUrl is required) */
   client?: MemoryClient;
-  /** Fork configuration for creating a memory client */
-  fork?: ForkOptions;
   /** JSON-RPC URL for creating a memory client */
   rpcUrl?: string;
   /** EVM chain configuration (improves performance by avoiding fetching chain info) */
@@ -73,9 +70,9 @@ export type TraceStorageAccessTxParams =
 
 export type StorageAccessTrace<EOA extends boolean = false> = {
   /** Storage slots that were read but not modified during transaction (only applicable for contracts) */
-  reads: EOA extends false ? { [slot: Hex]: LabeledStorageRead } : never;
+  reads: EOA extends false ? { [slot: Hex]: [LabeledStorageRead, ...LabeledStorageRead[]] } : never;
   /** Storage slots that were modified during transaction (only applicable for contracts) */
-  writes: EOA extends false ? { [slot: Hex]: LabeledStorageWrite } : never;
+  writes: EOA extends false ? { [slot: Hex]: [LabeledStorageWrite, ...LabeledStorageWrite[]] } : never;
   /** Account field changes during transaction */
   intrinsic: IntrinsicsDiff;
 };
@@ -85,6 +82,7 @@ export type LabeledStorageRead<T extends AbiType = AbiType> = {
   type?: T;
   label?: string;
   keys?: Array<string | number | bigint>;
+  offset?: number; // Offset in bytes for packed variables
 };
 
 export type LabeledStorageWrite<T extends AbiType = AbiType> = Omit<LabeledStorageRead<T>, "current"> & {
@@ -203,6 +201,7 @@ export type StorageSlotInfo = {
   keyType?: AbiType;
   valueType?: AbiType;
   baseType?: AbiType;
+  offset?: number;
 };
 
 // TODO: review
@@ -231,6 +230,8 @@ export interface SlotLabelResult {
   keys?: Array<string | number | bigint>;
   // The positions of the keys in the source trace (for debugging)
   keySources?: Array<TraceValue>;
+  // The offset of the variable within the slot (for packed variables)
+  offset?: number;
 }
 
 /* -------------------------------- WHATSABI -------------------------------- */

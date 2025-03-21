@@ -274,46 +274,76 @@ export function extractPotentialValuesFromTrace(
 }
 
 /**
- * Finds the best matching label for a storage slot
+ * Finds all matching labels for a storage slot, including packed variables
  */
 export function findBestStorageSlotLabel(
   slot: string,
   storageLayout: StorageSlotInfo[],
   potentialValues: TraceValue[],
-): SlotLabelResult | null {
+): SlotLabelResult[] {
   // Normalize slot for consistent comparison
   const normalizedSlot = normalizeSlot(slot);
+  const results: SlotLabelResult[] = [];
 
   // No storage layout, provide generic fallback
   if (!storageLayout || storageLayout.length === 0) {
     const slotNum = parseInt(normalizedSlot.replace(/^0x/, ""), 16);
     if (slotNum >= 0 && slotNum < 100) {
       // Increased range for fallback labels
-      return {
+      results.push({
         label: `var${slotNum}`,
         slot: normalizedSlot,
         matchType: "exact",
         type: "uint256", // Default type for unknown slots
         keys: [],
         keySources: [],
-      };
+      });
+      return results;
     }
-    return null;
+    return results;
   }
 
-  // 1. Check for exact slot matches (direct variables)
+  // 1. Check for all direct variable matches at this slot (packed or unpacked)
   const directSlots = storageLayout.filter((item) => !item.isComputed);
+  
+  // Group variables by slot to identify packed variables
+  const slotToVariables = new Map<string, StorageSlotInfo[]>();
+  
   for (const directSlot of directSlots) {
     const normalizedDirectSlot = normalizeSlot(directSlot.slot);
-    if (normalizedDirectSlot === normalizedSlot) {
-      return {
-        label: directSlot.label || `var${parseInt(normalizedSlot.replace(/^0x/, ""), 16)}`,
+    if (!slotToVariables.has(normalizedDirectSlot)) {
+      slotToVariables.set(normalizedDirectSlot, []);
+    }
+    slotToVariables.get(normalizedDirectSlot)?.push(directSlot);
+  }
+  
+  // If we have any direct matches for this slot
+  if (slotToVariables.has(normalizedSlot)) {
+    const matchingVariables = slotToVariables.get(normalizedSlot)!;
+    
+    // Sort by offset to ensure consistent order (helps when there are packed variables)
+    matchingVariables.sort((a, b) => {
+      const offsetA = 'offset' in a ? a.offset || 0 : 0;
+      const offsetB = 'offset' in b ? b.offset || 0 : 0;
+      return offsetA - offsetB;
+    });
+    
+    // Add all variables at this slot to results
+    for (const variable of matchingVariables) {
+      results.push({
+        label: variable.label || `var${parseInt(normalizedSlot.replace(/^0x/, ""), 16)}`,
         slot: slot,
         matchType: "exact",
-        type: directSlot.type,
+        type: variable.type,
         keys: [],
         keySources: [],
-      };
+        offset: 'offset' in variable ? variable.offset : undefined
+      });
+    }
+    
+    // If we found direct matches, we can return immediately
+    if (results.length > 0) {
+      return results;
     }
   }
 
@@ -333,14 +363,14 @@ export function findBestStorageSlotLabel(
         const computedSlot = computeMappingSlot(mapping.baseSlot, keyValue.value, mapping.keyType);
 
         if (normalizeSlot(computedSlot) === normalizedSlot) {
-          return {
+          results.push({
             label: `${mapping.label}[${formatKey(keyValue.value, mapping.keyType)}]`,
             slot: slot,
             matchType: "mapping",
             type: mapping.valueType,
             keys: [keyValue.value],
             keySources: [keyValue],
-          };
+          });
         }
       } catch (error) {
         // Skip this combination if computation fails
@@ -375,14 +405,14 @@ export function findBestStorageSlotLabel(
             const formattedKeys = keys.map((k, idx) => formatKey(k, keyTypes[idx] || undefined));
             const label = `${mapping.label}[${formattedKeys.join("][")}]`;
 
-            return {
+            results.push({
               label,
               slot,
               matchType: "nested-mapping",
               type: mapping.valueType,
               keys,
               keySources,
-            };
+            });
           }
         } catch (error) {
           // Skip this combination if computation fails
@@ -411,14 +441,14 @@ export function findBestStorageSlotLabel(
         const computedSlot = computeArraySlot(array.baseSlot, index);
 
         if (normalizeSlot(computedSlot) === normalizedSlot) {
-          return {
+          results.push({
             label: `${array.label}[${index}]`,
             slot: slot,
             matchType: "array",
             type: array.baseType,
             keys: [index],
             keySources: [indexValue],
-          };
+          });
         }
       } catch (error) {
         // Skip this combination if computation fails
@@ -427,21 +457,22 @@ export function findBestStorageSlotLabel(
     }
   }
 
-  // 5. Fallback: use a generic variable name for small slot numbers
-  const slotNum = parseInt(normalizedSlot.replace(/^0x/, ""), 16);
-  if (slotNum >= 0 && slotNum < 100) {
-    return {
-      label: `var${slotNum}`,
-      slot: slot,
-      matchType: "exact",
-      type: "uint256", // Default type for unknown slots
-      keys: [],
-      keySources: [],
-    };
+  // 5. Fallback: use a generic variable name for small slot numbers if no results so far
+  if (results.length === 0) {
+    const slotNum = parseInt(normalizedSlot.replace(/^0x/, ""), 16);
+    if (slotNum >= 0 && slotNum < 100) {
+      results.push({
+        label: `var${slotNum}`,
+        slot: slot,
+        matchType: "exact",
+        type: "uint256", // Default type for unknown slots
+        keys: [],
+        keySources: [],
+      });
+    }
   }
 
-  // No match found
-  return null;
+  return results;
 }
 
 /**

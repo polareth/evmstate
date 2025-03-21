@@ -15,9 +15,7 @@ import {
 
 const ignoredSourcePaths = ["metadata.json", "creator-tx-hash.txt", "immutable-references"];
 
-/**
- * Fetches contract information for a list of addresses using external services
- */
+/** Fetches contract information for a list of addresses using external services */
 export const getContracts = async ({
   client,
   addresses,
@@ -67,9 +65,7 @@ export const getContracts = async ({
   }
 };
 
-/**
- * Gets the storage layout for a contract from its sources and metadata
- */
+/** Gets the storage layout for a contract from its sources and metadata */
 export const getStorageLayout = async ({
   address,
   metadata,
@@ -143,8 +139,8 @@ export const getStorageLayout = async ({
 };
 
 /**
- * Processes storage layout from the Solidity compiler into a more usable format.
- * Handles static variables, mappings, arrays, and structs.
+ * Processes storage layout from the Solidity compiler into a more usable format. Handles static variables, mappings,
+ * arrays, and structs.
  */
 // TODO: review
 const processStorageLayout = (layout: StorageLayoutOutput): StorageSlotInfo[] => {
@@ -170,6 +166,7 @@ const processStorageLayout = (layout: StorageLayoutOutput): StorageSlotInfo[] =>
         type: typeInfo.label,
         encoding: typeInfo.encoding,
         isComputed: false,
+        offset: item.offset,
       });
 
       // If this is a struct, add its members
@@ -187,6 +184,7 @@ const processStorageLayout = (layout: StorageLayoutOutput): StorageSlotInfo[] =>
             type: memberTypeInfo.label,
             encoding: memberTypeInfo.encoding,
             isComputed: false,
+            offset: member.offset,
           });
         });
       }
@@ -234,9 +232,7 @@ const processStorageLayout = (layout: StorageLayoutOutput): StorageSlotInfo[] =>
   return slots;
 };
 
-/**
- * Converts a compiler version string to a recognized solc version
- */
+/** Converts a compiler version string to a recognized solc version */
 const getSolcVersion = (_version: string) => {
   try {
     // Try exact version match first

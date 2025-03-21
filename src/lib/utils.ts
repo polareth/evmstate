@@ -1,18 +1,19 @@
-import { Address, createMemoryClient, Hex, http } from "tevm";
+import { Address, BlockTag, createMemoryClient, Hex, http } from "tevm";
+import { Common } from "tevm/common";
 
-import { TraceStorageAccessOptions } from "@/lib/types";
+import { AbiType } from "@/lib/types/schema";
 
 /** Creates a Tevm client from the provided options */
-export const createClient = (options: Omit<TraceStorageAccessOptions, "client" | "explorers">) => {
-  const { fork, rpcUrl, common } = options;
-
-  if (!fork && !rpcUrl) {
-    throw new Error("You need to provide either rpcUrl, client, or fork options that include a transport");
-  }
+export const createClient = (options: { rpcUrl?: string; common?: Common; blockTag?: BlockTag | bigint }) => {
+  const { rpcUrl, common, blockTag } = options;
+  if (!rpcUrl) throw new Error("You need to provide a rpcUrl if you don't provide a client directly");
 
   return createMemoryClient({
     common,
-    fork: fork ?? (rpcUrl ? { transport: http(rpcUrl) } : undefined),
+    fork: {
+      transport: http(rpcUrl),
+      blockTag: blockTag ?? "latest",
+    },
     miningConfig: { type: "manual" },
   });
 };
@@ -32,33 +33,73 @@ export const uniqueAddresses = (addresses: Array<Address | undefined>): Array<Ad
  *
  * @param hexValue The hex value to decode
  * @param type The Solidity type (e.g., 'uint256', 'bool', 'address')
+ * @param offset The offset of the variable within the slot (for packed variables)
  * @returns The decoded value with the appropriate JavaScript type
  */
 // TODO: review
-export function decodeStorageValue(hexValue: Hex, type?: string): any {
-  if (!hexValue) return undefined;
+export function decodeStorageValue(hexValue: Hex, type?: AbiType, offset?: number): any {
   if (!type) return hexValue;
-
-  // Convert to clean hex (no leading zeros)
   const cleanHex = hexValue.startsWith("0x") ? hexValue : `0x${hexValue}`;
 
   try {
+    // For packed values, extract the relevant part of the storage slot
+    let valueToProcess = cleanHex;
+
+    if (offset !== undefined) {
+      const fullValue = BigInt(cleanHex);
+      let bitOffset = offset * 8; // Convert byte offset to bit offset
+      let bitSize = 256; // Default full slot
+
+      // Determine bit size based on type
+      if (type.startsWith("uint") || type.startsWith("int")) {
+        const matches = type.match(/\d+/);
+        if (matches && matches[0]) {
+          bitSize = parseInt(matches[0]);
+        }
+      } else if (type === "bool") {
+        bitSize = 8; // Booleans use 8 bits in storage
+      } else if (type === "address") {
+        bitSize = 160; // Addresses are 20 bytes (160 bits)
+      } else if (type.startsWith("bytes") && type.length > 5) {
+        const matches = type.match(/\d+/);
+        if (matches && matches[0]) {
+          bitSize = parseInt(matches[0]) * 8; // bytesN uses N*8 bits
+        }
+      }
+
+      // Create a bitmask for the specified size
+      const mask = (1n << BigInt(bitSize)) - 1n;
+
+      // Shift and mask to extract the value
+      const extractedValue = (fullValue >> BigInt(bitOffset)) & mask;
+
+      // Convert back to hex for further processing
+      valueToProcess = "0x" + extractedValue.toString(16);
+    }
+
     // Handle boolean
     if (type === "bool") {
-      return cleanHex === "0x" || cleanHex === "0x0" || cleanHex === "0x00" ? false : true;
+      return valueToProcess === "0x" || valueToProcess === "0x0" || valueToProcess === "0x00" ? false : true;
     }
 
     // Handle address
     if (type === "address") {
       // Ensure proper address format (0x + 40 hex chars)
-      return cleanHex.length <= 42
-        ? cleanHex.padEnd(42, "0").toLowerCase()
-        : `0x${cleanHex.slice(cleanHex.length - 40)}`.toLowerCase();
+      if (valueToProcess.length <= 42) {
+        // Add the 0x prefix if needed
+        const withPrefix = valueToProcess.startsWith("0x") ? valueToProcess : `0x${valueToProcess}`;
+        // Remove 0x, pad with leading zeros, then add 0x back
+        const addressHex = withPrefix.replace(/^0x/, "");
+        return `0x${addressHex.padStart(40, "0")}`.toLowerCase();
+      } else {
+        // If it's longer than 42 chars, take the last 40 chars
+        return `0x${valueToProcess.slice(valueToProcess.length - 40)}`.toLowerCase();
+      }
     }
 
     // Handle integers (uint/int variants)
     if (type.startsWith("uint") || type.startsWith("int")) {
-      const bigIntValue = BigInt(cleanHex || "0");
+      const bigIntValue = BigInt(valueToProcess || "0");
 
       // For smaller integers that fit in regular JavaScript numbers, return as number
       if (
@@ -79,7 +120,7 @@ export function decodeStorageValue(hexValue: Hex, type?: string): any {
     // Handle bytes
     if (type.startsWith("bytes") && type.length > 5) {
       // Fixed-size bytes (bytes1 to bytes32)
-      return cleanHex;
+      return valueToProcess;
     }
 
     if (type === "bytes" || type === "string") {
@@ -87,7 +128,7 @@ export function decodeStorageValue(hexValue: Hex, type?: string): any {
       if (type === "string") {
         try {
           // Remove the 0x prefix
-          let hexString = cleanHex.startsWith("0x") ? cleanHex.slice(2) : cleanHex;
+          let hexString = valueToProcess.startsWith("0x") ? valueToProcess.slice(2) : valueToProcess;
 
           // Skip if it's just zeros
           if (/^0*$/.test(hexString)) return "";
@@ -113,18 +154,18 @@ export function decodeStorageValue(hexValue: Hex, type?: string): any {
         }
       }
 
-      return cleanHex;
+      return valueToProcess;
     }
 
     // Handle array types
     if (type.endsWith("[]")) {
       // For arrays, we would need array length information which isn't easily available from the hex value
       // Returning the raw hex for now
-      return cleanHex;
+      return valueToProcess;
     }
 
     // Default fallback - return as hex
-    return cleanHex;
+    return valueToProcess;
   } catch (error) {
     console.error(`Error decoding storage value of type ${type}:`, error);
     return hexValue;

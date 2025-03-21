@@ -23,6 +23,7 @@
 - [x] create a Tracer class that takes the args and env and can be user to trace by just providing tx
 - [ ] provide a react package with a Tracer provider and useTracer hook
 - [ ] ? add a "details" property to the returned trace, with the raw tevm call result (gas, errors, etc)
+- [ ] ? pass a "label"/something flag to label or not storage slots (default true, but setting to false would save a lot on compute)
 
 ## Listen to steps during call
 
