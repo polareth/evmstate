@@ -1,6 +1,21 @@
-import { Address, Hex } from "tevm";
+import { Address, createMemoryClient, Hex, http } from "tevm";
 
-import { AbiType } from "./types/schema";
+import { TraceStorageAccessOptions } from "@/lib/types";
+
+/** Creates a Tevm client from the provided options */
+export const createClient = (options: Omit<TraceStorageAccessOptions, "client" | "explorers">) => {
+  const { fork, rpcUrl, common } = options;
+
+  if (!fork && !rpcUrl) {
+    throw new Error("You need to provide either rpcUrl, client, or fork options that include a transport");
+  }
+
+  return createMemoryClient({
+    common,
+    fork: fork ?? (rpcUrl ? { transport: http(rpcUrl) } : undefined),
+    miningConfig: { type: "manual" },
+  });
+};
 
 export const uniqueAddresses = (addresses: Array<Address | undefined>): Array<Address> => {
   let existingAddresses = new Set<string>();
@@ -14,6 +29,7 @@ export const uniqueAddresses = (addresses: Array<Address | undefined>): Array<Ad
 
 /**
  * Decode a hex string value based on its Solidity type
+ *
  * @param hexValue The hex value to decode
  * @param type The Solidity type (e.g., 'uint256', 'bool', 'address')
  * @returns The decoded value with the appropriate JavaScript type

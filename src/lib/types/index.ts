@@ -9,26 +9,17 @@ import { AbiType, AbiTypeToPrimitiveType } from "./schema";
 /* -------------------------------------------------------------------------- */
 
 /**
- * Options for analyzing storage access patterns during transaction simulation.
+ * Base options for analyzing storage access patterns during transaction simulation.
  *
  * Note: You will need to provide either a memory client, fork options, or a JSON-RPC URL.
- *
- * @param from - Sender address
- * @param to - Target contract address (optional for contract creation)
- * @param data - Transaction calldata
+
  * @param client - Use existing memory client (either this or fork/rpcUrl is required)
  * @param fork - Fork configuration for creating a memory client
  * @param rpcUrl - JSON-RPC URL for creating a memory client
  * @param common - EVM chain configuration (improves performance by avoiding fetching chain info)
+ * @param explorers - Explorers urls and keys to use for fetching contract sources and ABI
  */
 export type TraceStorageAccessOptions = {
-  /** Sender address */
-  from: Address;
-  /** Target contract address (optional for contract creation) */
-  to?: Address;
-  /** Transaction calldata */
-  data: Hex;
-
   /** Use existing memory client (either this or fork/rpcUrl is required) */
   client?: MemoryClient;
   /** Fork configuration for creating a memory client */
@@ -49,6 +40,24 @@ export type TraceStorageAccessOptions = {
       apiKey?: string;
     };
   };
+};
+
+/**
+ * Transaction parameters for analyzing storage access patterns during transaction simulation.
+ *
+ * Note: You will need to provide either a memory client, fork options, or a JSON-RPC URL.
+ *
+ * @param from - Sender address
+ * @param to - Target contract address (optional for contract creation)
+ * @param data - Transaction calldata
+ */
+export type TraceStorageAccessTxParams = {
+  /** Sender address */
+  from: Address;
+  /** Target contract address (optional for contract creation) */
+  to?: Address;
+  /** Transaction calldata */
+  data: Hex;
 };
 
 export type StorageAccessTrace<EOA extends boolean = false> = {

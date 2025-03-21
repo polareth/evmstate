@@ -10,40 +10,36 @@ import {
   StorageAccessTrace,
   StorageSlotInfo,
   TraceStorageAccessOptions,
+  TraceStorageAccessTxParams,
 } from "@/lib/types";
-import { decodeStorageValue, uniqueAddresses } from "@/lib/utils";
+import { createClient, decodeStorageValue, uniqueAddresses } from "@/lib/utils";
 
 /**
  * Analyzes storage access patterns during transaction execution.
+ *
  * Identifies which contract slots are read from and written to, with human-readable labels.
  *
- * @param options - {@link TraceStorageAccessOptions}
- * @returns Promise<Record<Address, EnhancedStorageAccessTrace>>
+ * Note: If you provide a Tevm client yourself, you're responsible for managing the fork's state; although default
+ * mining configuration is "auto", so unless you know what you're doing, it should be working as expected intuitively.
  *
  * @example
- * const analysis = await traceStorageAccess({
- *   from: "0x123",
- *   to: "0x456",
- *   data: "0x1234567890",
- *   client: memoryClient,
- * });
+ *   const analysis = await traceStorageAccess({
+ *     from: "0x123",
+ *     to: "0x456",
+ *     data: "0x1234567890",
+ *     client: memoryClient,
+ *   });
+ *
+ * @param options - {@link TraceStorageAccessOptions}
+ * @returns Promise<Record<Address, StorageAccessTrace>>
  */
 export const traceStorageAccess = async (
-  options: TraceStorageAccessOptions,
+  args: TraceStorageAccessOptions & TraceStorageAccessTxParams,
 ): Promise<Record<Address, StorageAccessTrace>> => {
-  const { from, to, data, client: _client, fork, rpcUrl, common, explorers } = options;
-  if (!_client && !fork && !rpcUrl)
-    throw new Error("You need to provide either rpcUrl or fork options that include a transport");
+  const { from, to, data, client: _client, fork, rpcUrl, common, explorers } = args;
 
   // Create the tevm client
-  const client =
-    _client ??
-    createMemoryClient({
-      common,
-      fork: fork ?? {
-        transport: http(rpcUrl),
-      },
-    });
+  const client = _client ?? createClient({ fork, rpcUrl, common });
 
   // Execute call on local vm with access list generation and trace
   const callResult = await client.tevmCall({
@@ -74,8 +70,8 @@ export const traceStorageAccess = async (
   const storagePreTx = await storageSnapshot(client, callResult.accessList ?? {});
   const intrinsicsPreTx = await intrinsicSnapshot(client, addresses);
 
-  // Mine the transaction and get post-state values
-  await client.tevmMine({ blockCount: 1 });
+  // Mine the pending transaction to get post-state values
+  await client.tevmMine();
 
   // Get values after the transaction has been included
   const storagePostTx = await storageSnapshot(client, callResult.accessList ?? {});
@@ -243,3 +239,41 @@ export const traceStorageAccess = async (
 
   return labeledTrace;
 };
+
+/**
+ * A class that encapsulates the storage access tracing functionality.
+ *
+ * Allows for creating a reusable tracer with consistent configuration.
+ */
+export class Tracer {
+  private client;
+  private explorers;
+
+  /**
+   * Creates a new Tracer instance with configuration for tracing storage access.
+   *
+   * @param options Configuration options for the tracer
+   */
+  constructor(options: TraceStorageAccessOptions) {
+    this.client = createClient(options);
+    this.explorers = options.explorers;
+  }
+
+  /**
+   * Traces storage access for a transaction.
+   *
+   * Uses the same underlying implementation as the standalone {@link traceStorageAccess} function.
+   */
+  async traceStorageAccess(txOptions: {
+    from: Address;
+    to: Address;
+    data: Hex;
+  }): Promise<Record<Address, StorageAccessTrace>> {
+    // TODO: do we need to update the fork here? or is the "latest" blockTag enough?
+    return traceStorageAccess({
+      ...txOptions,
+      client: this.client,
+      explorers: this.explorers,
+    });
+  }
+}

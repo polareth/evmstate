@@ -16,7 +16,8 @@
 
 ## TODO
 
-- create a Tracer class that takes the args and env and can be user to trace by just providing tx
+- [x] create a Tracer class that takes the args and env and can be user to trace by just providing tx
+- [ ] provide a react package with a Tracer provider and useTracer hook
 
 ## Listen to steps during call
 
