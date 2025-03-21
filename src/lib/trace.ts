@@ -1,4 +1,4 @@
-import { Address, createMemoryClient, Hex, http } from "tevm";
+import { Address, CallResult, Hex } from "tevm";
 
 import { debug } from "@/debug";
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
@@ -12,7 +12,7 @@ import {
   TraceStorageAccessOptions,
   TraceStorageAccessTxParams,
 } from "@/lib/types";
-import { createClient, decodeStorageValue, uniqueAddresses } from "@/lib/utils";
+import { createClient, decodeStorageValue /* , uniqueAddresses */ } from "@/lib/utils";
 
 /**
  * Analyzes storage access patterns during transaction execution.
@@ -36,22 +36,48 @@ import { createClient, decodeStorageValue, uniqueAddresses } from "@/lib/utils";
 export const traceStorageAccess = async (
   args: TraceStorageAccessOptions & TraceStorageAccessTxParams,
 ): Promise<Record<Address, StorageAccessTrace>> => {
-  const { from, to, data, client: _client, fork, rpcUrl, common, explorers } = args;
+  const { client: _client, fork, rpcUrl, common, explorers } = args;
+
+  // Extract parameters based on mode
+  const isReplay = "txHash" in args && args.txHash !== undefined;
+  let { from, to, data } = isReplay ? { from: undefined, to: undefined, data: undefined } : args;
 
   // Create the tevm client
   const client = _client ?? createClient({ fork, rpcUrl, common });
 
+  // If we're replaying a transaction, extract the from, to, and data from the transaction
+  if (isReplay) {
+    try {
+      const tx = await client.getTransaction({ hash: args.txHash });
+      ({ from, to, data } = { from: tx.from, to: tx.to ?? undefined, data: tx.input });
+    } catch (err) {
+      debug(`Failed to get transaction for replaying ${args.txHash}: ${err}`);
+      throw err;
+    }
+  }
+
   // Execute call on local vm with access list generation and trace
-  const callResult = await client.tevmCall({
-    from,
-    to,
-    data,
-    blockTag: "latest",
-    skipBalance: true,
-    createAccessList: true,
-    createTransaction: true,
-    createTrace: true, // Enable EVM tracing to capture execution details
-  });
+  let callResult: CallResult | undefined;
+  try {
+    callResult = await client.tevmCall({
+      from,
+      to,
+      data,
+      blockTag: fork?.blockTag ?? "latest",
+      skipBalance: true,
+      createAccessList: true,
+      createTransaction: true,
+      createTrace: true,
+    });
+
+    if (callResult.errors) {
+      debug(`EVM exception during call: ${callResult.errors.map((err) => err.message).join(", ")}`);
+      throw new Error(callResult.errors.map((err) => err.message).join(", "));
+    }
+  } catch (err) {
+    debug(`Failed to execute call: ${err}`);
+    throw err;
+  }
 
   // Debug log showing the trace size and unique stack values
   debug(
@@ -59,12 +85,18 @@ export const traceStorageAccess = async (
   );
 
   // Get all relevant addresses (contract addresses + sender + target + any created contracts)
-  const addresses = uniqueAddresses([
-    ...(Object.keys(callResult.accessList ?? {}) as Address[]),
-    from,
-    to,
-    ...((callResult.createdAddresses ?? []) as Address[]),
-  ]);
+  // const addresses = uniqueAddresses([
+  //   ...(Object.keys(callResult.accessList ?? {}) as Address[]),
+  //   from,
+  //   to,
+  //   ...((callResult.createdAddresses ?? []) as Address[]),
+  // ]);
+  // TODO: research to make sure this really includes all relevant addresses but it should (all accounts touched by the tx)
+  // currently enabled with createAccessList: true
+  const addresses = Object.values(callResult.preimages ?? {}).filter(
+    (address) => address !== "0x0000000000000000000000000000000000000000",
+  );
+  debug(`${addresses.length} accounts touched during the transaction`);
 
   // Get the storage and account values before the transaction is mined
   const storagePreTx = await storageSnapshot(client, callResult.accessList ?? {});

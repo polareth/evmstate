@@ -12,7 +12,7 @@ import { AbiType, AbiTypeToPrimitiveType } from "./schema";
  * Base options for analyzing storage access patterns during transaction simulation.
  *
  * Note: You will need to provide either a memory client, fork options, or a JSON-RPC URL.
-
+ *
  * @param client - Use existing memory client (either this or fork/rpcUrl is required)
  * @param fork - Fork configuration for creating a memory client
  * @param rpcUrl - JSON-RPC URL for creating a memory client
@@ -45,20 +45,31 @@ export type TraceStorageAccessOptions = {
 /**
  * Transaction parameters for analyzing storage access patterns during transaction simulation.
  *
- * Note: You will need to provide either a memory client, fork options, or a JSON-RPC URL.
+ * - Option 1: simulate a new transaction with:
+ *
+ * @example
+ *   const simulateParams: TraceStorageAccessTxParams = {
+ *     from: "0x123...",
+ *     to: "0x456...", // optional
+ *     data: "0x789...",
+ *   };
+ *
+ * @example
+ *   const replayParams: TraceStorageAccessTxParams = {
+ *     txHash: "0x123...",
+ *   };
  *
  * @param from - Sender address
  * @param to - Target contract address (optional for contract creation)
  * @param data - Transaction calldata
+ *
+ *   - Option 2: replay a transaction with:
+ *
+ * @param txHash - Transaction hash
  */
-export type TraceStorageAccessTxParams = {
-  /** Sender address */
-  from: Address;
-  /** Target contract address (optional for contract creation) */
-  to?: Address;
-  /** Transaction calldata */
-  data: Hex;
-};
+export type TraceStorageAccessTxParams =
+  | ({ txHash: Hex } & { from?: never; to?: never; data?: never })
+  | ({ from: Address; data: Hex; to?: Address } & { txHash?: never });
 
 export type StorageAccessTrace<EOA extends boolean = false> = {
   /** Storage slots that were read but not modified during transaction (only applicable for contracts) */
@@ -85,15 +96,11 @@ export type LabeledStorageWrite<T extends AbiType = AbiType> = Omit<LabeledStora
 /*                                 ACCESS LIST                                */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Internal type representing the access list format from tevm.
- */
+/** Internal type representing the access list format from tevm. */
 export type AccessList = Record<Address, Set<Hex>>;
 
 /* --------------------------- STORAGE SLOT TYPES --------------------------- */
-/**
- * Type representing the storage at a defined slot at a specific point in time.
- */
+/** Type representing the storage at a defined slot at a specific point in time. */
 export type StorageSnapshot = {
   /** Storage slot location */
   [slot: Hex]: {
@@ -102,9 +109,7 @@ export type StorageSnapshot = {
   };
 };
 
-/**
- * Type representing a list of storage reads without modification.
- */
+/** Type representing a list of storage reads without modification. */
 export type StorageReads = {
   /** Storage slot location */
   [slot: Hex]: {
@@ -113,9 +118,7 @@ export type StorageReads = {
   };
 };
 
-/**
- * Type representing a list of storage writes with modification.
- */
+/** Type representing a list of storage writes with modification. */
 export type StorageWrites = {
   /** Storage slot location */
   [slot: Hex]: {
@@ -134,9 +137,7 @@ export type StorageWrites = {
  */
 type Intrinsics = Pick<GetAccountResult, "balance" | "codeHash" | "deployedBytecode" | "nonce" | "storageRoot">;
 
-/**
- * Type representing the intrinsic state of an account at a specific point in time.
- */
+/** Type representing the intrinsic state of an account at a specific point in time. */
 export type IntrinsicsSnapshot = {
   /** Account field identifier */
   [K in keyof Intrinsics]: {
@@ -145,9 +146,7 @@ export type IntrinsicsSnapshot = {
   };
 };
 
-/**
- * Type representing the difference in intrinsic account state during transaction.
- */
+/** Type representing the difference in intrinsic account state during transaction. */
 export type IntrinsicsDiff = {
   /** Account field identifier */
   [K in keyof Intrinsics]: {
@@ -190,9 +189,7 @@ export type AccountDiff<EOA extends boolean = false> = {
 /* -------------------------------------------------------------------------- */
 
 /* ---------------------------------- SLOTS --------------------------------- */
-/**
- * Type for representing labeled storage slots
- */
+/** Type for representing labeled storage slots */
 // TODO: review
 export type StorageSlotInfo = {
   slot: Hex;
