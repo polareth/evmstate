@@ -1,5 +1,4 @@
 export { AssemblyStorage } from "./advanced/AssemblyStorage.s.sol";
-export { MultiSlot } from "./basic/MultiSlot.s.sol";
 export { StoragePacking } from "./basic/StoragePacking.s.sol";
 export { Arrays } from "./data-structures/Arrays.s.sol";
 export { Mappings } from "./data-structures/Mappings.s.sol";
