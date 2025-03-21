@@ -49,7 +49,12 @@ export const traceStorageAccess = async (
   if (isReplay) {
     try {
       const tx = await client.getTransaction({ hash: args.txHash });
-      ({ from, to, data } = { from: tx.from, to: tx.to ?? undefined, data: tx.input ? tx.input as Hex : tx.data as Hex });
+      // TODO: remove when correctly formatted (tx in block mined here has data instead of input)
+      ({ from, to, data } = {
+        from: tx.from,
+        to: tx.to ?? undefined,
+        data: tx.input ? (tx.input as Hex) : (tx.data as Hex),
+      });
 
       // TODO: can't run tx at past block so we need to recreate the client; this won't work on the default chain so to-test in staging
       // Also it's ugly to recreate the client here
@@ -215,13 +220,16 @@ export const traceStorageAccess = async (
               // Decode the value based on its type and offset (if applicable)
               const decodedValue = decodeStorageValue(current, slotLabel.type, slotLabel.offset);
 
-              return {
+              const result: LabeledStorageRead = {
                 label: slotLabel.label,
                 current: decodedValue,
                 type: slotLabel.type,
-                keys: slotLabel.keys,
-                offset: slotLabel.offset,
               };
+
+              if (slotLabel.offset !== undefined) result.offset = slotLabel.offset;
+              if (slotLabel.keys && slotLabel.keys.length > 0) result.keys = slotLabel.keys;
+
+              return result;
             }) as [LabeledStorageRead, ...LabeledStorageRead[]];
           } else {
             // No match found, use a fallback label
@@ -257,14 +265,17 @@ export const traceStorageAccess = async (
               const decodedCurrent = decodeStorageValue(current, slotLabel.type, slotLabel.offset);
               const decodedNext = decodeStorageValue(next, slotLabel.type, slotLabel.offset);
 
-              return {
+              const result: LabeledStorageWrite = {
                 label: slotLabel.label,
                 current: decodedCurrent,
                 next: decodedNext,
                 type: slotLabel.type,
-                keys: slotLabel.keys,
-                offset: slotLabel.offset,
               };
+
+              if (slotLabel.offset !== undefined) result.offset = slotLabel.offset;
+              if (slotLabel.keys && slotLabel.keys.length > 0) result.keys = slotLabel.keys;
+
+              return result;
             }) as [LabeledStorageWrite, ...LabeledStorageWrite[]];
           } else {
             // No match found, use a fallback label

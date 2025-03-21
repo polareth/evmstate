@@ -1,4 +1,4 @@
-export { traceStorageAccess } from "@/lib/trace";
+export { traceStorageAccess, Tracer } from "@/lib/trace";
 export { findBestStorageSlotLabel } from "@/lib/slot-engine";
 export type {
   StorageAccessTrace,
