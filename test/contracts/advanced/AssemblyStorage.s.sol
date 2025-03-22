@@ -5,11 +5,6 @@ contract AssemblyStorage {
     uint256 private value;
     mapping(address => uint256) private balances;
     
-    // Standard Solidity function
-    function setValue(uint256 newValue) public {
-        value = newValue;
-    }
-    
     // Assembly to read storage directly
     function getValueAssembly() public view returns (uint256 result) {
         // The value is at slot 0
@@ -23,21 +18,6 @@ contract AssemblyStorage {
         assembly {
             sstore(0, newValue)
         }
-    }
-    
-    // Standard Solidity function for comparison
-    function getValue() public view returns (uint256) {
-        return value;
-    }
-    
-    // Set balance using standard Solidity
-    function setBalance(address user, uint256 amount) public {
-        balances[user] = amount;
-    }
-    
-    // Get balance using standard Solidity
-    function getBalance(address user) public view returns (uint256) {
-        return balances[user];
     }
     
     // Set balance using assembly

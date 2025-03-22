@@ -1,8 +1,8 @@
 import { Address, GetAccountResult, Hex, MemoryClient } from "tevm";
 import { Common } from "tevm/common";
-import { ForkOptions } from "tevm/state";
+import { abi } from "@shazow/whatsabi";
 
-import { AbiType, AbiTypeToPrimitiveType } from "./schema";
+import { AbiType, AbiTypeToPrimitiveType } from "@/lib/schema";
 
 /* -------------------------------------------------------------------------- */
 /*                                    TRACE                                   */
@@ -68,26 +68,53 @@ export type TraceStorageAccessTxParams =
   | ({ txHash: Hex } & { from?: never; to?: never; data?: never })
   | ({ from: Address; data: Hex; to?: Address } & { txHash?: never });
 
+/**
+ * Storage access trace for a transaction
+ *
+ * @template EOA - Whether the account is an EOA (Externally Owned Account)
+ * @param reads - Storage slots that were read but not modified during transaction (only applicable for contracts)
+ * @param writes - Storage slots that were modified during transaction (only applicable for contracts)
+ * @param intrinsic - Account field changes during transaction
+ */
 export type StorageAccessTrace<EOA extends boolean = false> = {
-  /** Storage slots that were read but not modified during transaction (only applicable for contracts) */
   reads: EOA extends false ? { [slot: Hex]: [LabeledStorageRead, ...LabeledStorageRead[]] } : never;
-  /** Storage slots that were modified during transaction (only applicable for contracts) */
   writes: EOA extends false ? { [slot: Hex]: [LabeledStorageWrite, ...LabeledStorageWrite[]] } : never;
-  /** Account field changes during transaction */
   intrinsic: IntrinsicsDiff;
 };
 
+/**
+ * Labeled storage read with decoded value and type
+ *
+ * @param current - The current storage value in hex and decoded form (if available)
+ * @param type - The ABI type of the storage value
+ * @param label - The label retrieved from the storage layout
+ * @param keys - Any mapping keys if the value is mapped
+ * @param index - The index of the entry if it's inside an array
+ * @param offset - The offset of this variable within the slot (for packed variables)
+ */
 export type LabeledStorageRead<T extends AbiType = AbiType> = {
-  current: AbiTypeToPrimitiveType<T>;
-  type?: T;
   label?: string;
-  keys?: Array<string | number | bigint>;
+  type?: T;
+  current: {
+    hex: Hex;
+    decoded?: AbiTypeToPrimitiveType<T>;
+  };
+  keys?: Array<DecodedKey>;
+  index?: bigint;
   offset?: number; // Offset in bytes for packed variables
 };
 
-export type LabeledStorageWrite<T extends AbiType = AbiType> = Omit<LabeledStorageRead<T>, "current"> & {
-  current: AbiTypeToPrimitiveType<T>;
-  next: AbiTypeToPrimitiveType<T>;
+/**
+ * Labeled storage write with decoded value and type
+ *
+ * @param next - The new storage value in hex and decoded form (if available)
+ * @see {@link LabeledStorageRead} for other properties
+ */
+export type LabeledStorageWrite<T extends AbiType = AbiType> = LabeledStorageRead<T> & {
+  next: {
+    hex: Hex;
+    decoded?: AbiTypeToPrimitiveType<T>;
+  };
 };
 
 /* -------------------------------------------------------------------------- */
@@ -189,47 +216,48 @@ export type AccountDiff<EOA extends boolean = false> = {
 /* ---------------------------------- SLOTS --------------------------------- */
 /** Type for representing labeled storage slots */
 // TODO: review
-export type StorageSlotInfo = {
+export type StorageSlotInfo<T extends StorageLayoutType["encoding"] = StorageLayoutType["encoding"]> = {
   slot: Hex;
-  label?: string;
+  label: string;
   path: string;
   type: AbiType;
-  encoding: string;
+  encoding: T;
   isComputed: boolean;
-  baseSlot?: string;
-  // TODO: are these abi types?
-  keyType?: AbiType;
-  valueType?: AbiType;
-  baseType?: AbiType;
+  keyType?: T extends "mapping" ? AbiType : never;
+  valueType?: T extends "mapping" ? AbiType : never;
+  baseType?: T extends "dynamic_array" ? AbiType : never;
   offset?: number;
 };
 
 // TODO: review
-export interface TraceValue {
-  // Raw value from EVM trace or transaction
-  value: string | number | bigint;
-  // Source of the value (stack, op, function arg, etc)
-  source: "stack" | "argument" | "address" | "constant";
-  // Position in the source (e.g., stack index, arg index)
-  position?: number;
-  // Operation where this value was observed (e.g., SLOAD, SHA3)
-  operation?: string;
+export interface PotentialKey {
+  // Value padded to 32 bytes
+  padded: Hex;
+  // Type of the value if known
+  type?: AbiType;
 }
 
-// TODO: review
-export interface SlotLabelResult {
+export type DecodedKey<T extends AbiType = AbiType> = {
+  hex: Hex;
+  decoded?: AbiTypeToPrimitiveType<T>;
+  type?: T;
+};
+
+export type SlotMatchType = "exact" | "mapping" | "nested-mapping" | "array" | "struct";
+
+export interface SlotLabelResult<M extends SlotMatchType = SlotMatchType> {
   // The variable name with formatted keys
   label: string;
   // The slot being accessed
   slot: string;
   // The type of match that was found
-  matchType: "exact" | "mapping" | "nested-mapping" | "array" | "struct";
+  matchType: M;
   // The variable type (from Solidity)
   type?: AbiType;
   // The detected keys or indices (if applicable)
-  keys?: Array<string | number | bigint>;
-  // The positions of the keys in the source trace (for debugging)
-  keySources?: Array<TraceValue>;
+  keys?: M extends "mapping" | "nested-mapping" ? Array<PotentialKey> : never; // TODO: then decode it for the consumer
+  // The detected index (if applicable)
+  index?: M extends "array" ? Hex : never; // TODO: same here, decode to bigint? or number?
   // The offset of the variable within the slot (for packed variables)
   offset?: number;
 }
@@ -250,6 +278,7 @@ export type GetContractsResult = Record<
       compilerVersion?: string;
     };
     sources?: Array<{ path?: string; content: string }>;
+    abi: abi.ABI;
   }
 >;
 

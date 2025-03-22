@@ -1,5 +1,5 @@
-import { Hex, MemoryClient } from "tevm";
-import { padBytes, toHex } from "viem";
+import { MemoryClient } from "tevm";
+import { toHex } from "viem";
 
 export const getClient = (): MemoryClient => {
   // @ts-expect-error no index signature

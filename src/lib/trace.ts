@@ -2,8 +2,8 @@ import { Address, CallResult, Hex } from "tevm";
 
 import { debug } from "@/debug";
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
-import { extractPotentialValuesFromTrace, findBestStorageSlotLabel } from "@/lib/slot-engine";
-import { getContracts, getStorageLayout } from "@/lib/storage-layout";
+import { extractPotentialKeys } from "@/lib/slot-engine";
+import { formatLabeledStorageOp, getContracts, getStorageLayout } from "@/lib/storage-layout";
 import {
   LabeledStorageRead,
   LabeledStorageWrite,
@@ -12,7 +12,7 @@ import {
   TraceStorageAccessOptions,
   TraceStorageAccessTxParams,
 } from "@/lib/types";
-import { createClient, decodeStorageValue /* , uniqueAddresses */ } from "@/lib/utils";
+import { createClient /* , uniqueAddresses */ } from "@/lib/utils";
 
 /**
  * Analyzes storage access patterns during transaction execution.
@@ -157,27 +157,43 @@ export const traceStorageAccess = async (
     }),
   );
 
+  // Extract potential key/index values from the execution trace
+  const traceLog = callResult.trace?.structLogs || [];
+
+  // Create a slim version of the trace with deduplicated stack values for efficiency
+  const dedupedTraceLog = {
+    // Deduplicate stack values across all operations
+    uniqueStackValues: [...new Set(traceLog.flatMap((log) => log.stack))],
+    // Only keep storage-related operations for detailed analysis
+    relevantOps: traceLog.filter((log) => ["SLOAD", "SSTORE", "SHA3"].includes(log.op)),
+  };
+
+  // Aggregate functions from all abis to be able to figure out types of args
+  const abis = Object.values(contractsInfo)
+    .flatMap((contract) => contract.abi)
+    .filter((abi) => abi.type === "function");
+
+  const potentialKeys = extractPotentialKeys(dedupedTraceLog, addresses, abis, data);
+  debug(`Extracted ${potentialKeys.length} unique potential values from the trace`);
+
   // Process each address and create enhanced trace with labels
-  // TODO: review
   const labeledTrace = addresses.reduce(
     (acc, address) => {
-      const preTxStorage = storagePreTx[address];
-      const postTxStorage = storagePostTx[address];
-      const preTxIntrinsics = intrinsicsPreTx[address];
-      const postTxIntrinsics = intrinsicsPostTx[address];
+      const storage = { pre: storagePreTx[address], post: storagePostTx[address] };
+      const intrinsics = { pre: intrinsicsPreTx[address], post: intrinsicsPostTx[address] };
 
       // Skip if this address has no relevant data
-      if (!preTxIntrinsics || !postTxIntrinsics) {
-        console.warn(`Missing account state information for address ${address}`);
-        return acc; // Skip this address
+      if (!intrinsics.pre || !intrinsics.post) {
+        debug(`Missing account state information for address ${address}`);
+        return acc;
       }
 
       // For EOAs (accounts without code) we won't have storage data
       const slotsDiff =
-        preTxStorage && postTxStorage ? storageDiff(preTxStorage, postTxStorage) : { reads: {}, writes: {} };
+        storage.pre && storage.post ? storageDiff(storage.pre, storage.post) : { reads: {}, writes: {} };
 
       // Compare account state changes
-      const accountDiff = intrinsicDiff(preTxIntrinsics, postTxIntrinsics);
+      const accountDiff = intrinsicDiff(intrinsics.pre, intrinsics.post);
 
       // Combine into complete diff
       const trace = createAccountDiff(slotsDiff, accountDiff);
@@ -185,121 +201,34 @@ export const traceStorageAccess = async (
       // Get storage layout for this contract
       const contractLayout = storageLayouts[address];
 
-      // Transaction data for slot labeling
-      const txData = {
-        data: data,
-        to: to,
-        from: from,
-      };
+      // Create labeled reads and writes
+      const labeledReads = Object.entries(trace.reads).reduce(
+        (acc, [slotHex, read]) => {
+          acc[slotHex as Hex] = formatLabeledStorageOp({
+            op: read,
+            slot: slotHex as Hex,
+            contractLayout,
+            potentialKeys,
+          });
+          return acc;
+        },
+        {} as Record<Hex, [LabeledStorageRead, ...LabeledStorageRead[]]>,
+      );
 
-      // Extract potential key/index values from the execution trace
-      const traceLog = callResult.trace?.structLogs || [];
+      const labeledWrites = Object.entries(trace.writes).reduce(
+        (acc, [slotHex, write]) => {
+          acc[slotHex as Hex] = formatLabeledStorageOp({
+            op: write,
+            slot: slotHex as Hex,
+            contractLayout,
+            potentialKeys,
+          });
+          return acc;
+        },
+        {} as Record<Hex, [LabeledStorageWrite, ...LabeledStorageWrite[]]>,
+      );
 
-      // Create a slim version of the trace with deduplicated stack values for efficiency
-      const dedupedTraceLog = {
-        // Deduplicate stack values across all operations
-        uniqueStackValues: [...new Set(traceLog.flatMap((log) => log.stack))],
-        // Only keep storage-related operations for detailed analysis
-        relevantOps: traceLog.filter((log) => ["SLOAD", "SSTORE", "SHA3"].includes(log.op)),
-      };
-
-      const potentialValues = extractPotentialValuesFromTrace(dedupedTraceLog, txData);
-
-      debug(`Extracted ${potentialValues.length} unique potential values from the trace`);
-
-      // Create labeled reads
-      const labeledReads: Record<Hex, [LabeledStorageRead, ...LabeledStorageRead[]]> = {};
-      if (contractLayout) {
-        Object.entries(trace.reads).forEach(([slotHex, { current }]) => {
-          // Find all labels for this slot using our slot engine
-          const slotLabels = findBestStorageSlotLabel(slotHex, contractLayout, potentialValues);
-
-          if (slotLabels.length > 0) {
-            // Found matches - create an array of labeled reads for this slot
-            labeledReads[slotHex as Hex] = slotLabels.map((slotLabel) => {
-              // Decode the value based on its type and offset (if applicable)
-              const decodedValue = decodeStorageValue(current, slotLabel.type, slotLabel.offset);
-
-              const result: LabeledStorageRead = {
-                label: slotLabel.label,
-                current: decodedValue,
-                type: slotLabel.type,
-              };
-
-              if (slotLabel.offset !== undefined) result.offset = slotLabel.offset;
-              if (slotLabel.keys && slotLabel.keys.length > 0) result.keys = slotLabel.keys;
-
-              return result;
-            }) as [LabeledStorageRead, ...LabeledStorageRead[]];
-          } else {
-            // No match found, use a fallback label
-            const slotNumber = parseInt(slotHex.replace(/^0x0*/, ""), 16);
-            const fallbackLabel = isNaN(slotNumber) ? undefined : `var${slotNumber}`;
-
-            // Use uint256 as default type for unknown slots
-            const defaultType = "uint256";
-            const decodedValue = decodeStorageValue(current, defaultType);
-
-            labeledReads[slotHex as Hex] = [
-              {
-                label: fallbackLabel,
-                current: decodedValue,
-                type: defaultType,
-              },
-            ];
-          }
-        });
-      }
-
-      // Create labeled writes
-      const labeledWrites: Record<Hex, [LabeledStorageWrite, ...LabeledStorageWrite[]]> = {};
-      if (contractLayout) {
-        Object.entries(trace.writes).forEach(([slotHex, { current, next }]) => {
-          // Find all labels for this slot using our slot engine
-          const slotLabels = findBestStorageSlotLabel(slotHex, contractLayout, potentialValues);
-
-          if (slotLabels.length > 0) {
-            // Found matches - create an array of labeled writes for this slot
-            labeledWrites[slotHex as Hex] = slotLabels.map((slotLabel) => {
-              // Decode both current and next values based on the same type and offset
-              const decodedCurrent = decodeStorageValue(current, slotLabel.type, slotLabel.offset);
-              const decodedNext = decodeStorageValue(next, slotLabel.type, slotLabel.offset);
-
-              const result: LabeledStorageWrite = {
-                label: slotLabel.label,
-                current: decodedCurrent,
-                next: decodedNext,
-                type: slotLabel.type,
-              };
-
-              if (slotLabel.offset !== undefined) result.offset = slotLabel.offset;
-              if (slotLabel.keys && slotLabel.keys.length > 0) result.keys = slotLabel.keys;
-
-              return result;
-            }) as [LabeledStorageWrite, ...LabeledStorageWrite[]];
-          } else {
-            // No match found, use a fallback label
-            const slotNumber = parseInt(slotHex.replace(/^0x0*/, ""), 16);
-            const fallbackLabel = isNaN(slotNumber) ? undefined : `var${slotNumber}`;
-
-            // Use uint256 as default type for unknown slots
-            const defaultType = "uint256";
-            const decodedCurrent = decodeStorageValue(current, defaultType);
-            const decodedNext = decodeStorageValue(next, defaultType);
-
-            labeledWrites[slotHex as Hex] = [
-              {
-                label: fallbackLabel,
-                current: decodedCurrent,
-                next: decodedNext,
-                type: defaultType,
-              },
-            ];
-          }
-        });
-      }
-
-      // Create enhanced trace with labels
+      // Return enhanced trace with labels
       acc[address] = {
         reads: labeledReads,
         writes: labeledWrites,

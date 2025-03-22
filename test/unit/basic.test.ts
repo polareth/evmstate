@@ -1,5 +1,4 @@
 import { encodeFunctionData } from "tevm";
-import { Hex } from "tevm/utils";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants";
@@ -43,30 +42,35 @@ describe("Basic slots access and packing", () => {
         [getSlotHex(0)]: [
           {
             label: "smallValue1",
-            current: 0,
-            next: 42,
             type: "uint8",
-            offset: 0,
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x2a", decoded: 42 },
           },
           {
             label: "smallValue2",
-            current: 0,
-            next: 123,
             type: "uint8",
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x7b", decoded: 123 },
             offset: 1,
           },
           {
             label: "flag",
-            current: false,
-            next: true,
             type: "bool",
+            current: { hex: "0x00", decoded: false },
+            next: { hex: "0x01", decoded: true },
             offset: 2,
           },
           {
             label: "someAddress",
-            current: "0x0000000000000000000000000000000000000000",
-            next: caller.toString(),
             type: "address",
+            current: {
+              hex: "0x00",
+              decoded: "0x0000000000000000000000000000000000000000",
+            },
+            next: {
+              hex: "0x0000000000000000000000000000000000000001",
+              decoded: "0x0000000000000000000000000000000000000001",
+            },
             offset: 3,
           },
         ],
@@ -90,23 +94,22 @@ describe("Basic slots access and packing", () => {
         [getSlotHex(3)]: [
           {
             label: "mediumValue1",
-            current: 0,
-            next: 999,
             type: "uint16",
-            offset: 0,
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x03e7", decoded: 999 },
           },
           {
             label: "mediumValue2",
-            current: 0,
-            next: 0,
             type: "uint32",
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x00000000", decoded: 0 }, // gets populated with 0 bytes when writing first variable
             offset: 2,
           },
           {
             label: "mediumValue3",
-            current: 0n,
-            next: 0n,
             type: "uint64",
+            current: { hex: "0x00", decoded: 0n },
+            next: { hex: "0x0000000000000000", decoded: 0n }, // same here
             offset: 6,
           },
         ],
@@ -133,63 +136,66 @@ describe("Basic slots access and packing", () => {
         [getSlotHex(0)]: [
           {
             label: "smallValue1",
-            current: 0,
-            next: 10,
             type: "uint8",
-            offset: 0,
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x0a", decoded: 10 },
           },
           {
             label: "smallValue2",
-            current: 0,
-            next: 20,
             type: "uint8",
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x14", decoded: 20 },
             offset: 1,
           },
           {
             label: "flag",
-            current: false,
-            next: false,
             type: "bool",
+            current: { hex: "0x00", decoded: false },
+            next: { hex: "0x00", decoded: false },
             offset: 2,
           },
           {
             label: "someAddress",
-            current: "0x0000000000000000000000000000000000000000",
-            next: "0x0000000000000000000000000000000000000000",
             type: "address",
+            current: {
+              hex: "0x00",
+              decoded: "0x0000000000000000000000000000000000000000",
+            },
+            next: {
+              hex: "0x0000000000000000000000000000000000000000",
+              decoded: "0x0000000000000000000000000000000000000000",
+            },
             offset: 3,
           },
         ],
         [getSlotHex(3)]: [
           {
             label: "mediumValue1",
-            current: 0,
-            next: 1000,
             type: "uint16",
-            offset: 0,
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x03e8", decoded: 1000 },
           },
           {
             label: "mediumValue2",
-            current: 0,
-            next: 2000,
             type: "uint32",
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x000007d0", decoded: 2000 },
             offset: 2,
           },
           {
             label: "mediumValue3",
-            current: 0n,
-            next: 0n,
             type: "uint64",
+            current: { hex: "0x00", decoded: 0n },
+            next: { hex: "0x0000000000000000", decoded: 0n },
             offset: 6,
           },
         ],
         [getSlotHex(1)]: [
           {
             label: "largeValue1",
-            current: 0n,
-            next: 12345n,
             type: "uint256",
-            offset: 0,
+            current: { hex: "0x00", decoded: 0n },
+            next: { hex: "0x0000000000000000000000000000000000000000000000000000000000003039", decoded: 12345n },
           },
         ],
       });
@@ -214,10 +220,12 @@ describe("Basic slots access and packing", () => {
         [getSlotHex(1)]: [
           {
             label: "largeValue1",
-            current: 0n,
-            next: 123456789012345678901234567890n,
             type: "uint256",
-            offset: 0,
+            current: { hex: "0x00", decoded: 0n },
+            next: {
+              hex: "0x00000000000000000000000000000000000000018ee90ff6c373e0ee4e3f0ad2",
+              decoded: 123456789012345678901234567890n,
+            },
           },
         ],
       });
@@ -242,10 +250,9 @@ describe("Basic slots access and packing", () => {
         [getSlotHex(2)]: [
           {
             label: "data",
-            current: "0x0",
-            next: testBytes32,
             type: "bytes32",
-            offset: 0,
+            current: { hex: "0x00", decoded: "0x0000000000000000000000000000000000000000000000000000000000000000" },
+            next: { hex: testBytes32, decoded: testBytes32 },
           },
         ],
       });
@@ -265,7 +272,7 @@ describe("Basic slots access and packing", () => {
       // Verify that we have a read operation but no write operations
       expect(trace[StoragePacking.address].writes).toEqual({});
       expect(trace[StoragePacking.address].reads).toEqual({
-        [getSlotHex(1)]: [{ label: "largeValue1", current: 0n, type: "uint256", offset: 0 }],
+        [getSlotHex(1)]: [{ label: "largeValue1", type: "uint256", current: { hex: "0x00", decoded: 0n } }],
       });
     });
 
@@ -312,30 +319,35 @@ describe("Basic slots access and packing", () => {
         [getSlotHex(0)]: [
           {
             label: "smallValue1",
-            current: 0,
-            next: 1,
             type: "uint8",
-            offset: 0,
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x01", decoded: 1 },
           },
           {
             label: "smallValue2",
-            current: 0,
-            next: 2,
             type: "uint8",
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x02", decoded: 2 },
             offset: 1,
           },
           {
             label: "flag",
-            current: false,
-            next: true,
             type: "bool",
+            current: { hex: "0x00", decoded: false },
+            next: { hex: "0x01", decoded: true },
             offset: 2,
           },
           {
             label: "someAddress",
-            current: "0x0000000000000000000000000000000000000000",
-            next: caller.toString(),
             type: "address",
+            current: {
+              hex: "0x00",
+              decoded: "0x0000000000000000000000000000000000000000",
+            },
+            next: {
+              hex: "0x0000000000000000000000000000000000000001",
+              decoded: "0x0000000000000000000000000000000000000001",
+            },
             offset: 3,
           },
         ],

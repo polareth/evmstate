@@ -1,17 +1,23 @@
-import { Address, isHex, toHex } from "tevm";
+import { Address, Hex, hexToBigInt, isHex, toHex } from "tevm";
 import { createSolc, releases, SolcSettings } from "tevm/bundler/solc";
 import { randomBytes } from "tevm/utils";
 import { autoload, loaders } from "@shazow/whatsabi";
 
+import { findLayoutInfoAtSlot } from "@/lib/slot-engine";
 import {
   GetContractsOptions,
   GetContractsResult,
+  LabeledStorageRead,
+  LabeledStorageWrite,
+  PotentialKey,
   StorageLayoutItem,
   StorageLayoutOutput,
-  StorageLayoutType,
   StorageLayoutTypes,
+  StorageReads,
   StorageSlotInfo,
+  StorageWrites,
 } from "@/lib/types";
+import { decodeHex } from "@/lib/utils";
 
 const ignoredSourcePaths = ["metadata.json", "creator-tx-hash.txt", "immutable-references"];
 
@@ -56,6 +62,7 @@ export const getContracts = async ({
           compilerVersion: r.contractResult?.compilerVersion,
         },
         sources: sources[index]?.filter(({ path }) => !ignoredSourcePaths.some((p) => path?.includes(p))),
+        abi: r.abi,
       };
       return acc;
     }, {} as GetContractsResult);
@@ -142,105 +149,140 @@ export const getStorageLayout = async ({
  * Processes storage layout from the Solidity compiler into a more usable format. Handles static variables, mappings,
  * arrays, and structs.
  */
-// TODO: review
 const processStorageLayout = (layout: StorageLayoutOutput): StorageSlotInfo[] => {
   const slots: StorageSlotInfo[] = [];
-
-  // Helper to normalize slot numbers to consistent format
-  const normalizeSlot = (slot: string | number | bigint): string => {
-    if (!slot) return "0";
-
-    // Use viem's toHex for consistent hex conversion
-    let hexValue: string;
-
-    if (typeof slot === "string") {
-      hexValue = isHex(slot) ? slot : `0x${slot.replace(/^0x/, "")}`;
-    } else {
-      hexValue = toHex(slot);
-    }
-
-    // Return without 0x prefix, as storage layout processing expects this format
-    return hexValue.slice(2).toLowerCase();
-  };
 
   layout.storage.forEach((item) => {
     const typeInfo = layout.types[item.type];
     const path = `${item.contract}.${item.label}`;
-    const normalizedSlot = normalizeSlot(item.slot);
+    const slotHex = toHex(Number(item.slot), { size: 32 });
 
     // Base case: Direct storage slot (non-mapping, non-dynamic array)
     if (typeInfo.encoding === "inplace" || typeInfo.encoding === "bytes") {
       slots.push({
-        slot: `0x${normalizedSlot}`,
+        slot: slotHex,
         label: item.label,
         path,
         type: typeInfo.label,
         encoding: typeInfo.encoding,
         isComputed: false,
         offset: item.offset,
-      });
+      } as const satisfies StorageSlotInfo<"inplace" | "bytes">);
 
       // If this is a struct, add its members
       if ("members" in typeInfo) {
-        const structType = typeInfo as StorageLayoutType & { members: StorageLayoutItem[] };
-        structType.members.forEach((member) => {
+        typeInfo.members.forEach((member) => {
           const memberTypeInfo = layout.types[member.type];
-          const memberSlotBigInt = BigInt("0x" + normalizedSlot) + BigInt(member.slot);
-          const memberSlot = memberSlotBigInt.toString(16);
+          const memberSlotHex = toHex(hexToBigInt(slotHex) + BigInt(member.slot), { size: 32 });
 
           slots.push({
-            slot: `0x${memberSlot}`,
+            slot: memberSlotHex,
             label: `${item.label}.${member.label}`,
             path: `${path}.${member.label}`,
             type: memberTypeInfo.label,
-            encoding: memberTypeInfo.encoding,
+            encoding: memberTypeInfo.encoding as "inplace" | "bytes",
             isComputed: false,
             offset: member.offset,
-          });
+          } as const satisfies StorageSlotInfo<"inplace" | "bytes">);
         });
       }
     }
     // Mapping: The values are stored at keccak256(key, baseSlot)
     else if (typeInfo.encoding === "mapping") {
-      const mappingType = typeInfo as StorageLayoutType & {
-        key: `t_${string}`;
-        value: `t_${string}`;
-      };
-
-      const keyTypeInfo = layout.types[mappingType.key];
-      const valueTypeInfo = layout.types[mappingType.value];
+      const keyTypeInfo = layout.types[typeInfo.key];
+      const valueTypeInfo = layout.types[typeInfo.value];
 
       slots.push({
-        slot: `0x${normalizedSlot}`,
+        slot: slotHex,
         label: item.label,
         path,
         type: typeInfo.label,
         encoding: typeInfo.encoding,
         isComputed: true,
-        baseSlot: normalizedSlot,
         keyType: keyTypeInfo.label,
         valueType: valueTypeInfo.label,
-      });
+      } as const satisfies StorageSlotInfo<"mapping">);
     }
     // Dynamic Array: The values are stored at keccak256(baseSlot) + index
     else if (typeInfo.encoding === "dynamic_array") {
-      const arrayType = typeInfo as StorageLayoutType & { base: `t_${string}` };
-      const baseTypeInfo = layout.types[arrayType.base];
+      const baseTypeInfo = layout.types[typeInfo.base];
 
       slots.push({
-        slot: `0x${normalizedSlot}`,
+        slot: slotHex,
         label: item.label,
         path,
         type: typeInfo.label,
         encoding: typeInfo.encoding,
         isComputed: true,
-        baseSlot: normalizedSlot,
         baseType: baseTypeInfo.label,
-      });
+      } as const satisfies StorageSlotInfo<"dynamic_array">);
     }
   });
 
   return slots;
+};
+
+type FormatLabeledStorageOpOptions<T extends StorageReads[Hex] | StorageWrites[Hex]> = {
+  op: T;
+  slot: Hex;
+  contractLayout: Array<StorageSlotInfo>;
+  potentialKeys: Array<PotentialKey>;
+};
+
+type FormatLabeledStorageOpResult<T extends StorageReads[Hex] | StorageWrites[Hex]> = T extends StorageWrites[Hex]
+  ? [LabeledStorageWrite, ...LabeledStorageWrite[]]
+  : T extends StorageReads[Hex]
+    ? [LabeledStorageRead, ...LabeledStorageRead[]]
+    : never;
+
+export const formatLabeledStorageOp = <T extends StorageReads[Hex] | StorageWrites[Hex]>({
+  op,
+  slot,
+  contractLayout,
+  potentialKeys,
+}: FormatLabeledStorageOpOptions<T>): FormatLabeledStorageOpResult<T> => {
+  const { current: currentHex } = op;
+
+  // Find all labels for this slot using our slot engine
+  const slotInfo = findLayoutInfoAtSlot(slot, contractLayout, potentialKeys);
+
+  if (slotInfo.length > 0) {
+    // Found matches - return an array of labeled reads for this slot
+    return slotInfo.map((info) => {
+      // Decode the value based on its type and offset (if applicable)
+      const current = decodeHex(currentHex, info.type, info.offset);
+
+      const result: LabeledStorageRead | LabeledStorageWrite = {
+        label: info.label,
+        type: info.type,
+        current,
+      };
+
+      if ("next" in op) (result as LabeledStorageWrite).next = decodeHex(op.next, info.type, info.offset);
+
+      if (info.offset) result.offset = info.offset;
+      if (info.index !== undefined) result.index = decodeHex(info.index, "uint256").decoded;
+      if (info.keys && info.keys.length > 0) result.keys = info.keys.map((key) => decodeHex(key.padded, key.type));
+
+      return result;
+    }) as FormatLabeledStorageOpResult<T>;
+  } else {
+    // No match found, use a fallback label
+    return ("next" in op
+      ? [
+          {
+            label: `var_${slot.slice(0, 10)}`,
+            current: { hex: currentHex },
+            next: { hex: op.next },
+          },
+        ]
+      : [
+          {
+            label: `var_${slot.slice(0, 10)}`,
+            current: { hex: currentHex },
+          },
+        ]) as unknown as FormatLabeledStorageOpResult<T>;
+  }
 };
 
 /** Converts a compiler version string to a recognized solc version */
