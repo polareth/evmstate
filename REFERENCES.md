@@ -24,6 +24,7 @@
 - [ ] provide a react package with a Tracer provider and useTracer hook
 - [ ] ? add a "details" property to the returned trace, with the raw tevm call result (gas, errors, etc)
 - [ ] ? pass a "label"/something flag to label or not storage slots (default true, but setting to false would save a lot on compute)
+- [ ] export types and utilities for decoding abi types and mention on readme? or don't bloat the package? maybe would be good as a second package provided lattice authorization
 
 ## Listen to steps during call
 

@@ -4,7 +4,7 @@ import { padHex } from "viem";
 
 import { debug } from "@/debug";
 import { AbiType, AbiTypeToPrimitiveType, StaticAbiType, staticAbiTypeToByteLength } from "@/lib/schema";
-import { DecodedKey } from "@/lib/types";
+import { MappingKey } from "@/lib/types";
 
 /** Creates a Tevm client from the provided options */
 export const createClient = (options: { rpcUrl?: string; common?: Common; blockTag?: BlockTag | bigint }) => {

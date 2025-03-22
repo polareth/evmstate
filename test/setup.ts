@@ -2,6 +2,7 @@ import { readFileSync } from "fs";
 import { join } from "path";
 import { createMemoryClient } from "tevm";
 import { EthjsAccount, parseEther } from "tevm/utils";
+import { toFunctionSelector } from "viem";
 import { beforeEach, vi } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants";
@@ -63,7 +64,13 @@ const setupContractsMock = () => {
               compilerVersion: "0.8.23+commit.f704f362",
             },
             sources: [{ path: contract.name, content: getContractCode(contract.name ?? "") }],
-            abi: contract.abi,
+            abi: contract.abi.map((item) => {
+              if (item.type === "function") {
+                return { ...item, selector: toFunctionSelector(item) };
+              } else {
+                return item;
+              }
+            }),
           },
         ];
       }),

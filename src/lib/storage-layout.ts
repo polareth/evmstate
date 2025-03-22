@@ -9,7 +9,7 @@ import {
   GetContractsResult,
   LabeledStorageRead,
   LabeledStorageWrite,
-  PotentialKey,
+  MappingKey,
   StorageLayoutItem,
   StorageLayoutOutput,
   StorageLayoutTypes,
@@ -226,7 +226,7 @@ type FormatLabeledStorageOpOptions<T extends StorageReads[Hex] | StorageWrites[H
   op: T;
   slot: Hex;
   contractLayout: Array<StorageSlotInfo>;
-  potentialKeys: Array<PotentialKey>;
+  potentialKeys: Array<MappingKey>;
 };
 
 type FormatLabeledStorageOpResult<T extends StorageReads[Hex] | StorageWrites[Hex]> = T extends StorageWrites[Hex]
@@ -262,7 +262,8 @@ export const formatLabeledStorageOp = <T extends StorageReads[Hex] | StorageWrit
 
       if (info.offset) result.offset = info.offset;
       if (info.index !== undefined) result.index = decodeHex(info.index, "uint256").decoded;
-      if (info.keys && info.keys.length > 0) result.keys = info.keys.map((key) => decodeHex(key.padded, key.type));
+      if (info.keys && info.keys.length > 0)
+        result.keys = info.keys.map((key) => (key.decoded ? key : { ...decodeHex(key.hex, key.type), type: key.type }));
 
       return result;
     }) as FormatLabeledStorageOpResult<T>;

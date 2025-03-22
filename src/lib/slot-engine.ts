@@ -1,9 +1,9 @@
 import { Address, Hex, hexToBigInt, isHex, keccak256, toHex } from "tevm";
 import { abi } from "@shazow/whatsabi";
-import { padHex } from "viem";
+import { decodeAbiParameters, encodeAbiParameters, padHex } from "viem";
 
-import { AbiType } from "@/lib/schema";
-import { PotentialKey, SlotLabelResult, StorageSlotInfo } from "@/lib/types";
+import { AbiType, AbiTypeToPrimitiveType } from "@/lib/schema";
+import { MappingKey, SlotLabelResult, StorageSlotInfo } from "@/lib/types";
 
 /**
  * A slot computation engine that implements Solidity's storage layout rules to accurately compute and label storage
@@ -15,15 +15,15 @@ import { PotentialKey, SlotLabelResult, StorageSlotInfo } from "@/lib/types";
  *
  * `keccak256(abi.encode(key, slot))
  */
-export const computeMappingSlot = (baseSlot: Hex, key: PotentialKey): Hex =>
-  keccak256(`0x${key.padded.replace("0x", "")}${baseSlot.replace("0x", "")}`);
+export const computeMappingSlot = (baseSlot: Hex, key: MappingKey): Hex =>
+  keccak256(`0x${key.hex.replace("0x", "")}${baseSlot.replace("0x", "")}`);
 
 /**
  * Computes the storage slot for a nested mapping with arbitrary depth
  *
  * `keccak256(abi.encode(key1, keccak256(abi.encode(key2, slot))))` etc
  */
-export const computeNestedMappingSlot = (baseSlot: Hex, keys: Array<PotentialKey>): Hex => {
+export const computeNestedMappingSlot = (baseSlot: Hex, keys: Array<MappingKey>): Hex => {
   // Return early if no keys
   if (!keys.length) return baseSlot;
 
@@ -54,35 +54,55 @@ export const extractPotentialKeys = (
     }>;
   },
   addresses: Array<Address>,
-  abis: Array<abi.ABIFunction>,
+  abiFunctions: Array<abi.ABIFunction>,
   txData?: Hex,
-): PotentialKey[] => {
-  const keys: PotentialKey[] = [];
+): MappingKey[] => {
+  const keys: MappingKey[] = [];
 
   // Add touched addresses
   addresses.forEach((address) => {
     keys.push({
-      padded: padHex(address, { size: 32 }),
+      hex: padHex(address, { size: 32 }),
+      decoded: address,
       type: "address",
     });
   });
 
-  // Extract raw function arguments if data is present
-  if (txData && txData.length >= 10) {
-    // Retrieve the function call from the abis
+  // Extract parameters from transaction data
+  if (txData && txData.length > 10) {
     const selector = txData.slice(0, 10);
-    const functionCall = abis.find((fn) => fn.selector === selector);
+    const inputs = abiFunctions.find((fn) => fn.selector === selector)?.inputs;
 
-    // Extract parameters (each parameter is 32 bytes / 64 hex chars)
-    const paramLength = (txData.length - 10) / 64;
-    for (let i = 0; i < paramLength; i++) {
-      const paramStart = 10 + i * 64;
-      const paramEnd = paramStart + 64;
-      const param = txData.slice(paramStart, paramEnd);
+    if (inputs) {
+      // Decode function inputs
+      const params = decodeAbiParameters(inputs, `0x${txData.slice(10)}`);
 
-      keys.push({
-        padded: `0x${param}`, // already padded to 32 bytes
-        type: functionCall?.inputs?.[i].type as AbiType | undefined,
+      params.forEach((param, index) => {
+        // If it's an array, add each element as a key
+        if (Array.isArray(param)) {
+          param.forEach((p) => {
+            const type = inputs[index].type.replace("[]", "") as AbiType;
+
+            if (type) {
+              keys.push({
+                hex: padHex(encodeAbiParameters([{ type }], [p]), { size: 32 }),
+                decoded: p as AbiTypeToPrimitiveType<typeof type>,
+                type,
+              });
+            }
+          });
+        } else {
+          // Otherwise just add the key straight up
+          const type = inputs[index].type as AbiType;
+
+          if (type) {
+            keys.push({
+              hex: padHex(encodeAbiParameters([{ type }], [param]), { size: 32 }),
+              decoded: param as AbiTypeToPrimitiveType<typeof type>,
+              type,
+            });
+          }
+        }
       });
     }
   }
@@ -92,7 +112,7 @@ export const extractPotentialKeys = (
     // Process unique stack values directly
     for (const stackValue of trace.uniqueStackValues) {
       keys.push({
-        padded: isHex(stackValue) ? padHex(stackValue, { size: 32 }) : toHex(stackValue, { size: 32 }),
+        hex: isHex(stackValue) ? padHex(stackValue, { size: 32 }) : toHex(stackValue, { size: 32 }),
         type: undefined,
       });
     }
@@ -102,7 +122,7 @@ export const extractPotentialKeys = (
   const uniqueMap = new Map();
   // Add the new key only if it's not already in the map (and don't replace a key with a defined type)
   keys.forEach((k) => {
-    if (!uniqueMap.has(k.padded) || k.type) uniqueMap.set(k.padded, k);
+    if (!uniqueMap.has(k.hex) || k.type) uniqueMap.set(k.hex, k);
   });
 
   return Array.from(uniqueMap.values());
@@ -116,7 +136,7 @@ export const extractPotentialKeys = (
 export const findLayoutInfoAtSlot = (
   slot: Hex,
   storageLayout: StorageSlotInfo[],
-  potentialKeys: PotentialKey[],
+  potentialKeys: MappingKey[],
 ): SlotLabelResult[] => {
   const results: SlotLabelResult[] = [];
 
@@ -218,9 +238,9 @@ export const findLayoutInfoAtSlot = (
   for (const array of arrays) {
     potentialKeys.forEach((key) => {
       // Skip values that can't be reasonable array indices
-      if (!isValidArrayIndex(key.padded)) return;
+      if (!isValidArrayIndex(key.hex)) return;
 
-      const index = hexToBigInt(key.padded);
+      const index = hexToBigInt(key.hex);
       const computedSlot = computeArraySlot(array.slot, index);
 
       if (computedSlot === slot) {
@@ -229,7 +249,7 @@ export const findLayoutInfoAtSlot = (
           slot: slot,
           matchType: "array",
           type: array.baseType,
-          index: key.padded,
+          index: key.hex,
         });
       }
     });

@@ -99,7 +99,7 @@ export type LabeledStorageRead<T extends AbiType = AbiType> = {
     hex: Hex;
     decoded?: AbiTypeToPrimitiveType<T>;
   };
-  keys?: Array<DecodedKey>;
+  keys?: Array<MappingKey>;
   index?: bigint;
   offset?: number; // Offset in bytes for packed variables
 };
@@ -229,19 +229,14 @@ export type StorageSlotInfo<T extends StorageLayoutType["encoding"] = StorageLay
   offset?: number;
 };
 
-// TODO: review
-export interface PotentialKey {
+export interface MappingKey<T extends AbiType = AbiType> {
   // Value padded to 32 bytes
-  padded: Hex;
-  // Type of the value if known
-  type?: AbiType;
-}
-
-export type DecodedKey<T extends AbiType = AbiType> = {
   hex: Hex;
-  decoded?: AbiTypeToPrimitiveType<T>;
+  // Type of the value if known
   type?: T;
-};
+  // Decoded value if known
+  decoded?: AbiTypeToPrimitiveType<T>;
+}
 
 export type SlotMatchType = "exact" | "mapping" | "nested-mapping" | "array" | "struct";
 
@@ -255,7 +250,7 @@ export interface SlotLabelResult<M extends SlotMatchType = SlotMatchType> {
   // The variable type (from Solidity)
   type?: AbiType;
   // The detected keys or indices (if applicable)
-  keys?: M extends "mapping" | "nested-mapping" ? Array<PotentialKey> : never; // TODO: then decode it for the consumer
+  keys?: M extends "mapping" | "nested-mapping" ? Array<MappingKey> : never; // TODO: then decode it for the consumer
   // The detected index (if applicable)
   index?: M extends "array" ? Hex : never; // TODO: same here, decode to bigint? or number?
   // The offset of the variable within the slot (for packed variables)
