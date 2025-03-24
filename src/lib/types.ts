@@ -1,6 +1,7 @@
-import { Address, GetAccountResult, Hex, MemoryClient } from "tevm";
+import { Abi, Address, ContractFunctionName, GetAccountResult, Hex, MemoryClient } from "tevm";
 import { Common } from "tevm/common";
 import { abi } from "@shazow/whatsabi";
+import { AbiStateMutability, ContractFunctionArgs, WriteContractParameters } from "viem";
 
 import { AbiType, AbiTypeToPrimitiveType } from "@/lib/schema";
 
@@ -19,14 +20,10 @@ import { AbiType, AbiTypeToPrimitiveType } from "@/lib/schema";
  * @param explorers - Explorers urls and keys to use for fetching contract sources and ABI
  */
 export type TraceStorageAccessOptions = {
-  /** Use existing memory client (either this or fork/rpcUrl is required) */
   client?: MemoryClient;
-  /** JSON-RPC URL for creating a memory client */
   rpcUrl?: string;
-  /** EVM chain configuration (improves performance by avoiding fetching chain info) */
   common?: Common;
 
-  /** Explorers urls and keys to use for fetching contract sources and ABI */
   explorers?: {
     etherscan?: {
       baseUrl: string;
@@ -42,7 +39,9 @@ export type TraceStorageAccessOptions = {
 /**
  * Transaction parameters for analyzing storage access patterns during transaction simulation.
  *
- * - Option 1: simulate a new transaction with:
+ * - Option 1: simulate a new transaction with the encoded calldata {@link TraceStorageAccessTxWithData}
+ * - Option 2: simulate a new transaction with the ABI and function name/args {@link TraceStorageAccessTxWithAbi}
+ * - Option 3: replay a transaction with its hash {@link TraceStorageAccessTxWithReplay}
  *
  * @example
  *   const simulateParams: TraceStorageAccessTxParams = {
@@ -52,21 +51,69 @@ export type TraceStorageAccessOptions = {
  *   };
  *
  * @example
+ *   const simulateParams: TraceStorageAccessTxParams = {
+ *   from: "0x123...",
+ *   to: "0x456...", // optional
+ *   abi: [...],
+ *   functionName: "mint",
+ *   args: [69420n],
+ *   };
+ *
+ * @example
  *   const replayParams: TraceStorageAccessTxParams = {
  *     txHash: "0x123...",
  *   };
+ */
+export type TraceStorageAccessTxParams<
+  TAbi extends Abi | readonly unknown[] = Abi,
+  TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+> =
+  | (Partial<
+      Record<keyof TraceStorageAccessTxWithReplay | keyof Omit<TraceStorageAccessTxWithAbi, "from" | "to">, never>
+    > &
+      TraceStorageAccessTxWithData)
+  | (Partial<
+      Record<keyof TraceStorageAccessTxWithReplay | keyof Omit<TraceStorageAccessTxWithData, "from" | "to">, never>
+    > &
+      TraceStorageAccessTxWithAbi<TAbi, TFunctionName>)
+  | (Partial<Record<keyof TraceStorageAccessTxWithData | keyof TraceStorageAccessTxWithAbi, never>> &
+      TraceStorageAccessTxWithReplay);
+
+/**
+ * Transaction parameters with encoded calldata.
  *
  * @param from - Sender address
- * @param to - Target contract address (optional for contract creation)
  * @param data - Transaction calldata
+ * @param to - Target contract address (optional for contract creation)
+ */
+export type TraceStorageAccessTxWithData = { from: Address; data: Hex; to?: Address };
+
+/**
+ * Contract transaction parameters with ABI typed function name and arguments.
  *
- *   - Option 2: replay a transaction with:
+ * @param from - Sender address
+ * @param to - Target contract address
+ * @param abi - Contract ABI
+ * @param functionName - Function name
+ * @param args - Function arguments
+ */
+export type TraceStorageAccessTxWithAbi<
+  TAbi extends Abi | readonly unknown[] = Abi,
+  TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+> = {
+  from: Address;
+  to: Address;
+  abi: TAbi;
+  functionName: TFunctionName;
+  args: ContractFunctionArgs<TAbi, AbiStateMutability, TFunctionName>;
+};
+
+/**
+ * Transaction parameters from replaying a transaction with its hash.
  *
  * @param txHash - Transaction hash
  */
-export type TraceStorageAccessTxParams =
-  | ({ txHash: Hex } & { from?: never; to?: never; data?: never })
-  | ({ from: Address; data: Hex; to?: Address } & { txHash?: never });
+export type TraceStorageAccessTxWithReplay = { txHash: Hex };
 
 /**
  * Storage access trace for a transaction

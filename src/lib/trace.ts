@@ -1,4 +1,4 @@
-import { Address, CallResult, Hex } from "tevm";
+import { Abi, Address, CallResult, ContractFunctionName, Hex } from "tevm";
 
 import { debug } from "@/debug";
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
@@ -12,7 +12,7 @@ import {
   TraceStorageAccessOptions,
   TraceStorageAccessTxParams,
 } from "@/lib/types";
-import { createClient /* , uniqueAddresses */ } from "@/lib/utils";
+import { createClient /* , uniqueAddresses */, getUnifiedParams } from "@/lib/utils";
 
 /**
  * Analyzes storage access patterns during transaction execution.
@@ -33,41 +33,13 @@ import { createClient /* , uniqueAddresses */ } from "@/lib/utils";
  * @param options - {@link TraceStorageAccessOptions}
  * @returns Promise<Record<Address, StorageAccessTrace>>
  */
-export const traceStorageAccess = async (
-  args: TraceStorageAccessOptions & TraceStorageAccessTxParams,
+export const traceStorageAccess = async <
+  TAbi extends Abi | readonly unknown[] = Abi,
+  TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+>(
+  args: TraceStorageAccessOptions & TraceStorageAccessTxParams<TAbi, TFunctionName>,
 ): Promise<Record<Address, StorageAccessTrace>> => {
-  const { client: _client, rpcUrl, common, explorers } = args;
-
-  // Extract parameters based on mode
-  const isReplay = "txHash" in args && args.txHash !== undefined;
-  let { from, to, data } = isReplay ? { from: undefined, to: undefined, data: undefined } : args;
-
-  // Create the tevm client
-  let client = _client ?? createClient({ rpcUrl, common });
-
-  // If we're replaying a transaction, extract the from, to, and data from the transaction
-  if (isReplay) {
-    try {
-      const tx = await client.getTransaction({ hash: args.txHash });
-      // TODO: remove when correctly formatted (tx in block mined here has data instead of input)
-      ({ from, to, data } = {
-        from: tx.from,
-        to: tx.to ?? undefined,
-        data: tx.input ? (tx.input as Hex) : (tx.data as Hex),
-      });
-
-      // TODO: can't run tx at past block so we need to recreate the client; this won't work on the default chain so to-test in staging
-      // Also it's ugly to recreate the client here
-      client = createClient({
-        rpcUrl: rpcUrl ?? client.chain?.rpcUrls.default.http[0],
-        common,
-        blockTag: tx.blockNumber > 0 ? tx.blockNumber - BigInt(1) : BigInt(0),
-      });
-    } catch (err) {
-      debug(`Failed to get transaction for replaying ${args.txHash}: ${err}`);
-      throw err;
-    }
-  }
+  const { client, from, to, data } = await getUnifiedParams(args);
 
   // Execute call on local vm with access list generation and trace
   let callResult: CallResult | undefined;
@@ -142,7 +114,7 @@ export const traceStorageAccess = async (
     return preTxStorage && postTxStorage;
   });
 
-  const contractsInfo = await getContracts({ client, addresses: filteredContracts, explorers });
+  const contractsInfo = await getContracts({ client, addresses: filteredContracts, explorers: args.explorers });
 
   // Map to store storage layouts per contract
   const storageLayouts: Record<Address, Array<StorageSlotInfo>> = {};
@@ -279,4 +251,7 @@ export class Tracer {
       explorers: this.explorers,
     });
   }
+
+  // TODO: overload traceStorageAccess to accept abi, functionName, args
+  // TODO: overload traceStorageAccess to accept txHash
 }

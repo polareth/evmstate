@@ -24,7 +24,7 @@ const { caller } = ACCOUNTS;
  * 9. Tracer class
  */
 describe("Basic slots access and packing", () => {
-  describe("Direct traceStorageAccess", () => {
+  describe("traceStorageAccess with transaction data", () => {
     it("should handle packed storage variables correctly", async () => {
       const client = getClient();
 
@@ -300,6 +300,61 @@ describe("Basic slots access and packing", () => {
       expect(BigInt(callerTrace.intrinsic.balance.next ?? Infinity)).toBeLessThan(
         BigInt(callerTrace.intrinsic.balance.current ?? 0n),
       );
+    });
+  });
+
+  describe("traceStorageAccess with ABI", () => {
+    it("should work similarily to traceStorageAccess", async () => {
+      const client = getClient();
+
+      const trace = await traceStorageAccess({
+        client,
+        from: caller.toString(),
+        to: StoragePacking.address,
+        abi: StoragePacking.abi,
+        functionName: "setSmallValues",
+        args: [1, 2, true, caller.toString()],
+      });
+
+      // Check the read and write operations
+      expect(trace[StoragePacking.address].reads).toEqual({});
+      expect(trace[StoragePacking.address].writes).toEqual({
+        [getSlotHex(0)]: [
+          {
+            label: "smallValue1",
+            type: "uint8",
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x01", decoded: 1 },
+          },
+          {
+            label: "smallValue2",
+            type: "uint8",
+            current: { hex: "0x00", decoded: 0 },
+            next: { hex: "0x02", decoded: 2 },
+            offset: 1,
+          },
+          {
+            label: "flag",
+            type: "bool",
+            current: { hex: "0x00", decoded: false },
+            next: { hex: "0x01", decoded: true },
+            offset: 2,
+          },
+          {
+            label: "someAddress",
+            type: "address",
+            current: {
+              hex: "0x00",
+              decoded: "0x0000000000000000000000000000000000000000",
+            },
+            next: {
+              hex: "0x0000000000000000000000000000000000000001",
+              decoded: "0x0000000000000000000000000000000000000001",
+            },
+            offset: 3,
+          },
+        ],
+      });
     });
   });
 
