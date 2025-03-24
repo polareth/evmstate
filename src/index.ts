@@ -1,5 +1,5 @@
-export { traceStorageAccess } from "@/lib/trace";
-export { findBestStorageSlotLabel } from "@/lib/slot-engine";
+export { traceStorageAccess, Tracer } from "@/lib/trace";
+export { findLayoutInfoAtSlot } from "@/lib/slot-engine";
 export type {
   StorageAccessTrace,
   TraceStorageAccessOptions,

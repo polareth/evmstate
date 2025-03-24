@@ -1,61 +1,68 @@
-import { Address, createMemoryClient, Hex, http } from "tevm";
+import { Abi, AbiFunction, Address, CallResult, ContractFunctionName, Hex } from "tevm";
+import { toFunctionSignature } from "viem";
 
 import { debug } from "@/debug";
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
-import { extractPotentialValuesFromTrace, findBestStorageSlotLabel } from "@/lib/slot-engine";
-import { getContracts, getStorageLayout } from "@/lib/storage-layout";
+import { extractPotentialKeys } from "@/lib/slot-engine";
+import { formatLabeledStorageOp, getContracts, getStorageLayout } from "@/lib/storage-layout";
 import {
   LabeledStorageRead,
   LabeledStorageWrite,
   StorageAccessTrace,
   StorageSlotInfo,
   TraceStorageAccessOptions,
+  TraceStorageAccessTxParams,
 } from "@/lib/types";
-import { decodeStorageValue, uniqueAddresses } from "@/lib/utils";
+import { createClient /* , uniqueAddresses */, getUnifiedParams } from "@/lib/utils";
 
 /**
  * Analyzes storage access patterns during transaction execution.
+ *
  * Identifies which contract slots are read from and written to, with human-readable labels.
  *
- * @param options - {@link TraceStorageAccessOptions}
- * @returns Promise<Record<Address, EnhancedStorageAccessTrace>>
+ * Note: If you provide a Tevm client yourself, you're responsible for managing the fork's state; although default
+ * mining configuration is "auto", so unless you know what you're doing, it should be working as expected intuitively.
  *
  * @example
- * const analysis = await traceStorageAccess({
- *   from: "0x123",
- *   to: "0x456",
- *   data: "0x1234567890",
- *   client: memoryClient,
- * });
+ *   const analysis = await traceStorageAccess({
+ *     from: "0x123",
+ *     to: "0x456",
+ *     data: "0x1234567890",
+ *     client: memoryClient,
+ *   });
+ *
+ * @param options - {@link TraceStorageAccessOptions}
+ * @returns Promise<Record<Address, StorageAccessTrace>>
  */
-export const traceStorageAccess = async (
-  options: TraceStorageAccessOptions,
+export const traceStorageAccess = async <
+  TAbi extends Abi | readonly unknown[] = Abi,
+  TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+>(
+  args: TraceStorageAccessOptions & TraceStorageAccessTxParams<TAbi, TFunctionName>,
 ): Promise<Record<Address, StorageAccessTrace>> => {
-  const { from, to, data, client: _client, fork, rpcUrl, common, explorers } = options;
-  if (!_client && !fork && !rpcUrl)
-    throw new Error("You need to provide either rpcUrl or fork options that include a transport");
-
-  // Create the tevm client
-  const client =
-    _client ??
-    createMemoryClient({
-      common,
-      fork: fork ?? {
-        transport: http(rpcUrl),
-      },
-    });
+  const { client, from, to, data } = await getUnifiedParams(args);
 
   // Execute call on local vm with access list generation and trace
-  const callResult = await client.tevmCall({
-    from,
-    to,
-    data,
-    blockTag: "latest",
-    skipBalance: true,
-    createAccessList: true,
-    createTransaction: true,
-    createTrace: true, // Enable EVM tracing to capture execution details
-  });
+  let callResult: CallResult | undefined;
+  try {
+    callResult = await client.tevmCall({
+      from,
+      to,
+      data,
+      skipBalance: true,
+      createAccessList: true,
+      createTransaction: true,
+      createTrace: true,
+    });
+
+    if (callResult.errors) {
+      debug(`EVM exception during call: ${callResult.errors.map((err) => err.message).join(", ")}`);
+      throw new Error(callResult.errors.map((err) => err.message).join(", "));
+    }
+  } catch (err) {
+    debug(`Failed to execute call: ${err}`);
+    throw err;
+  }
 
   // Debug log showing the trace size and unique stack values
   debug(
@@ -63,19 +70,39 @@ export const traceStorageAccess = async (
   );
 
   // Get all relevant addresses (contract addresses + sender + target + any created contracts)
-  const addresses = uniqueAddresses([
-    ...(Object.keys(callResult.accessList ?? {}) as Address[]),
-    from,
-    to,
-    ...((callResult.createdAddresses ?? []) as Address[]),
-  ]);
+  // const addresses = uniqueAddresses([
+  //   ...(Object.keys(callResult.accessList ?? {}) as Address[]),
+  //   from,
+  //   to,
+  //   ...((callResult.createdAddresses ?? []) as Address[]),
+  // ]);
+  // TODO: research to make sure this really includes all relevant addresses but it should (all accounts touched by the tx)
+  // currently enabled with createAccessList: true
+  const addresses = Object.values(callResult.preimages ?? {}).filter(
+    (address) => address !== "0x0000000000000000000000000000000000000000",
+  );
+  debug(`${addresses.length} accounts touched during the transaction`);
 
   // Get the storage and account values before the transaction is mined
   const storagePreTx = await storageSnapshot(client, callResult.accessList ?? {});
   const intrinsicsPreTx = await intrinsicSnapshot(client, addresses);
 
-  // Mine the transaction and get post-state values
-  await client.tevmMine({ blockCount: 1 });
+  // Mine the pending transaction to get post-state values
+  await client.tevmMine();
+
+  // const debugCall = await client.request({
+  //   method: "debug_traceTransaction",
+  //   params: [
+  //     callResult.txHash,
+  //     {
+  //       tracer: "prestateTracer",
+  //       tracerConfig: {
+  //         diffMode: true,
+  //       },
+  //     },
+  //   ],
+  // });
+  // console.log(debugCall);
 
   // Get values after the transaction has been included
   const storagePostTx = await storageSnapshot(client, callResult.accessList ?? {});
@@ -88,7 +115,7 @@ export const traceStorageAccess = async (
     return preTxStorage && postTxStorage;
   });
 
-  const contractsInfo = await getContracts({ client, addresses: filteredContracts, explorers });
+  const contractsInfo = await getContracts({ client, addresses: filteredContracts, explorers: args.explorers });
 
   // Map to store storage layouts per contract
   const storageLayouts: Record<Address, Array<StorageSlotInfo>> = {};
@@ -103,27 +130,52 @@ export const traceStorageAccess = async (
     }),
   );
 
+  // Extract potential key/index values from the execution trace
+  const traceLog = callResult.trace?.structLogs || [];
+
+  // Create a slim version of the trace with deduplicated stack values for efficiency
+  const dedupedTraceLog = {
+    // Deduplicate stack values across all operations
+    uniqueStackValues: [...new Set(traceLog.flatMap((log) => log.stack))],
+    // Only keep storage-related operations for detailed analysis
+    relevantOps: traceLog.filter((log) => ["SLOAD", "SSTORE", "SHA3"].includes(log.op)),
+  };
+
+  // Aggregate functions from all abis to be able to figure out types of args
+  let abis = Object.values(contractsInfo)
+    .flatMap((contract) => contract.abi)
+    .filter((abi) => abi.type === "function");
+
+  // In case the tx was a contract call with the abi and it could not be fetch, add it so we can decode potential mapping keys
+  if (args.abi && args.functionName) {
+    const functionDef = (args.abi as Abi).find(
+      (func) => func.type === "function" && func.name === args.functionName,
+    ) as AbiFunction | undefined;
+    // @ts-expect-error readonly/mutable types
+    if (functionDef) abis.push({ ...functionDef, selector: toFunctionSignature(functionDef) });
+  }
+
+  const potentialKeys = extractPotentialKeys(dedupedTraceLog, addresses, abis, data);
+  debug(`Extracted ${potentialKeys.length} unique potential values from the trace`);
+
   // Process each address and create enhanced trace with labels
-  // TODO: review
   const labeledTrace = addresses.reduce(
     (acc, address) => {
-      const preTxStorage = storagePreTx[address];
-      const postTxStorage = storagePostTx[address];
-      const preTxIntrinsics = intrinsicsPreTx[address];
-      const postTxIntrinsics = intrinsicsPostTx[address];
+      const storage = { pre: storagePreTx[address], post: storagePostTx[address] };
+      const intrinsics = { pre: intrinsicsPreTx[address], post: intrinsicsPostTx[address] };
 
       // Skip if this address has no relevant data
-      if (!preTxIntrinsics || !postTxIntrinsics) {
-        console.warn(`Missing account state information for address ${address}`);
-        return acc; // Skip this address
+      if (!intrinsics.pre || !intrinsics.post) {
+        debug(`Missing account state information for address ${address}`);
+        return acc;
       }
 
       // For EOAs (accounts without code) we won't have storage data
       const slotsDiff =
-        preTxStorage && postTxStorage ? storageDiff(preTxStorage, postTxStorage) : { reads: {}, writes: {} };
+        storage.pre && storage.post ? storageDiff(storage.pre, storage.post) : { reads: {}, writes: {} };
 
       // Compare account state changes
-      const accountDiff = intrinsicDiff(preTxIntrinsics, postTxIntrinsics);
+      const accountDiff = intrinsicDiff(intrinsics.pre, intrinsics.post);
 
       // Combine into complete diff
       const trace = createAccountDiff(slotsDiff, accountDiff);
@@ -131,105 +183,34 @@ export const traceStorageAccess = async (
       // Get storage layout for this contract
       const contractLayout = storageLayouts[address];
 
-      // Transaction data for slot labeling
-      const txData = {
-        data: data,
-        to: to,
-        from: from,
-      };
+      // Create labeled reads and writes
+      const labeledReads = Object.entries(trace.reads).reduce(
+        (acc, [slotHex, read]) => {
+          acc[slotHex as Hex] = formatLabeledStorageOp({
+            op: read,
+            slot: slotHex as Hex,
+            contractLayout,
+            potentialKeys,
+          });
+          return acc;
+        },
+        {} as Record<Hex, [LabeledStorageRead, ...LabeledStorageRead[]]>,
+      );
 
-      // Extract potential key/index values from the execution trace
-      const traceLog = callResult.trace?.structLogs || [];
+      const labeledWrites = Object.entries(trace.writes).reduce(
+        (acc, [slotHex, write]) => {
+          acc[slotHex as Hex] = formatLabeledStorageOp({
+            op: write,
+            slot: slotHex as Hex,
+            contractLayout,
+            potentialKeys,
+          });
+          return acc;
+        },
+        {} as Record<Hex, [LabeledStorageWrite, ...LabeledStorageWrite[]]>,
+      );
 
-      // Create a slim version of the trace with deduplicated stack values for efficiency
-      const dedupedTraceLog = {
-        // Deduplicate stack values across all operations
-        uniqueStackValues: [...new Set(traceLog.flatMap((log) => log.stack))],
-        // Only keep storage-related operations for detailed analysis
-        relevantOps: traceLog.filter((log) => ["SLOAD", "SSTORE", "SHA3"].includes(log.op)),
-      };
-
-      const potentialValues = extractPotentialValuesFromTrace(dedupedTraceLog, txData);
-
-      debug(`Extracted ${potentialValues.length} unique potential values from the trace`);
-
-      // Create labeled reads
-      const labeledReads: Record<Hex, LabeledStorageRead> = {};
-      if (contractLayout) {
-        Object.entries(trace.reads).forEach(([slotHex, { current }]) => {
-          // Find the best label for this slot using our slot engine
-          const slotLabel = findBestStorageSlotLabel(slotHex, contractLayout, potentialValues);
-
-          if (slotLabel) {
-            // Found a match
-            // Decode the value based on its type
-            const decodedValue = decodeStorageValue(current, slotLabel.type);
-
-            labeledReads[slotHex as Hex] = {
-              label: slotLabel.label,
-              current: decodedValue,
-              type: slotLabel.type,
-              keys: slotLabel.keys,
-            };
-          } else {
-            // No match found, use a fallback label
-            const slotNumber = parseInt(slotHex.replace(/^0x0*/, ""), 16);
-            const fallbackLabel = isNaN(slotNumber) ? undefined : `var${slotNumber}`;
-
-            // Use uint256 as default type for unknown slots
-            const defaultType = "uint256";
-            const decodedValue = decodeStorageValue(current, defaultType);
-
-            labeledReads[slotHex as Hex] = {
-              label: fallbackLabel,
-              current: decodedValue,
-              type: defaultType,
-            };
-          }
-        });
-      }
-
-      // Create labeled writes
-      const labeledWrites: Record<Hex, LabeledStorageWrite> = {};
-      if (contractLayout) {
-        Object.entries(trace.writes).forEach(([slotHex, { current, next }]) => {
-          // Find the best label for this slot using our slot engine
-          const slotLabel = findBestStorageSlotLabel(slotHex, contractLayout, potentialValues);
-
-          if (slotLabel) {
-            // Found a match
-            // Decode both current and next values based on the same type
-            const decodedCurrent = decodeStorageValue(current, slotLabel.type);
-            const decodedNext = decodeStorageValue(next, slotLabel.type);
-
-            labeledWrites[slotHex as Hex] = {
-              label: slotLabel.label,
-              current: decodedCurrent,
-              next: decodedNext,
-              type: slotLabel.type,
-              keys: slotLabel.keys,
-            };
-          } else {
-            // No match found, use a fallback label
-            const slotNumber = parseInt(slotHex.replace(/^0x0*/, ""), 16);
-            const fallbackLabel = isNaN(slotNumber) ? undefined : `var${slotNumber}`;
-
-            // Use uint256 as default type for unknown slots
-            const defaultType = "uint256";
-            const decodedCurrent = decodeStorageValue(current, defaultType);
-            const decodedNext = decodeStorageValue(next, defaultType);
-
-            labeledWrites[slotHex as Hex] = {
-              label: fallbackLabel,
-              current: decodedCurrent,
-              next: decodedNext,
-              type: defaultType,
-            };
-          }
-        });
-      }
-
-      // Create enhanced trace with labels
+      // Return enhanced trace with labels
       acc[address] = {
         reads: labeledReads,
         writes: labeledWrites,
@@ -243,3 +224,44 @@ export const traceStorageAccess = async (
 
   return labeledTrace;
 };
+
+/**
+ * A class that encapsulates the storage access tracing functionality.
+ *
+ * Allows for creating a reusable tracer with consistent configuration.
+ */
+export class Tracer {
+  private client;
+  private explorers;
+
+  /**
+   * Creates a new Tracer instance with configuration for tracing storage access.
+   *
+   * @param options Configuration options for the tracer
+   */
+  constructor(options: TraceStorageAccessOptions) {
+    this.client = options.client ?? createClient(options);
+    this.explorers = options.explorers;
+  }
+
+  /**
+   * Traces storage access for a transaction.
+   *
+   * Uses the same underlying implementation as the standalone {@link traceStorageAccess} function.
+   */
+  async traceStorageAccess(txOptions: {
+    from: Address;
+    to: Address;
+    data: Hex;
+  }): Promise<Record<Address, StorageAccessTrace>> {
+    // TODO: do we need to update the fork here? or is the "latest" blockTag enough?
+    return traceStorageAccess({
+      ...txOptions,
+      client: this.client,
+      explorers: this.explorers,
+    });
+  }
+
+  // TODO: overload traceStorageAccess to accept abi, functionName, args
+  // TODO: overload traceStorageAccess to accept txHash
+}

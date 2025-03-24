@@ -1,44 +1,29 @@
-import { Address, GetAccountResult, Hex, MemoryClient } from "tevm";
+import { Abi, Address, ContractFunctionName, GetAccountResult, Hex, MemoryClient } from "tevm";
 import { Common } from "tevm/common";
-import { ForkOptions } from "tevm/state";
+import { abi } from "@shazow/whatsabi";
+import { AbiStateMutability, ContractFunctionArgs, WriteContractParameters } from "viem";
 
-import { AbiType, AbiTypeToPrimitiveType } from "./schema";
+import { AbiType, AbiTypeToPrimitiveType } from "@/lib/schema";
 
 /* -------------------------------------------------------------------------- */
 /*                                    TRACE                                   */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Options for analyzing storage access patterns during transaction simulation.
+ * Base options for analyzing storage access patterns during transaction simulation.
  *
- * Note: You will need to provide either a memory client, fork options, or a JSON-RPC URL.
+ * Note: You will need to provide either a memory client or a JSON-RPC URL.
  *
- * @param from - Sender address
- * @param to - Target contract address (optional for contract creation)
- * @param data - Transaction calldata
  * @param client - Use existing memory client (either this or fork/rpcUrl is required)
- * @param fork - Fork configuration for creating a memory client
  * @param rpcUrl - JSON-RPC URL for creating a memory client
  * @param common - EVM chain configuration (improves performance by avoiding fetching chain info)
+ * @param explorers - Explorers urls and keys to use for fetching contract sources and ABI
  */
 export type TraceStorageAccessOptions = {
-  /** Sender address */
-  from: Address;
-  /** Target contract address (optional for contract creation) */
-  to?: Address;
-  /** Transaction calldata */
-  data: Hex;
-
-  /** Use existing memory client (either this or fork/rpcUrl is required) */
   client?: MemoryClient;
-  /** Fork configuration for creating a memory client */
-  fork?: ForkOptions;
-  /** JSON-RPC URL for creating a memory client */
   rpcUrl?: string;
-  /** EVM chain configuration (improves performance by avoiding fetching chain info) */
   common?: Common;
 
-  /** Explorers urls and keys to use for fetching contract sources and ABI */
   explorers?: {
     etherscan?: {
       baseUrl: string;
@@ -51,40 +36,143 @@ export type TraceStorageAccessOptions = {
   };
 };
 
+/**
+ * Transaction parameters for analyzing storage access patterns during transaction simulation.
+ *
+ * - Option 1: simulate a new transaction with the encoded calldata {@link TraceStorageAccessTxWithData}
+ * - Option 2: simulate a new transaction with the ABI and function name/args {@link TraceStorageAccessTxWithAbi}
+ * - Option 3: replay a transaction with its hash {@link TraceStorageAccessTxWithReplay}
+ *
+ * @example
+ *   const simulateParams: TraceStorageAccessTxParams = {
+ *     from: "0x123...",
+ *     to: "0x456...", // optional
+ *     data: "0x789...",
+ *   };
+ *
+ * @example
+ *   const simulateParams: TraceStorageAccessTxParams = {
+ *   from: "0x123...",
+ *   to: "0x456...", // optional
+ *   abi: [...],
+ *   functionName: "mint",
+ *   args: [69420n],
+ *   };
+ *
+ * @example
+ *   const replayParams: TraceStorageAccessTxParams = {
+ *     txHash: "0x123...",
+ *   };
+ */
+export type TraceStorageAccessTxParams<
+  TAbi extends Abi | readonly unknown[] = Abi,
+  TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+> =
+  | (Partial<
+      Record<keyof TraceStorageAccessTxWithReplay | keyof Omit<TraceStorageAccessTxWithAbi, "from" | "to">, never>
+    > &
+      TraceStorageAccessTxWithData)
+  | (Partial<
+      Record<keyof TraceStorageAccessTxWithReplay | keyof Omit<TraceStorageAccessTxWithData, "from" | "to">, never>
+    > &
+      TraceStorageAccessTxWithAbi<TAbi, TFunctionName>)
+  | (Partial<Record<keyof TraceStorageAccessTxWithData | keyof TraceStorageAccessTxWithAbi, never>> &
+      TraceStorageAccessTxWithReplay);
+
+/**
+ * Transaction parameters with encoded calldata.
+ *
+ * @param from - Sender address
+ * @param data - Transaction calldata
+ * @param to - Target contract address (optional for contract creation)
+ */
+export type TraceStorageAccessTxWithData = { from: Address; data: Hex; to?: Address };
+
+/**
+ * Contract transaction parameters with ABI typed function name and arguments.
+ *
+ * @param from - Sender address
+ * @param to - Target contract address
+ * @param abi - Contract ABI
+ * @param functionName - Function name
+ * @param args - Function arguments
+ */
+export type TraceStorageAccessTxWithAbi<
+  TAbi extends Abi | readonly unknown[] = Abi,
+  TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+> = {
+  from: Address;
+  to: Address;
+  abi: TAbi;
+  functionName: TFunctionName;
+  args: ContractFunctionArgs<TAbi, AbiStateMutability, TFunctionName>;
+};
+
+/**
+ * Transaction parameters from replaying a transaction with its hash.
+ *
+ * @param txHash - Transaction hash
+ */
+export type TraceStorageAccessTxWithReplay = { txHash: Hex };
+
+/**
+ * Storage access trace for a transaction
+ *
+ * @template EOA - Whether the account is an EOA (Externally Owned Account)
+ * @param reads - Storage slots that were read but not modified during transaction (only applicable for contracts)
+ * @param writes - Storage slots that were modified during transaction (only applicable for contracts)
+ * @param intrinsic - Account field changes during transaction
+ */
 export type StorageAccessTrace<EOA extends boolean = false> = {
-  /** Storage slots that were read but not modified during transaction (only applicable for contracts) */
-  reads: EOA extends false ? { [slot: Hex]: LabeledStorageRead } : never;
-  /** Storage slots that were modified during transaction (only applicable for contracts) */
-  writes: EOA extends false ? { [slot: Hex]: LabeledStorageWrite } : never;
-  /** Account field changes during transaction */
+  reads: EOA extends false ? { [slot: Hex]: [LabeledStorageRead, ...LabeledStorageRead[]] } : never;
+  writes: EOA extends false ? { [slot: Hex]: [LabeledStorageWrite, ...LabeledStorageWrite[]] } : never;
   intrinsic: IntrinsicsDiff;
 };
 
+/**
+ * Labeled storage read with decoded value and type
+ *
+ * @param current - The current storage value in hex and decoded form (if available)
+ * @param type - The ABI type of the storage value
+ * @param label - The label retrieved from the storage layout
+ * @param keys - Any mapping keys if the value is mapped
+ * @param index - The index of the entry if it's inside an array
+ * @param offset - The offset of this variable within the slot (for packed variables)
+ */
 export type LabeledStorageRead<T extends AbiType = AbiType> = {
-  current: AbiTypeToPrimitiveType<T>;
-  type?: T;
   label?: string;
-  keys?: Array<string | number | bigint>;
+  type?: T;
+  current: {
+    hex: Hex;
+    decoded?: AbiTypeToPrimitiveType<T>;
+  };
+  keys?: Array<MappingKey>;
+  index?: bigint;
+  offset?: number; // Offset in bytes for packed variables
 };
 
-export type LabeledStorageWrite<T extends AbiType = AbiType> = Omit<LabeledStorageRead<T>, "current"> & {
-  current: AbiTypeToPrimitiveType<T>;
-  next: AbiTypeToPrimitiveType<T>;
+/**
+ * Labeled storage write with decoded value and type
+ *
+ * @param next - The new storage value in hex and decoded form (if available)
+ * @see {@link LabeledStorageRead} for other properties
+ */
+export type LabeledStorageWrite<T extends AbiType = AbiType> = LabeledStorageRead<T> & {
+  next: {
+    hex: Hex;
+    decoded?: AbiTypeToPrimitiveType<T>;
+  };
 };
 
 /* -------------------------------------------------------------------------- */
 /*                                 ACCESS LIST                                */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Internal type representing the access list format from tevm.
- */
+/** Internal type representing the access list format from tevm. */
 export type AccessList = Record<Address, Set<Hex>>;
 
 /* --------------------------- STORAGE SLOT TYPES --------------------------- */
-/**
- * Type representing the storage at a defined slot at a specific point in time.
- */
+/** Type representing the storage at a defined slot at a specific point in time. */
 export type StorageSnapshot = {
   /** Storage slot location */
   [slot: Hex]: {
@@ -93,9 +181,7 @@ export type StorageSnapshot = {
   };
 };
 
-/**
- * Type representing a list of storage reads without modification.
- */
+/** Type representing a list of storage reads without modification. */
 export type StorageReads = {
   /** Storage slot location */
   [slot: Hex]: {
@@ -104,9 +190,7 @@ export type StorageReads = {
   };
 };
 
-/**
- * Type representing a list of storage writes with modification.
- */
+/** Type representing a list of storage writes with modification. */
 export type StorageWrites = {
   /** Storage slot location */
   [slot: Hex]: {
@@ -125,9 +209,7 @@ export type StorageWrites = {
  */
 type Intrinsics = Pick<GetAccountResult, "balance" | "codeHash" | "deployedBytecode" | "nonce" | "storageRoot">;
 
-/**
- * Type representing the intrinsic state of an account at a specific point in time.
- */
+/** Type representing the intrinsic state of an account at a specific point in time. */
 export type IntrinsicsSnapshot = {
   /** Account field identifier */
   [K in keyof Intrinsics]: {
@@ -136,9 +218,7 @@ export type IntrinsicsSnapshot = {
   };
 };
 
-/**
- * Type representing the difference in intrinsic account state during transaction.
- */
+/** Type representing the difference in intrinsic account state during transaction. */
 export type IntrinsicsDiff = {
   /** Account field identifier */
   [K in keyof Intrinsics]: {
@@ -181,50 +261,47 @@ export type AccountDiff<EOA extends boolean = false> = {
 /* -------------------------------------------------------------------------- */
 
 /* ---------------------------------- SLOTS --------------------------------- */
-/**
- * Type for representing labeled storage slots
- */
+/** Type for representing labeled storage slots */
 // TODO: review
-export type StorageSlotInfo = {
+export type StorageSlotInfo<T extends StorageLayoutType["encoding"] = StorageLayoutType["encoding"]> = {
   slot: Hex;
-  label?: string;
+  label: string;
   path: string;
   type: AbiType;
-  encoding: string;
+  encoding: T;
   isComputed: boolean;
-  baseSlot?: string;
-  // TODO: are these abi types?
-  keyType?: AbiType;
-  valueType?: AbiType;
-  baseType?: AbiType;
+  keyType?: T extends "mapping" ? AbiType : never;
+  valueType?: T extends "mapping" ? AbiType : never;
+  baseType?: T extends "dynamic_array" ? AbiType : never;
+  offset?: number;
 };
 
-// TODO: review
-export interface TraceValue {
-  // Raw value from EVM trace or transaction
-  value: string | number | bigint;
-  // Source of the value (stack, op, function arg, etc)
-  source: "stack" | "argument" | "address" | "constant";
-  // Position in the source (e.g., stack index, arg index)
-  position?: number;
-  // Operation where this value was observed (e.g., SLOAD, SHA3)
-  operation?: string;
+export interface MappingKey<T extends AbiType = AbiType> {
+  // Value padded to 32 bytes
+  hex: Hex;
+  // Type of the value if known
+  type?: T;
+  // Decoded value if known
+  decoded?: AbiTypeToPrimitiveType<T>;
 }
 
-// TODO: review
-export interface SlotLabelResult {
+export type SlotMatchType = "exact" | "mapping" | "nested-mapping" | "array" | "struct";
+
+export interface SlotLabelResult<M extends SlotMatchType = SlotMatchType> {
   // The variable name with formatted keys
   label: string;
   // The slot being accessed
   slot: string;
   // The type of match that was found
-  matchType: "exact" | "mapping" | "nested-mapping" | "array" | "struct";
+  matchType: M;
   // The variable type (from Solidity)
   type?: AbiType;
   // The detected keys or indices (if applicable)
-  keys?: Array<string | number | bigint>;
-  // The positions of the keys in the source trace (for debugging)
-  keySources?: Array<TraceValue>;
+  keys?: M extends "mapping" | "nested-mapping" ? Array<MappingKey> : never; // TODO: then decode it for the consumer
+  // The detected index (if applicable)
+  index?: M extends "array" ? Hex : never; // TODO: same here, decode to bigint? or number?
+  // The offset of the variable within the slot (for packed variables)
+  offset?: number;
 }
 
 /* -------------------------------- WHATSABI -------------------------------- */
@@ -243,6 +320,7 @@ export type GetContractsResult = Record<
       compilerVersion?: string;
     };
     sources?: Array<{ path?: string; content: string }>;
+    abi: abi.ABI;
   }
 >;
 

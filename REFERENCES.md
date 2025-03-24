@@ -16,7 +16,15 @@
 
 ## TODO
 
-- create a Tracer class that takes the args and env and can be user to trace by just providing tx
+- [ ] if a function writes to storage BUT doesn't modify the value(s), it returns a read (because pre-post state is the same)
+  - -> this is an _access_ list so it makes sense, we should rather have either a single object instead of read/write, with or without a "next" property
+  - -> or maybe better we track SSTOREs and SLOADs separately, so we can accurately populate read and write
+- [ ] add tests for trace with txHash (replicate tx)
+- [x] create a Tracer class that takes the args and env and can be user to trace by just providing tx
+- [ ] provide a react package with a Tracer provider and useTracer hook
+- [ ] ? add a "details" property to the returned trace, with the raw tevm call result (gas, errors, etc)
+- [ ] ? pass a "label"/something flag to label or not storage slots (default true, but setting to false would save a lot on compute)
+- [ ] export types and utilities for decoding abi types and mention on readme? or don't bloat the package? maybe would be good as a second package provided lattice authorization
 
 ## Listen to steps during call
 

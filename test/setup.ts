@@ -1,14 +1,15 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import { Address, createMemoryClient } from "tevm";
+import { createMemoryClient } from "tevm";
 import { EthjsAccount, parseEther } from "tevm/utils";
-import { beforeAll, vi } from "vitest";
+import { toFunctionSelector } from "viem";
+import { beforeEach, vi } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants";
 import * as storageLayout from "@/lib/storage-layout";
 
-beforeAll(async () => {
-  const client = createMemoryClient();
+beforeEach(async () => {
+  const client = createMemoryClient({});
   // @ts-expect-error type
   globalThis.client = client;
 
@@ -34,8 +35,8 @@ beforeAll(async () => {
 });
 
 /**
- * Create a mock for the getContracts function that returns contract information
- * directly from our test contracts rather than fetching from external APIs.
+ * Create a mock for the getContracts function that returns contract information directly from our test contracts rather
+ * than fetching from external APIs.
  */
 const setupContractsMock = () => {
   // Mock the getContracts function
@@ -49,6 +50,7 @@ const setupContractsMock = () => {
             {
               metadata: {},
               sources: [],
+              abi: [],
             },
           ];
         }
@@ -62,6 +64,13 @@ const setupContractsMock = () => {
               compilerVersion: "0.8.23+commit.f704f362",
             },
             sources: [{ path: contract.name, content: getContractCode(contract.name ?? "") }],
+            abi: contract.abi.map((item) => {
+              if (item.type === "function") {
+                return { ...item, selector: toFunctionSelector(item) };
+              } else {
+                return item;
+              }
+            }),
           },
         ];
       }),

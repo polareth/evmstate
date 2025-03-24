@@ -14,6 +14,6 @@
   "importOrderBuiltinModulesToTop": true,
   "importOrderParserPlugins": ["typescript", "decorators-legacy"],
   "importOrderCombineTypeAndValueImports": true,
-  "plugins": ["@ianvs/prettier-plugin-sort-imports"],
+  "plugins": ["@ianvs/prettier-plugin-sort-imports", "prettier-plugin-jsdoc"],
   "importOrder": ["tevm", "^tevm/(.*)$", "<THIRD_PARTY_MODULES>", "", "^@test/(.*)$", "^@/(.*)$", "", "^[./]"]
 }
