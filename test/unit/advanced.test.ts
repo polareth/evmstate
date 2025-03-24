@@ -1,4 +1,3 @@
-import { encodeFunctionData } from "tevm";
 import { padHex } from "viem";
 import { describe, expect, it } from "vitest";
 
@@ -10,7 +9,7 @@ const { AssemblyStorage } = CONTRACTS;
 const { caller, recipient } = ACCOUNTS;
 
 /**
- * Advanced Assembly-Based Storage Access Tests
+ * Storage access with assembly & 1-level mappings tests
  *
  * This test suite verifies:
  *
@@ -29,7 +28,9 @@ describe("Assembly-based storage access", () => {
         client,
         from: caller.toString(),
         to: AssemblyStorage.address,
-        data: encodeFunctionData(AssemblyStorage.write.setValueAssembly(123n)),
+        abi: AssemblyStorage.abi,
+        functionName: "setValueAssembly",
+        args: [123n],
       });
 
       // Then read the value using assembly
@@ -37,7 +38,9 @@ describe("Assembly-based storage access", () => {
         client,
         from: caller.toString(),
         to: AssemblyStorage.address,
-        data: encodeFunctionData(AssemblyStorage.read.getValueAssembly()),
+        abi: AssemblyStorage.abi,
+        functionName: "getValueAssembly",
+        args: [],
       });
 
       // Verify the write operation was captured
@@ -74,14 +77,18 @@ describe("Assembly-based storage access", () => {
         client,
         from: caller.toString(),
         to: AssemblyStorage.address,
-        data: encodeFunctionData(AssemblyStorage.write.setBalanceAssembly(recipient.toString(), 1000n)),
+        abi: AssemblyStorage.abi,
+        functionName: "setBalanceAssembly",
+        args: [recipient.toString(), 1000n],
       });
 
       const traceRead = await traceStorageAccess({
         client,
         from: caller.toString(),
         to: AssemblyStorage.address,
-        data: encodeFunctionData(AssemblyStorage.read.getBalanceAssembly(recipient.toString())),
+        abi: AssemblyStorage.abi,
+        functionName: "getBalanceAssembly",
+        args: [recipient.toString()],
       });
 
       // Verify the write operation was captured
@@ -120,9 +127,9 @@ describe("Assembly-based storage access", () => {
         client,
         from: caller.toString(),
         to: AssemblyStorage.address,
-        data: encodeFunctionData(
-          AssemblyStorage.write.batchUpdateAssembly(789n, [caller.toString(), recipient.toString()], [111n, 222n]),
-        ),
+        abi: AssemblyStorage.abi,
+        functionName: "batchUpdateAssembly",
+        args: [789n, [caller.toString(), recipient.toString()], [111n, 222n]],
       });
 
       expect(trace[AssemblyStorage.address].reads).toEqual({});
