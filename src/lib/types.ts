@@ -297,9 +297,9 @@ export interface SlotLabelResult<M extends SlotMatchType = SlotMatchType> {
   // The variable type (from Solidity)
   type?: AbiType;
   // The detected keys or indices (if applicable)
-  keys?: M extends "mapping" | "nested-mapping" ? Array<MappingKey> : never; // TODO: then decode it for the consumer
+  keys?: M extends "mapping" | "nested-mapping" ? Array<MappingKey> : never;
   // The detected index (if applicable)
-  index?: M extends "array" ? Hex : never; // TODO: same here, decode to bigint? or number?
+  index?: M extends "array" ? Hex : never;
   // The offset of the variable within the slot (for packed variables)
   offset?: number;
 }

@@ -5,8 +5,11 @@ contract Mappings {
     // Simple mapping
     mapping(address => uint256) private balances;
     
-    // Nested mapping
-    mapping(address => mapping(address => uint256)) private allowances;
+    // Nested mapping (with named keys)
+    mapping(address owner => mapping(address spender => uint256 allowance)) private allowances;
+
+    // Ridiculously nested mapping
+    mapping(address => mapping(address => mapping(address => mapping(address => uint256)))) private ridiculouslyNestedMapping;
     
     // Mapping to a struct
     struct UserInfo {
@@ -28,8 +31,16 @@ contract Mappings {
         allowances[owner][spender] = amount;
     }
 
+    function setRidiculouslyNestedMapping(address a, address b, address c, address d, uint256 value) public {
+        ridiculouslyNestedMapping[a][b][c][d] = value;
+    }
+
     function getAllowance(address owner, address spender) public view returns (uint256) {
         return allowances[owner][spender];
+    }
+
+    function getRidiculouslyNestedMapping(address a, address b, address c, address d) public view returns (uint256) {
+        return ridiculouslyNestedMapping[a][b][c][d];
     }
 
     function setUserInfo(address user, uint256 balance, uint256 lastUpdate, bool isActive) public {

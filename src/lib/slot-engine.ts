@@ -5,6 +5,9 @@ import { decodeAbiParameters, encodeAbiParameters, padHex } from "viem";
 import { AbiType, AbiTypeToPrimitiveType } from "@/lib/schema";
 import { MappingKey, SlotLabelResult, StorageSlotInfo } from "@/lib/types";
 
+// Maximum nesting depth to prevent excessive recursion
+const NESTED_MAPPINGS_LIMIT = 5; // TODO: what would be reasonable? Maybe let consumer override it?
+
 /**
  * A slot computation engine that implements Solidity's storage layout rules to accurately compute and label storage
  * slots.
@@ -17,22 +20,6 @@ import { MappingKey, SlotLabelResult, StorageSlotInfo } from "@/lib/types";
  */
 export const computeMappingSlot = (baseSlot: Hex, key: MappingKey): Hex =>
   keccak256(`0x${key.hex.replace("0x", "")}${baseSlot.replace("0x", "")}`);
-
-/**
- * Computes the storage slot for a nested mapping with arbitrary depth
- *
- * `keccak256(abi.encode(key1, keccak256(abi.encode(key2, slot))))` etc
- */
-export const computeNestedMappingSlot = (baseSlot: Hex, keys: Array<MappingKey>): Hex => {
-  // Return early if no keys
-  if (!keys.length) return baseSlot;
-
-  let slot = baseSlot;
-  // Recursively apply mapping hash for each key
-  keys.forEach((key) => (slot = computeMappingSlot(slot, key))); // we don't care about the type
-
-  return slot;
-};
 
 /**
  * Computes the storage slot for a dynamic array element
@@ -125,14 +112,53 @@ export const extractPotentialKeys = (
     if (!uniqueMap.has(k.hex) || k.type) uniqueMap.set(k.hex, k);
   });
 
-  return Array.from(uniqueMap.values());
+  return Array.from(uniqueMap.values()).sort((a, b) => {
+    // prefer address as it's more likely to be a key
+    if (a.type === "address") return -1;
+    if (b.type === "address") return 1;
+    // prefer defined types
+    if (a.type === undefined) return 1;
+    if (b.type === undefined) return -1;
+
+    return 0;
+  });
+};
+
+/**
+ * Parse a mapping type string to extract key types and final value type
+ *
+ * Example: "mapping(address => mapping(uint256 => bool))" returns { keyTypes: ["address", "uint256"], finalValueType:
+ * "bool" }
+ */
+const parseMultiMappingType = (type: AbiType): { keyTypes: AbiType[]; finalValueType: AbiType } => {
+  const keyTypes: AbiType[] = [];
+  let remainingType = type;
+
+  // Extract mapping key types until we reach the final value type
+  while (remainingType.startsWith("mapping(")) {
+    // Extract the key type (between "mapping(" and " =>")
+    const keyMatch = remainingType.match(/mapping\(([^=]+)=>/);
+    if (!keyMatch) break;
+
+    const keyType = keyMatch[1].trim() as AbiType;
+    keyTypes.push(keyType);
+
+    // Remove the processed part
+    remainingType = remainingType.substring(remainingType.indexOf("=>") + 2).trim() as AbiType;
+
+    // If remaining type doesn't start with "mapping", it's the final value type
+    if (!remainingType.startsWith("mapping")) {
+      const finalValueType = remainingType.replace(/\)+$/, "").trim() as AbiType;
+      return { keyTypes, finalValueType };
+    }
+  }
+
+  // Default if we couldn't parse properly
+  const finalValueType = type.replace(/^mapping\([^=]+=>\s*|\)+$/g, "") as AbiType;
+  return { keyTypes, finalValueType };
 };
 
 /** Finds all matching labels for a storage slot, including packed variables */
-// TODO: for mappings, this is most likely not correct at all but confused rn; each type points to another type so we should be able to recursively
-// find out each next's type to produce the full mapping flow
-// - We should probably first create any mapping flow when there are multiple ones, then test with every potential key
-// - We can also filter out keys that have a type that does not fit each mapping's keyType
 export const findLayoutInfoAtSlot = (
   slot: Hex,
   storageLayout: StorageSlotInfo[],
@@ -182,58 +208,156 @@ export const findLayoutInfoAtSlot = (
     if (results.length > 0) return results;
   }
 
-  // 2. Check for mapping slot matches
-  const mappings = storageLayout.filter(
-    (item) =>
-      item.encoding === "mapping" &&
-      // Skip nested mappings for this pass
-      // TODO: we can probably do both mappings & nested mappings in the same pass
-      !item.valueType?.includes("mapping"),
-  );
+  // 2. Check for mapping and nested mapping slot matches with unified approach
+  const mappings = storageLayout.filter((item) => item.encoding === "mapping");
+
   for (const mapping of mappings) {
+    // For each mapping, we need to determine if it's a nested mapping and how many levels of nesting it has
+    const isNestedMapping = mapping.valueType?.includes("mapping") ?? false;
+
+    // Parse the mapping type to get all key types and final value type
+    const { keyTypes, finalValueType } =
+      isNestedMapping && mapping.valueType
+        ? parseMultiMappingType(mapping.valueType)
+        : { keyTypes: [], finalValueType: mapping.valueType };
+
+    // Get keys by type for more efficient lookup
+    const keysByType: Record<string, MappingKey[]> = {};
     potentialKeys.forEach((key) => {
-      const computedSlot = computeMappingSlot(mapping.slot, key);
-
-      // If the slot computed with this potential key matches the target slot, add it to results
-      if (computedSlot === slot) {
-        results.push({
-          label: mapping.label,
-          slot: slot,
-          matchType: "mapping",
-          // TODO: there is something to do here with nested mappings as some type should be a mapping and not just a type
-          type: mapping.valueType,
-          keys: [key],
-        });
-      }
+      if (key.type) keysByType[key.type] = (keysByType[key.type] ?? []).concat(key);
     });
-  }
 
-  // 3. Check for nested mapping matches (up to any depth, but starting with 2 levels)
-  const nestedMappings = mappings.filter((m) => m.valueType?.includes("mapping"));
-  for (const mapping of nestedMappings) {
-    // First try two levels of nesting (most common case)
-    // TODO: see above, not only we can probably just do a recursive function, where everytime valueType is a mapping we call again, but also this is just probably purely unnecessary
-    potentialKeys.forEach((key1) => {
-      potentialKeys.forEach((key2) => {
-        if (key1 === key2) return;
+    // Get keys that match the mapping's key type first
+    const keyType1 = mapping.keyType as AbiType;
+    const firstLevelKeys = keysByType[keyType1] || [];
 
-        const keys = [key1, key2];
-        const computedSlot = computeNestedMappingSlot(mapping.slot, keys);
+    // For nested mappings with arbitrary depth, use a recursive approach
+    if (isNestedMapping) {
+      // This recursive function tries all valid combinations of keys at each nesting level
+      const findNestedMappingMatch = (
+        currentSlot: Hex, // Current slot we're computing from
+        currentLevel: number, // Current nesting level (1-indexed)
+        usedKeys: Array<MappingKey>, // Keys we've used so far
+        allKeyTypes: Array<AbiType | undefined>, // All key types from outer to inner
+      ): boolean => {
+        // Stop if we reached our depth limit
+        if (currentLevel > NESTED_MAPPINGS_LIMIT) return false;
+
+        // If we have a match, add it to results and stop
+        if (currentSlot === slot) {
+          // Only accept if we have the right number of keys for this level
+          if (usedKeys.length === currentLevel - 1) {
+            results.push({
+              label: mapping.label,
+              slot,
+              matchType: "nested-mapping",
+              type: finalValueType,
+              keys: usedKeys,
+            });
+
+            return true; // found a match!
+          }
+          return false;
+        }
+
+        // If we've gone through all key types but no match, stop
+        if (currentLevel > allKeyTypes.length) return false;
+
+        // Get the current level's key type
+        const currentKeyType = currentLevel === 1 ? mapping.keyType : allKeyTypes[currentLevel - 2]; // -2 because level is 1-indexed and first level uses mapping.keyType
+
+        // Optimization: for specific types, only use keys that match the type
+        // This reduces the search space significantly
+        let levelKeys: MappingKey[];
+
+        if (currentKeyType) {
+          // Use keys with matching type if available
+          const typedKeys = keysByType[currentKeyType as string];
+          if (typedKeys && typedKeys.length > 0) {
+            levelKeys = typedKeys;
+          } else {
+            // Fall back to untyped keys if needed
+            levelKeys = potentialKeys.filter((key) => !key.type || key.type === currentKeyType);
+          }
+        } else {
+          // If no type is specified, use all available keys
+          levelKeys = potentialKeys;
+        }
+
+        // Sort keys to prioritize those matching the expected type
+        const sortedKeys = [...levelKeys].sort((a, b) => {
+          // Prioritize keys with the exact matching type
+          if (a.type === currentKeyType && b.type !== currentKeyType) return -1;
+          if (a.type !== currentKeyType && b.type === currentKeyType) return 1;
+          // Then prioritize keys with any type over undefined
+          if (a.type && !b.type) return -1;
+          if (!a.type && b.type) return 1;
+
+          return 0;
+        });
+
+        // Try each key for this level
+        for (const key of sortedKeys) {
+          // Skip if we've already used this key
+          if (usedKeys.some((usedKey) => usedKey.hex === key.hex)) continue;
+
+          // Compute the next slot using this key
+          const nextSlot = computeMappingSlot(currentSlot, key);
+
+          // Early exit on direct match (common case for 2-level nesting)
+          if (nextSlot === slot) {
+            const updatedKeys = [...usedKeys, key];
+            results.push({
+              label: mapping.label,
+              slot,
+              matchType: "nested-mapping",
+              type: finalValueType,
+              keys: updatedKeys,
+            });
+            return true;
+          }
+
+          // Only go deeper if we haven't reached the maximum nesting level
+          // and if we still have key types to process
+          if (currentLevel < allKeyTypes.length && currentLevel < NESTED_MAPPINGS_LIMIT) {
+            // Add this key to our path
+            const updatedKeys = [...usedKeys, key];
+
+            // Continue to the next level
+            const found = findNestedMappingMatch(nextSlot, currentLevel + 1, updatedKeys, allKeyTypes);
+            // If we found a match, no need to try other keys
+            if (found) return true;
+          }
+        }
+
+        // Didn't find a match with any key combination
+        return false;
+      };
+
+      // Build the array of all key types (first is already handled by mapping.keyType)
+      const allKeyTypes = [mapping.keyType, ...keyTypes];
+
+      // Start the recursive process with the base slot
+      findNestedMappingMatch(mapping.slot, 1, [], allKeyTypes);
+    } else {
+      // Simple mapping - try each compatible key
+      firstLevelKeys.forEach((key) => {
+        const computedSlot = computeMappingSlot(mapping.slot, key);
 
         if (computedSlot === slot) {
           results.push({
             label: mapping.label,
             slot,
-            matchType: "nested-mapping",
+            matchType: "mapping",
             type: mapping.valueType,
-            keys,
+            keys: [key],
           });
         }
       });
-    });
+    }
   }
 
-  // 4. Check for dynamic array slot matches
+  // 3. Check for dynamic array slot matches
   const arrays = storageLayout.filter((item) => item.encoding === "dynamic_array");
   for (const array of arrays) {
     potentialKeys.forEach((key) => {
@@ -255,7 +379,7 @@ export const findLayoutInfoAtSlot = (
     });
   }
 
-  // 5. Fallback: use a generic variable name for small slot numbers if no results so far
+  // 4. Fallback: use a generic variable name if no results so far
   if (results.length === 0) {
     return [
       {
