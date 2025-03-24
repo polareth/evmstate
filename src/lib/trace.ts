@@ -1,4 +1,5 @@
-import { Abi, Address, CallResult, ContractFunctionName, Hex } from "tevm";
+import { Abi, AbiFunction, Address, CallResult, ContractFunctionName, Hex } from "tevm";
+import { toFunctionSignature } from "viem";
 
 import { debug } from "@/debug";
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
@@ -141,9 +142,18 @@ export const traceStorageAccess = async <
   };
 
   // Aggregate functions from all abis to be able to figure out types of args
-  const abis = Object.values(contractsInfo)
+  let abis = Object.values(contractsInfo)
     .flatMap((contract) => contract.abi)
     .filter((abi) => abi.type === "function");
+
+  // In case the tx was a contract call with the abi and it could not be fetch, add it so we can decode potential mapping keys
+  if (args.abi && args.functionName) {
+    const functionDef = (args.abi as Abi).find(
+      (func) => func.type === "function" && func.name === args.functionName,
+    ) as AbiFunction | undefined;
+    // @ts-expect-error readonly/mutable types
+    if (functionDef) abis.push({ ...functionDef, selector: toFunctionSignature(functionDef) });
+  }
 
   const potentialKeys = extractPotentialKeys(dedupedTraceLog, addresses, abis, data);
   debug(`Extracted ${potentialKeys.length} unique potential values from the trace`);
