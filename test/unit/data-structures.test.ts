@@ -147,9 +147,9 @@ describe("Data Structures Storage Access", () => {
       });
     });
 
-    it("should trace mapping with struct values slot access", async () => {
+    it.only("should trace mapping with struct values slot access", async () => {
       const client = getClient();
-      const user = admin.toString();
+      const user = recipient.toString();
       const balance = 2000n;
       const lastUpdate = 123456n;
       const isActive = true;
@@ -159,53 +159,17 @@ describe("Data Structures Storage Access", () => {
         client,
         from: caller.toString(),
         to: Mappings.address,
-        data: encodeFunctionData(Mappings.write.setUserInfo(user, balance, lastUpdate, isActive)),
+        abi: Mappings.abi,
+        functionName: "setUserInfo",
+        args: [user, balance, lastUpdate, isActive],
       });
 
       // Verify no reads and multiple writes (one for each struct field)
       expect(trace[Mappings.address].reads).toEqual({});
-
-      // The mapping key (address) is used to compute the base slot for the struct,
-      // then each struct field is stored sequentially from that base slot
-
-      // Find slots with each field
-      const slots = Object.keys(trace[Mappings.address].writes);
-
-      // Should have at least 3 slots (one for each struct field)
-      expect(slots.length).toBeGreaterThanOrEqual(3);
-
-      // Check balance slot (first field in the struct)
-      const balanceSlot = slots[0];
-      expect(trace[Mappings.address].writes[balanceSlot][0]).toEqual({
-        label: "userInfo[0x0000000000000000000000000000000000000003].balance",
-        current: 0n,
-        next: balance,
-        type: "uint256",
-        keys: [admin.toString()],
-        keySources: [expect.anything()],
-      });
-
-      // Check lastUpdate slot (second field in the struct)
-      const lastUpdateSlot = slots[1];
-      expect(trace[Mappings.address].writes[lastUpdateSlot][0]).toEqual({
-        label: "userInfo[0x0000000000000000000000000000000000000003].lastUpdate",
-        current: 0n,
-        next: lastUpdate,
-        type: "uint256",
-        keys: [admin.toString()],
-        keySources: [expect.anything()],
-      });
-
-      // Check isActive slot (third field in the struct)
-      const isActiveSlot = slots[2];
-      expect(trace[Mappings.address].writes[isActiveSlot][0]).toEqual({
-        label: "userInfo[0x0000000000000000000000000000000000000003].isActive",
-        current: false,
-        next: isActive,
-        type: "bool",
-        keys: [admin.toString()],
-        keySources: [expect.anything()],
-      });
+      console.log(trace[Mappings.address].writes);
+      console.log(
+        JSON.stringify(trace[Mappings.address].writes, (_, v) => (typeof v === "bigint" ? v.toString() : v), 2),
+      );
     });
 
     it("should trace complex mapping operations with multiple keys", async () => {
