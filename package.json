@@ -14,7 +14,7 @@
   "dependencies": {
     "@shazow/whatsabi": "^0.21.0",
     "debug": "^4.4.0",
-    "tevm": "1.0.0-next.132",
+    "tevm": "1.0.0-next.138",
     "viem": "^2.21.1"
   },
   "devDependencies": {
