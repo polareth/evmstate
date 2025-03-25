@@ -14,7 +14,7 @@ import { Common } from "tevm/common";
 import { padHex } from "viem";
 
 import { debug } from "@/debug";
-import { AbiType, AbiTypeToPrimitiveType, StaticAbiType, staticAbiTypeToByteLength } from "@/lib/schema";
+import { AbiType, AbiTypeToPrimitiveType, StaticAbiType, staticAbiTypeToByteLength } from "@/lib/layout/schema";
 import { TraceStorageAccessOptions, TraceStorageAccessTxParams, TraceStorageAccessTxWithData } from "@/lib/types";
 
 /** Creates a Tevm client from the provided options */

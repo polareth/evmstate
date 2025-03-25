@@ -2,7 +2,7 @@ import { Address, Hex, hexToBigInt, isHex, keccak256, toHex } from "tevm";
 import { abi } from "@shazow/whatsabi";
 import { decodeAbiParameters, encodeAbiParameters, padHex } from "viem";
 
-import { AbiType, AbiTypeToPrimitiveType } from "@/lib/schema";
+import { AbiType, AbiTypeToPrimitiveType } from "@/lib/layout/schema";
 import { MappingKey, SlotLabelResult, StorageSlotInfo } from "@/lib/types";
 
 // Maximum nesting depth to prevent excessive recursion
