@@ -3,10 +3,11 @@ import { toFunctionSignature } from "viem";
 
 import { debug } from "@/debug";
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
-import { StorageLayoutAdapter } from "@/lib/layout/adapter";
-import { extractPotentialKeys } from "@/lib/slot-engine";
+import { StorageLayoutAdapter } from "@/lib/adapter";
+import { extractPotentialKeys } from "@/lib/slots/engine";
 import { formatLabeledStorageOp, getContracts, getStorageLayoutAdapter } from "@/lib/storage-layout";
 import {
+  LabeledStorageAccess,
   LabeledStorageRead,
   LabeledStorageWrite,
   StorageAccessTrace,
@@ -181,7 +182,36 @@ export const traceStorageAccess = async <
       const trace = createAccountDiff(slotsDiff, accountDiff);
 
       // Grab the adapter for this contract
-      const adapter = layoutAdapters[address];
+      const layoutAdapter = layoutAdapters[address];
+
+      // TODO: Redesign
+      // Current design:
+      // Go through each read, and for each go through all known variables to try to decode
+      // Same for writes
+      // If we can't decode, return a generic variable name
+      // New design:
+      // let exploredSlots: Set<Hex> = new Set();
+      // // variable name -> decoded (+ maybe add slots that contain data?)
+      // const decodedAccess: Record<string, LabeledStorageAccess> = Object.fromEntries(
+      //   Object.entries(layoutAdapter).map(([label, storageAdapter]) => {
+      //     // Use a way to explore slots specific to each variable type
+      //     // Explore all slots because there might be packed variables (unexplored will just be to signify that we couldn't label it at all)
+      //     // Pass the slot values as well
+      //     // When decoding, find out if the slot(s) changed before/after tx to not decode twice if not necessary
+
+      //     // 1. It's a mapping (try all keys to try to compute slots; we could get multiple slots if the mapping was modified multiple times)
+      //     // 3. It's an array (decode the highest length of the array—before and after tx—and try to compute slots—could be multiple— with all possible indexes)
+      //     // 2. It's a struct (compute slots for each member from the base slot, find out if one was affected, if it's the case decode members we can decode entirely)
+      //     // 4. It's a bytes/string (decode the highest length of the variable—before and after tx—and decode it—might need to extract out 0 bytes?)
+      //     // 5. It's a "primitive" (decode using the type directly and using the extracting relevant bytes if there is an offset)
+
+      //     // TODO: implement
+
+      //     return [label, {}];
+      //   }),
+      // );
+
+      // const unknownAccess: Record<string, LabeledStorageAccess> = {}; // generic variable name -> undecoded slot value(s)
 
       // Create labeled reads and writes
       const labeledReads = Object.entries(trace.reads).reduce(
@@ -189,7 +219,7 @@ export const traceStorageAccess = async <
           acc[slotHex as Hex] = formatLabeledStorageOp({
             op: read,
             slot: slotHex as Hex,
-            adapter,
+            adapter: layoutAdapter,
             potentialKeys,
           });
           return acc;
@@ -202,7 +232,7 @@ export const traceStorageAccess = async <
           acc[slotHex as Hex] = formatLabeledStorageOp({
             op: write,
             slot: slotHex as Hex,
-            adapter,
+            adapter: layoutAdapter,
             potentialKeys,
           });
           return acc;

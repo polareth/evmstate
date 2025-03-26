@@ -56,7 +56,7 @@ export type SolidityKeyToTsType<KeyType extends string, Types extends SolcStorag
 /* -------------------------------------------------------------------------- */
 
 /** Map Solidity types to TypeScript return types */
-type SolidityTypeToTsType<T extends string, Types extends SolcStorageLayoutTypes> =
+export type SolidityTypeToTsType<T extends string, Types extends SolcStorageLayoutTypes, Default = unknown> =
   // Handle primitive types
   T extends AbiType
     ? AbiTypeToPrimitiveType<T>
@@ -73,7 +73,7 @@ type SolidityTypeToTsType<T extends string, Types extends SolcStorageLayoutTypes
             T extends "bytes" | "string"
             ? string
             : // Default case
-              unknown;
+              Default;
 
 /** Convert a struct type to an object with fields */
 export type StructToObject<StructName extends string, Types extends Record<string, any>> = {
@@ -149,7 +149,11 @@ type ArrayDataReturnType<
 > = Params extends { index: number } ? SolidityTypeToTsType<BaseType, Types> : SolidityTypeToTsType<BaseType, Types>[];
 
 /** Get return type for getData based on type and params */
-export type GetDataReturnType<T extends string, Types extends SolcStorageLayoutTypes, Params extends any> =
+export type GetDataReturnType<
+  T extends string,
+  Types extends SolcStorageLayoutTypes,
+  Params extends GetDataParams<T, Types>,
+> =
   // For arrays, return depends on access pattern
   T extends `${infer BaseType}[]` | `${infer BaseType}[${string}]`
     ? Params extends ArrayDataParams
@@ -157,6 +161,20 @@ export type GetDataReturnType<T extends string, Types extends SolcStorageLayoutT
       : never
     : // For other types, standard conversion
       SolidityTypeToTsType<T, Types>;
+
+// TODO: type recursively for nested complex types (but no logic for that yet)
+export type DecodedSnapshot<T extends string, Types extends SolcStorageLayoutTypes> = T extends
+  | `${infer BaseType}[]`
+  | `${infer BaseType}[${string}]`
+  ? { index: number; value: SolidityTypeToTsType<BaseType, Types> }
+  : T extends `struct ${string}`
+    ? StructField<T, Types>
+    : SolidityTypeToTsType<T, Types>;
+
+type StructField<T extends string, Types extends SolcStorageLayoutTypes, K = keyof StructToObject<T, Types>> = {
+  member: K;
+  value: StructToObject<T, Types>[K];
+};
 
 /* -------------------------------------------------------------------------- */
 /*                              STORAGE VARIABLE                              */

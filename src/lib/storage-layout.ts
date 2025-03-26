@@ -11,6 +11,8 @@ import { randomBytes } from "tevm/utils";
 import { autoload, loaders } from "@shazow/whatsabi";
 
 import { debug } from "@/debug";
+import { createStorageLayoutAdapter, StorageLayoutAdapter } from "@/lib/adapter";
+import { findLayoutInfoAtSlot } from "@/lib/slots/engine";
 import {
   GetContractsOptions,
   GetContractsResult,
@@ -21,9 +23,6 @@ import {
   StorageWrites,
 } from "@/lib/types";
 import { decodeHex } from "@/lib/utils";
-
-import { createStorageLayoutAdapter, StorageLayoutAdapter } from "./layout/adapter";
-import { findLayoutInfoAtSlot } from "./slot-engine";
 
 const ignoredSourcePaths = ["metadata.json", "creator-tx-hash.txt", "immutable-references"];
 

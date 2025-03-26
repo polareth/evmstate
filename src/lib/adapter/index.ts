@@ -9,7 +9,9 @@ import {
 import { Address, decodeAbiParameters, encodeAbiParameters, Hex, hexToBigInt, padHex, toHex } from "viem";
 
 import { debug } from "@/debug";
+import { StaticAbiType } from "@/lib/adapter/schema";
 import {
+  DecodedSnapshot,
   DeepReadonly,
   ExtractArrayBaseType,
   ExtractMappingValueType,
@@ -20,11 +22,10 @@ import {
   ParseSolidityType,
   SolidityKeyToTsType,
   StructToObject,
-} from "@/lib/layout/types";
-import { computeArraySlot, computeMappingSlot } from "@/lib/slot-engine";
-
-import { extractRelevantHex } from "../utils";
-import { StaticAbiType } from "./schema";
+} from "@/lib/adapter/types";
+import { computeArraySlot } from "@/lib/slots/array";
+import { computeMappingSlot } from "@/lib/slots/mapping";
+import { extractRelevantHex } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
 /*                              STORAGE ADAPTERS                              */

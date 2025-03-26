@@ -6,7 +6,7 @@ import { ACCOUNTS, CONTRACTS } from "@test/constants";
 import { getClient, getMappingSlotHex, getSlotHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
 
-const { Arrays, Mappings, AssemblyStorage } = CONTRACTS;
+const { Arrays, Mappings } = CONTRACTS;
 const { caller, recipient } = ACCOUNTS;
 
 /**
@@ -147,7 +147,7 @@ describe("Data Structures Storage Access", () => {
       });
     });
 
-    it.todo("should trace mapping with struct values slot access", async () => {
+    it.skip("should trace mapping with struct values slot access", async () => {
       const client = getClient();
       const user = recipient.toString();
       const balance = 2000n;

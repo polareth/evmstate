@@ -12,7 +12,7 @@ import { beforeEach, vi } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants";
 import { debug } from "@/debug";
-import { createStorageLayoutAdapter } from "@/lib/layout/adapter";
+import { createStorageLayoutAdapter } from "@/lib/adapter";
 import * as storageLayout from "@/lib/storage-layout";
 
 beforeEach(async () => {

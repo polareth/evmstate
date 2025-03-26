@@ -1,9 +1,12 @@
 import { Abi, Address, ContractFunctionName, GetAccountResult, Hex, MemoryClient } from "tevm";
+import { SolcStorageLayoutTypes } from "tevm/bundler/solc";
 import { Common } from "tevm/common";
 import { abi } from "@shazow/whatsabi";
 import { AbiStateMutability, ContractFunctionArgs } from "viem";
 
-import { AbiType, AbiTypeToPrimitiveType } from "@/lib/layout/schema";
+import { AbiType, AbiTypeToPrimitiveType } from "@/lib/adapter/schema";
+
+import { GetMappingKeyTypes, SolidityTypeToTsType } from "./adapter/types";
 
 /* -------------------------------------------------------------------------- */
 /*                                    TRACE                                   */
@@ -162,6 +165,27 @@ export type LabeledStorageWrite<T extends AbiType = AbiType> = LabeledStorageRea
     hex: Hex;
     decoded?: AbiTypeToPrimitiveType<T>;
   };
+};
+
+export type LabeledStorageAccess<
+  T extends string = string,
+  L extends string = string,
+  Types extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
+> = {
+  /** The name of the variable in the layout */
+  label: L;
+  /** The type of the variable */
+  type: T;
+  /** The decoded value of the variable */
+  current: SolidityTypeToTsType<T, Types, Hex>;
+  /** The next value after the transaction (if it was modified) */
+  next?: SolidityTypeToTsType<T, Types, Hex>;
+  /** The slots storing some of the variable's data that were accessed */
+  slots: Array<Hex>;
+  /** The keys that were used to access the variable (if it's a mapping) */
+  keys?: T extends `mapping(${string} => ${string})` ? GetMappingKeyTypes<T, Types> : never;
+  /** The indexes that were used to access the variable (if it's an array) */
+  indexes?: T extends `${string}[]` | `${string}[${string}]` ? number[] : never;
 };
 
 /* -------------------------------------------------------------------------- */
