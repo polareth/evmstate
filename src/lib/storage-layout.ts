@@ -83,7 +83,7 @@ export const getContracts = async ({
  *
  * @returns A comprehensive storage layout adapter with methods for accessing storage data & utils
  */
-export const getStorageLayout = async ({
+export const getStorageLayoutAdapter = async ({
   address,
   metadata,
   sources,

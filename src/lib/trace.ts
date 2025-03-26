@@ -5,7 +5,7 @@ import { debug } from "@/debug";
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
 import { StorageLayoutAdapter } from "@/lib/layout/adapter";
 import { extractPotentialKeys } from "@/lib/slot-engine";
-import { formatLabeledStorageOp, getContracts, getStorageLayout } from "@/lib/storage-layout";
+import { formatLabeledStorageOp, getContracts, getStorageLayoutAdapter } from "@/lib/storage-layout";
 import {
   LabeledStorageRead,
   LabeledStorageWrite,
@@ -91,6 +91,7 @@ export const traceStorageAccess = async <
   // Mine the pending transaction to get post-state values
   await client.tevmMine();
 
+  // TODO(later): just use a diff tracer
   // const debugCall = await client.request({
   //   method: "debug_traceTransaction",
   //   params: [
@@ -118,14 +119,14 @@ export const traceStorageAccess = async <
 
   const contractsInfo = await getContracts({ client, addresses: filteredContracts, explorers: args.explorers });
 
-  // Map to store storage layouts per contract
+  // Map to store storage layouts adapter per contract
   const layoutAdapters: Record<Address, StorageLayoutAdapter> = {};
 
-  // Get storage layouts for each contract
+  // Get layout adapters for each contract
   await Promise.all(
     Object.entries(contractsInfo).map(async ([address, contract]) => {
       // Get storage layout adapter for this contract
-      layoutAdapters[address as Address] = await getStorageLayout({ ...contract, address: address as Address });
+      layoutAdapters[address as Address] = await getStorageLayoutAdapter({ ...contract, address: address as Address });
     }),
   );
   // Extract potential key/index values from the execution trace

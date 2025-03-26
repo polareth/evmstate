@@ -16,7 +16,7 @@ import { createStorageLayoutAdapter } from "@/lib/layout/adapter";
 import * as storageLayout from "@/lib/storage-layout";
 
 beforeEach(async () => {
-  const client = createMemoryClient({});
+  const client = createMemoryClient({ loggingLevel: "debug" });
   // @ts-expect-error type
   globalThis.client = client;
 
@@ -81,6 +81,9 @@ const setupContractsMock = () => {
         return [
           address,
           {
+            metadata: {
+              name: contract.name,
+            },
             sources: Object.fromEntries(
               Object.entries(output?.modules ?? {}).map(([path, source]) => [path, source.code]),
             ),
@@ -99,7 +102,7 @@ const setupContractsMock = () => {
     );
   });
 
-  vi.spyOn(storageLayout, "getStorageLayout").mockImplementation(async ({ address, sources }) => {
+  vi.spyOn(storageLayout, "getStorageLayoutAdapter").mockImplementation(async ({ address, sources }) => {
     // Return empty layout if we're missing critical information
     if (!sources || sources.length === 0) {
       debug(`Missing compiler info for ${address}. Cannot generate storage layout.`);
