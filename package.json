@@ -20,6 +20,8 @@
   "devDependencies": {
     "@dotenvx/dotenvx": "^1.39.0",
     "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
+    "@tevm/bundler-cache": "1.0.0-next.134",
+    "@tevm/compiler": "1.0.0-next.134",
     "@tevm/ts-plugin": "1.0.0-next.131",
     "@types/debug": "^4.1.12",
     "prettier": "^3.5.3",
@@ -27,5 +29,8 @@
     "typescript": "^5.8.2",
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.0.9"
+  },
+  "peerDependencies": {
+    "tevm": "1.0.0-next.138"
   }
 }

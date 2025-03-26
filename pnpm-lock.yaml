@@ -27,6 +27,12 @@ importers:
       '@ianvs/prettier-plugin-sort-imports':
         specifier: ^4.4.1
         version: 4.4.1(prettier@3.5.3)
+      '@tevm/bundler-cache':
+        specifier: 1.0.0-next.134
+        version: 1.0.0-next.134
+      '@tevm/compiler':
+        specifier: 1.0.0-next.134
+        version: 1.0.0-next.134
       '@tevm/ts-plugin':
         specifier: 1.0.0-next.131
         version: 1.0.0-next.131(debug@4.4.0)(typescript@5.8.2)
@@ -510,9 +516,6 @@ packages:
     peerDependencies:
       viem: ^2.21.1
 
-  '@tevm/base-bundler@1.0.0-next.131':
-    resolution: {integrity: sha512-eWK5gLaEsKghxoeI9Myx6uwSUO25DzR+0ZFcVGgnk/AYDMlUl4c5AJ/f5t3nNQeMSZvfLVAuuJfZ85sX6DfFqw==}
-
   '@tevm/base-bundler@1.0.0-next.134':
     resolution: {integrity: sha512-UxIy38EBakCoRyMdwYgFZyKX4Larl41ZfN/lY7GjLlATxFN2WMZEOae64SKcwBPUOt5MwqSpWOslMRbd+UCMJA==}
 
@@ -526,9 +529,6 @@ packages:
 
   '@tevm/bun-plugin@1.0.0-next.134':
     resolution: {integrity: sha512-nNuVfeDB0TQ5XDOymKq1UOG6ve8WgOBOXMYj/DukxUVzlcMT+meQCDbyLvjl4tpWJxRFlhhvakdVjxVUZcSiJg==}
-
-  '@tevm/bundler-cache@1.0.0-next.131':
-    resolution: {integrity: sha512-ZUF8OenAn6/+O84bTUyOPP+gFqo1fiX0gJ9v11o3qkuA0XUvh0BnhZuf8f0Ia30JVrXbaUSmUlbsTaWFSSZ3yA==}
 
   '@tevm/bundler-cache@1.0.0-next.134':
     resolution: {integrity: sha512-J/U8V4xj+IP9ICvq0TMTs55VA8aI33F28k5TS7IxQVQ1SltpZXVJovnNvlmztvV3/Sz77nGdDhjRNTDT0Gkkpw==}
@@ -545,9 +545,6 @@ packages:
     resolution: {integrity: sha512-EIrIUPqOkwLY2TPCojDjIv8hJmGVxMwVemO6O9brdMZXEuIm1LMxZNCG3Na/XmdJtVLevjmmDTYGbswSuxvzTw==}
     peerDependencies:
       viem: ^2.21.1
-
-  '@tevm/compiler@1.0.0-next.131':
-    resolution: {integrity: sha512-XFiV1EZZA7QyHeaSUQIlp+KtvHNIJfM9GkqAp9G6lqxcuperQ0rgzTqFRX0FRqgNaa9nyydKuWPxHbKl7o685Q==}
 
   '@tevm/compiler@1.0.0-next.134':
     resolution: {integrity: sha512-VVPxGbFCuAXzQq7Mw6gBOpPzaJHSclo7+j1S6Yuadh/SMdFi0M+2FccGJwrqjI8EKRMp7rJjBZ6MyUenUXqFsQ==}
@@ -626,9 +623,6 @@ packages:
 
   '@tevm/server@1.0.0-next.134':
     resolution: {integrity: sha512-PrITjXRyPXObOQ56VZK5IlO7wbil/3BnpmQbrC9maeUTs0JDXPbcAmLR4tW/8RXdcafPz7QWmbAvqTtgIGvSrg==}
-
-  '@tevm/solc@1.0.0-next.131':
-    resolution: {integrity: sha512-nURLMfCNdXyRMSIyG/gidkHuiKKsxqSfMNMJm8aOOkMykfiKgpsLZIna8I/JrIyWMO14r4rCm6yQopyqHBdqmg==}
 
   '@tevm/solc@1.0.0-next.134':
     resolution: {integrity: sha512-DHHWEfAJCd6/qzseNSoi10yJmim+JDbqBPHVX9hJMCkAENSoSAkRkVqL8jAdDcsuJ6H21DfFY82vBF86boW0GQ==}
@@ -2666,22 +2660,6 @@ snapshots:
       - typescript
       - zod
 
-  '@tevm/base-bundler@1.0.0-next.131(debug@4.4.0)':
-    dependencies:
-      '@tevm/bundler-cache': 1.0.0-next.131
-      '@tevm/compiler': 1.0.0-next.131
-      '@tevm/config': 1.0.0-next.131
-      '@tevm/runtime': 1.0.0-next.131
-      '@tevm/solc': 1.0.0-next.131
-      '@tevm/tsconfig': 1.0.0-next.131
-      '@tevm/tsupconfig': 1.0.0-next.131
-      '@types/node': 22.13.10
-      effect: 3.13.2
-      solc: 0.8.28(debug@4.4.0)
-      solidity-ast: 0.4.60
-    transitivePeerDependencies:
-      - debug
-
   '@tevm/base-bundler@1.0.0-next.134(debug@4.4.0)':
     dependencies:
       '@tevm/bundler-cache': 1.0.0-next.134
@@ -2738,13 +2716,6 @@ snapshots:
       solc: 0.8.28(debug@4.4.0)
     transitivePeerDependencies:
       - debug
-
-  '@tevm/bundler-cache@1.0.0-next.131':
-    dependencies:
-      '@tevm/compiler': 1.0.0-next.131
-      '@tevm/tsconfig': 1.0.0-next.131
-      '@tevm/tsupconfig': 1.0.0-next.131
-      '@types/node': 22.13.10
 
   '@tevm/bundler-cache@1.0.0-next.134':
     dependencies:
@@ -2834,16 +2805,6 @@ snapshots:
       - typescript
       - zod
 
-  '@tevm/compiler@1.0.0-next.131':
-    dependencies:
-      '@tevm/config': 1.0.0-next.131
-      '@tevm/resolutions': 1.0.0-next.131
-      '@tevm/solc': 1.0.0-next.131
-      '@types/node': 22.13.10
-      effect: 3.13.2
-      resolve: 1.22.10
-      solidity-ast: 0.4.60
-
   '@tevm/compiler@1.0.0-next.134':
     dependencies:
       '@tevm/config': 1.0.0-next.131
@@ -2858,7 +2819,7 @@ snapshots:
     dependencies:
       '@effect/schema': 0.75.5(effect@3.13.2)
       '@tevm/effect': 1.0.0-next.131
-      '@types/node': 22.13.10
+      '@types/node': 22.13.13
       effect: 3.13.2
       zod: 3.24.2
 
@@ -3066,7 +3027,7 @@ snapshots:
     dependencies:
       '@tevm/tsconfig': 1.0.0-next.131
       '@tevm/tsupconfig': 1.0.0-next.131
-      '@types/node': 22.13.10
+      '@types/node': 22.13.13
       effect: 3.13.2
       resolve: 1.22.10
 
@@ -3125,11 +3086,6 @@ snapshots:
       - viem
       - yaml
 
-  '@tevm/solc@1.0.0-next.131':
-    dependencies:
-      '@tevm/tsconfig': 1.0.0-next.131
-      '@tevm/tsupconfig': 1.0.0-next.131
-
   '@tevm/solc@1.0.0-next.134':
     dependencies:
       '@tevm/tsconfig': 1.0.0-next.131
@@ -3184,8 +3140,8 @@ snapshots:
 
   '@tevm/ts-plugin@1.0.0-next.131(debug@4.4.0)(typescript@5.8.2)':
     dependencies:
-      '@tevm/base-bundler': 1.0.0-next.131(debug@4.4.0)
-      '@tevm/bundler-cache': 1.0.0-next.131
+      '@tevm/base-bundler': 1.0.0-next.134(debug@4.4.0)
+      '@tevm/bundler-cache': 1.0.0-next.134
       '@types/minimatch': 5.1.2
       effect: 3.13.2
       glob: 11.0.1
