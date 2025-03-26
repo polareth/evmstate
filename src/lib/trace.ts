@@ -3,13 +3,13 @@ import { toFunctionSignature } from "viem";
 
 import { debug } from "@/debug";
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
+import { StorageLayoutAdapter } from "@/lib/layout/adapter";
 import { extractPotentialKeys } from "@/lib/slot-engine";
 import { formatLabeledStorageOp, getContracts, getStorageLayout } from "@/lib/storage-layout";
 import {
   LabeledStorageRead,
   LabeledStorageWrite,
   StorageAccessTrace,
-  StorageSlotInfo,
   TraceStorageAccessOptions,
   TraceStorageAccessTxParams,
 } from "@/lib/types";
@@ -32,7 +32,8 @@ import { createClient /* , uniqueAddresses */, getUnifiedParams } from "@/lib/ut
  *   });
  *
  * @param options - {@link TraceStorageAccessOptions}
- * @returns Promise<Record<Address, StorageAccessTrace>>
+ * @returns Promise<Record<Address, {@link StorageAccessTrace}>> - Storage access trace with labeled slots and labeled
+ *   layout access for each touched account
  */
 export const traceStorageAccess = async <
   TAbi extends Abi | readonly unknown[] = Abi,
@@ -118,18 +119,15 @@ export const traceStorageAccess = async <
   const contractsInfo = await getContracts({ client, addresses: filteredContracts, explorers: args.explorers });
 
   // Map to store storage layouts per contract
-  const storageLayouts: Record<Address, Array<StorageSlotInfo>> = {};
+  const layoutAdapters: Record<Address, StorageLayoutAdapter> = {};
 
   // Get storage layouts for each contract
   await Promise.all(
     Object.entries(contractsInfo).map(async ([address, contract]) => {
-      const layoutResult = await getStorageLayout({ ...contract, address: address as Address });
-      if (layoutResult?.labeledSlots) {
-        storageLayouts[address as Address] = layoutResult.labeledSlots;
-      }
+      // Get storage layout adapter for this contract
+      layoutAdapters[address as Address] = await getStorageLayout({ ...contract, address: address as Address });
     }),
   );
-
   // Extract potential key/index values from the execution trace
   const traceLog = callResult.trace?.structLogs || [];
 
@@ -142,6 +140,7 @@ export const traceStorageAccess = async <
   };
 
   // Aggregate functions from all abis to be able to figure out types of args
+  // TODO: maybe grab the function def before aggregating abis to no overwrite anything
   let abis = Object.values(contractsInfo)
     .flatMap((contract) => contract.abi)
     .filter((abi) => abi.type === "function");
@@ -180,8 +179,8 @@ export const traceStorageAccess = async <
       // Combine into complete diff
       const trace = createAccountDiff(slotsDiff, accountDiff);
 
-      // Get storage layout for this contract
-      const contractLayout = storageLayouts[address];
+      // Grab the adapter for this contract
+      const adapter = layoutAdapters[address];
 
       // Create labeled reads and writes
       const labeledReads = Object.entries(trace.reads).reduce(
@@ -189,7 +188,7 @@ export const traceStorageAccess = async <
           acc[slotHex as Hex] = formatLabeledStorageOp({
             op: read,
             slot: slotHex as Hex,
-            contractLayout,
+            adapter,
             potentialKeys,
           });
           return acc;
@@ -202,7 +201,7 @@ export const traceStorageAccess = async <
           acc[slotHex as Hex] = formatLabeledStorageOp({
             op: write,
             slot: slotHex as Hex,
-            contractLayout,
+            adapter,
             potentialKeys,
           });
           return acc;

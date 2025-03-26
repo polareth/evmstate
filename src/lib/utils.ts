@@ -106,6 +106,7 @@ export const getUnifiedParams = async <
  * @param offset The offset of the variable within the slot (for packed variables)
  * @returns The decoded value with the appropriate JavaScript type
  */
+// TODO: decode all types including dynamic types
 export const decodeHex = <T extends AbiType = AbiType>(
   valueHex: Hex,
   type?: T,
@@ -114,7 +115,7 @@ export const decodeHex = <T extends AbiType = AbiType>(
   if (!type) return { hex: valueHex };
 
   try {
-    const byteLength = staticAbiTypeToByteLength[type as StaticAbiType]; // TODO: there is no way we get a dynamic type here, right?
+    const byteLength = staticAbiTypeToByteLength[type];
 
     // Extract the relevant part of the storage slot
     const extractedHex = extractRelevantHex(valueHex, offset ?? 0, byteLength);
@@ -135,7 +136,7 @@ export const decodeHex = <T extends AbiType = AbiType>(
  * @param {number} length - The length in bytes of the value to extract
  * @returns {Hex} - The extracted hex substring
  */
-const extractRelevantHex = (data: Hex, offset: number, length: number): Hex => {
+export const extractRelevantHex = (data: Hex, offset: number, length: number): Hex => {
   if (!data.startsWith("0x")) data = `0x${data}`;
   if (data === "0x" || data === "0x00") return data;
 

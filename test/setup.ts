@@ -3,10 +3,10 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "path";
 import { createCache } from "@tevm/bundler-cache";
 import { createMemoryClient } from "tevm";
-import { bundler, FileAccessObject } from "tevm/bundler";
+import { FileAccessObject } from "tevm/bundler";
 import { ResolvedCompilerConfig } from "tevm/bundler/config";
 import { createSolc, SolcStorageLayout, SolcStorageLayoutItem, SolcStorageLayoutTypes } from "tevm/bundler/solc";
-import { EthjsAccount, parseEther, randomBytes } from "tevm/utils";
+import { EthjsAccount, parseEther } from "tevm/utils";
 import { toFunctionSelector } from "viem";
 import { beforeEach, vi } from "vitest";
 
@@ -81,7 +81,9 @@ const setupContractsMock = () => {
         return [
           address,
           {
-            sources: output?.solcOutput?.sources,
+            sources: Object.fromEntries(
+              Object.entries(output?.modules ?? {}).map(([path, source]) => [path, source.code]),
+            ),
             abi: Object.values(output?.artifacts ?? {})
               .flatMap((artifact) => artifact.abi)
               .map((item) => {
@@ -97,7 +99,7 @@ const setupContractsMock = () => {
     );
   });
 
-  vi.spyOn(storageLayout, "getStorageLayout").mockImplementation(async ({ address, metadata, sources }) => {
+  vi.spyOn(storageLayout, "getStorageLayout").mockImplementation(async ({ address, sources }) => {
     // Return empty layout if we're missing critical information
     if (!sources || sources.length === 0) {
       debug(`Missing compiler info for ${address}. Cannot generate storage layout.`);
@@ -119,6 +121,7 @@ const setupContractsMock = () => {
       if (layouts.length === 0) {
         const solcInput = artifacts?.solcInput;
         const solc = await createSolc("0.8.23");
+
         const output = solc.compile({
           language: solcInput?.language ?? "Solidity",
           settings: {

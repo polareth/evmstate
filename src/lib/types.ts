@@ -1,5 +1,4 @@
 import { Abi, Address, ContractFunctionName, GetAccountResult, Hex, MemoryClient } from "tevm";
-import { SolcStorageLayout } from "tevm/bundler/solc";
 import { Common } from "tevm/common";
 import { abi } from "@shazow/whatsabi";
 import { AbiStateMutability, ContractFunctionArgs } from "viem";

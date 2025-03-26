@@ -2,8 +2,9 @@ import { Address, Hex, hexToBigInt, isHex, keccak256, toHex } from "tevm";
 import { abi } from "@shazow/whatsabi";
 import { decodeAbiParameters, encodeAbiParameters, padHex } from "viem";
 
+import { isStorageAdapterType, StorageAdapter, StorageLayoutAdapter } from "@/lib/layout/adapter";
 import { AbiType, AbiTypeToPrimitiveType } from "@/lib/layout/schema";
-import { MappingKey, SlotLabelResult, StorageSlotInfo } from "@/lib/types";
+import { MappingKey, SlotLabelResult } from "@/lib/types";
 
 // Maximum nesting depth to prevent excessive recursion
 const NESTED_MAPPINGS_LIMIT = 5; // TODO: what would be reasonable? Maybe let consumer override it?
@@ -18,17 +19,24 @@ const NESTED_MAPPINGS_LIMIT = 5; // TODO: what would be reasonable? Maybe let co
  *
  * `keccak256(abi.encode(key, slot))
  */
-export const computeMappingSlot = (baseSlot: Hex, key: MappingKey): Hex =>
-  keccak256(`0x${key.hex.replace("0x", "")}${baseSlot.replace("0x", "")}`);
+export const computeMappingSlot = (baseSlot: Hex, key: Hex): Hex =>
+  keccak256(`0x${key.replace("0x", "")}${baseSlot.replace("0x", "")}`);
 
 /**
  * Computes the storage slot for a dynamic array element
  *
- * `keccak256(slot) + index`
+ * - `keccak256(slot) + index` for dynamic arrays
+ * - `slot + index` for static arrays
  */
-export const computeArraySlot = (baseSlot: Hex, index: bigint): Hex => {
-  const slotBigInt = hexToBigInt(keccak256(baseSlot));
-  return toHex(slotBigInt + index, { size: 32 }); // TODO: is this correct? Will we be able to convert back to bigint to add offset then back to hex?
+export const computeArraySlot = (baseSlot: Hex, index: bigint | number | string, isDynamic = true): Hex => {
+  if (isDynamic) {
+    const baseSlotHash = keccak256(baseSlot);
+    const slotBigInt = hexToBigInt(baseSlotHash);
+    return toHex(slotBigInt + BigInt(index), { size: 32 });
+  } else {
+    const slotBigInt = hexToBigInt(baseSlot);
+    return toHex(slotBigInt + BigInt(index), { size: 32 });
+  }
 };
 
 /** Extract values from a transaction trace that might be used as keys or indices */
@@ -125,278 +133,288 @@ export const extractPotentialKeys = (
 };
 
 /**
- * Parse a mapping type string to extract key types and final value type
+ * Finds all matching labels for a storage slot, including packed variables Using the StorageLayoutAdapter approach
  *
- * Example: "mapping(address => mapping(uint256 => bool))" returns { keyTypes: ["address", "uint256"], finalValueType:
- * "bool" }
+ * @param slot The storage slot to find information for
+ * @param adapter A storage layout adapter
+ * @param potentialKeys Potential mapping keys or array indices from the transaction
+ * @returns Array of labeled slot results
  */
-const parseMultiMappingType = (type: AbiType): { keyTypes: AbiType[]; finalValueType: AbiType } => {
-  const keyTypes: AbiType[] = [];
-  let remainingType = type;
-
-  // Extract mapping key types until we reach the final value type
-  while (remainingType.startsWith("mapping(")) {
-    // Extract the key type (between "mapping(" and " =>")
-    const keyMatch = remainingType.match(/mapping\(([^=]+)=>/);
-    if (!keyMatch) break;
-
-    const keyType = keyMatch[1].trim() as AbiType;
-    keyTypes.push(keyType);
-
-    // Remove the processed part
-    remainingType = remainingType.substring(remainingType.indexOf("=>") + 2).trim() as AbiType;
-
-    // If remaining type doesn't start with "mapping", it's the final value type
-    if (!remainingType.startsWith("mapping")) {
-      const finalValueType = remainingType.replace(/\)+$/, "").trim() as AbiType;
-      return { keyTypes, finalValueType };
-    }
-  }
-
-  // Default if we couldn't parse properly
-  const finalValueType = type.replace(/^mapping\([^=]+=>\s*|\)+$/g, "") as AbiType;
-  return { keyTypes, finalValueType };
-};
-
-/** Finds all matching labels for a storage slot, including packed variables */
 export const findLayoutInfoAtSlot = (
   slot: Hex,
-  storageLayout: StorageSlotInfo[],
+  adapter: StorageLayoutAdapter,
   potentialKeys: MappingKey[],
 ): SlotLabelResult[] => {
-  const results: SlotLabelResult[] = [];
-
-  // No storage layout, provide generic fallback
-  if (storageLayout.length === 0) {
-    return [
-      {
-        label: `var_${slot.slice(0, 10)}`,
-        slot: slot,
-        matchType: "exact",
-        type: undefined,
-      },
-    ];
-  }
+  // Get all storage variables
+  const variables = Object.values(adapter);
 
   // 1. Check for all direct variable matches at this slot (packed or unpacked)
-  const directSlots = storageLayout.filter((item) => !item.isComputed);
-
-  // Group variables by slot to identify packed variables
-  const slotToInfo = new Map<Hex, Set<StorageSlotInfo>>();
-
-  for (const directSlot of directSlots) {
-    if (!slotToInfo.has(directSlot.slot)) slotToInfo.set(directSlot.slot, new Set());
-    slotToInfo.get(directSlot.slot)!.add(directSlot);
+  // TODO: if it's a bytes type we're missing some data that is on the next slot, the whole thing is broken (maybe if that's the type iterate slots? the next slots will probably also be marked in the access list)
+  const directMatches = variables.filter((v) => v.getSlot() === slot);
+  if (directMatches.length > 0) {
+    // Return direct matches
+    return (
+      directMatches
+        // Sort by offset to ensure consistent order (helps when there are packed variables)
+        .sort((a, b) => (a.storageItem.offset ?? 0) - (b.storageItem.offset ?? 0))
+        .map((v) => ({
+          label: v.label,
+          slot,
+          matchType: "exact",
+          type: v.type,
+          offset: v.storageItem.offset,
+        }))
+    );
   }
 
-  // If we have any direct matches for this slot
-  if (slotToInfo.has(slot)) {
-    const matching = Array.from(slotToInfo.get(slot)!);
-    // Sort by offset to ensure consistent order (helps when there are packed variables)
-    matching.sort((a, b) => (a.offset ?? 0) - (b.offset ?? 0));
-
-    // Add all variables at this slot to results
-    const results = matching.map((match) => ({
-      label: match.label,
-      slot: slot,
-      matchType: "exact" as const,
-      type: match.type,
-      offset: match.offset,
-    }));
-
-    // If we found direct matches, we can return immediately
-    if (results.length > 0) return results;
-  }
-
-  // 2. Check for mapping and nested mapping slot matches with unified approach
-  const mappings = storageLayout.filter((item) => item.encoding === "mapping");
+  // 2. Check for mapping matches
+  const mappings = variables.filter(
+    isStorageAdapterType.mapping,
+  ) as StorageAdapter<`mapping(${string} => ${string})`>[];
 
   for (const mapping of mappings) {
-    // For each mapping, we need to determine if it's a nested mapping and how many levels of nesting it has
-    const isNestedMapping = mapping.valueType?.includes("mapping") ?? false;
-
-    // Parse the mapping type to get all key types and final value type
-    const { keyTypes, finalValueType } =
-      isNestedMapping && mapping.valueType
-        ? parseMultiMappingType(mapping.valueType)
-        : { keyTypes: [], finalValueType: mapping.valueType };
-
-    // Get keys by type for more efficient lookup
-    const keysByType: Record<string, MappingKey[]> = {};
-    potentialKeys.forEach((key) => {
-      if (key.type) keysByType[key.type] = (keysByType[key.type] ?? []).concat(key);
-    });
-
-    // Get keys that match the mapping's key type first
-    const keyType1 = mapping.keyType as AbiType;
-    const firstLevelKeys = keysByType[keyType1] || [];
-
-    // For nested mappings with arbitrary depth, use a recursive approach
-    if (isNestedMapping) {
-      // This recursive function tries all valid combinations of keys at each nesting level
-      const findNestedMappingMatch = (
-        currentSlot: Hex, // Current slot we're computing from
-        currentLevel: number, // Current nesting level (1-indexed)
-        usedKeys: Array<MappingKey>, // Keys we've used so far
-        allKeyTypes: Array<AbiType | undefined>, // All key types from outer to inner
-      ): boolean => {
-        // Stop if we reached our depth limit
-        if (currentLevel > NESTED_MAPPINGS_LIMIT) return false;
-
-        // If we have a match, add it to results and stop
-        if (currentSlot === slot) {
-          // Only accept if we have the right number of keys for this level
-          if (usedKeys.length === currentLevel - 1) {
-            results.push({
-              label: mapping.label,
-              slot,
-              matchType: "nested-mapping",
-              type: finalValueType,
-              keys: usedKeys,
-            });
-
-            return true; // found a match!
-          }
-          return false;
-        }
-
-        // If we've gone through all key types but no match, stop
-        if (currentLevel > allKeyTypes.length) return false;
-
-        // Get the current level's key type
-        const currentKeyType = currentLevel === 1 ? mapping.keyType : allKeyTypes[currentLevel - 2]; // -2 because level is 1-indexed and first level uses mapping.keyType
-
-        // Optimization: for specific types, only use keys that match the type
-        // This reduces the search space significantly
-        let levelKeys: MappingKey[];
-
-        if (currentKeyType) {
-          // Use keys with matching type if available
-          const typedKeys = keysByType[currentKeyType as string];
-          if (typedKeys && typedKeys.length > 0) {
-            levelKeys = typedKeys;
-          } else {
-            // Fall back to untyped keys if needed
-            levelKeys = potentialKeys.filter((key) => !key.type || key.type === currentKeyType);
-          }
-        } else {
-          // If no type is specified, use all available keys
-          levelKeys = potentialKeys;
-        }
-
-        // Sort keys to prioritize those matching the expected type
-        const sortedKeys = [...levelKeys].sort((a, b) => {
-          // Prioritize keys with the exact matching type
-          if (a.type === currentKeyType && b.type !== currentKeyType) return -1;
-          if (a.type !== currentKeyType && b.type === currentKeyType) return 1;
-          // Then prioritize keys with any type over undefined
-          if (a.type && !b.type) return -1;
-          if (!a.type && b.type) return 1;
-
-          return 0;
-        });
-
-        // Try each key for this level
-        for (const key of sortedKeys) {
-          // Skip if we've already used this key
-          if (usedKeys.some((usedKey) => usedKey.hex === key.hex)) continue;
-
-          // Compute the next slot using this key
-          const nextSlot = computeMappingSlot(currentSlot, key);
-
-          // Early exit on direct match (common case for 2-level nesting)
-          if (nextSlot === slot) {
-            const updatedKeys = [...usedKeys, key];
-            results.push({
-              label: mapping.label,
-              slot,
-              matchType: "nested-mapping",
-              type: finalValueType,
-              keys: updatedKeys,
-            });
-            return true;
-          }
-
-          // Only go deeper if we haven't reached the maximum nesting level
-          // and if we still have key types to process
-          if (currentLevel < allKeyTypes.length && currentLevel < NESTED_MAPPINGS_LIMIT) {
-            // Add this key to our path
-            const updatedKeys = [...usedKeys, key];
-
-            // Continue to the next level
-            const found = findNestedMappingMatch(nextSlot, currentLevel + 1, updatedKeys, allKeyTypes);
-            // If we found a match, no need to try other keys
-            if (found) return true;
-          }
-        }
-
-        // Didn't find a match with any key combination
-        return false;
-      };
-
-      // Build the array of all key types (first is already handled by mapping.keyType)
-      const allKeyTypes = [mapping.keyType, ...keyTypes];
-
-      // Start the recursive process with the base slot
-      findNestedMappingMatch(mapping.slot, 1, [], allKeyTypes);
-    } else {
-      // Simple mapping - try each compatible key
-      firstLevelKeys.forEach((key) => {
-        const computedSlot = computeMappingSlot(mapping.slot, key);
-
-        if (computedSlot === slot) {
-          results.push({
-            label: mapping.label,
-            slot,
-            matchType: "mapping",
-            type: mapping.valueType,
-            keys: [key],
-          });
-        }
-      });
-    }
+    // Try to find a match using our unified function
+    const slotInfo = findMappingMatch(mapping.label, slot, mapping, potentialKeys, adapter);
+    if (slotInfo) return [slotInfo];
   }
 
-  // 3. Check for dynamic array slot matches
-  const arrays = storageLayout.filter((item) => item.encoding === "dynamic_array");
-  for (const array of arrays) {
-    potentialKeys.forEach((key) => {
-      // Skip values that can't be reasonable array indices
-      if (!isValidArrayIndex(key.hex)) return;
+  // TODO: 3. Check for array matches
+  // -> should actually provide the provider to adapters, so for arrays we can get the length (hope it was not manipulated), and get slots for all existing indexes (+1 in case an item was removed??)
+  // TODO: 4. Check for struct matches
 
-      const index = hexToBigInt(key.hex);
-      const computedSlot = computeArraySlot(array.slot, index);
+  // Process each variable in the adapter for arrays and other types
+  // for (const variableName of Object.keys(adapter)) {
+  //   try {
+  //     const variable = adapter[variableName];
+  //     if (!variable || !variable.type) continue;
 
-      if (computedSlot === slot) {
-        results.push({
-          label: array.label,
-          slot: slot,
-          matchType: "array",
-          type: array.baseType,
-          index: key.hex,
-        });
-      }
-    });
-  }
+  //     // CASE 3: Array (static or dynamic)
+  //     if (variable.type.includes("[") && potentialKeys.length > 0) {
+  //       // For arrays, we need to check if the variable has itemSlot method
+  //       if ("getItemSlot" in variable) {
+  //         for (const key of potentialKeys) {
+  //           if (!key.hex) continue;
 
-  // 4. Fallback: use a generic variable name if no results so far
-  if (results.length === 0) {
-    return [
-      {
-        label: `var_${slot.slice(0, 10)}`,
-        slot: slot,
-        matchType: "exact",
-        type: undefined,
-      },
-    ];
-  }
+  //           // Convert to numeric index if possible
+  //           let index: number;
+  //           if (key.type === "uint256" && typeof key.decoded === "bigint") {
+  //             index = Number(key.decoded);
+  //           } else if (isHex(key.hex)) {
+  //             index = Number(hexToBigInt(key.hex));
+  //           } else {
+  //             continue; // Not a valid index
+  //           }
 
-  return results;
+  //           // Skip invalid indices
+  //           if (isNaN(index) || index < 0 || index > 1_000_000) continue;
+
+  //           try {
+  //             // Get the slot for this array index
+  //             const itemSlot = (variable as any).getItemSlot({ index });
+
+  //             // Check if it matches our target
+  //             if (itemSlot === slot) {
+  //               // Extract the base type from the array type (e.g., uint256[] -> uint256)
+  //               const baseType = variable.type.match(/^([^\[]+)/)?.[1]?.trim() as AbiType;
+
+  //               results.push({
+  //                 label: `${variableName}[${index}]`,
+  //                 slot,
+  //                 matchType: "array",
+  //                 type: baseType || (variable.type as AbiType),
+  //                 index: key.hex,
+  //               });
+
+  //               break; // One match is enough
+  //             }
+  //           } catch (e) {
+  //             // Skip this index
+  //           }
+  //         }
+  //       }
+  //     }
+  //   } catch (e) {
+  //     // Skip this variable entirely
+  //     continue;
+  //   }
+  // }
+
+  // If no matches found, use generic variable name
+  return [
+    {
+      label: `var_${slot.slice(0, 10)}`,
+      slot: slot,
+      matchType: "exact",
+      type: undefined,
+    },
+  ];
 };
 
-/** Checks if a value can be used as an array index */
-export const isValidArrayIndex = (index: Hex): boolean => {
-  const LIMIT = 1_000_000n; // TODO: what is a reasonable limit for array indexes?
-  const indexBigInt = hexToBigInt(index);
-  return indexBigInt >= 0n && indexBigInt < LIMIT;
+/**
+ * Finds a matching mapping key combination that produces the target storage slot Works with both simple mappings and
+ * nested mappings
+ *
+ * @param variableName The name of the mapping variable
+ * @param targetSlot The storage slot we're trying to match
+ * @param mapping The mapping adapter containing type information
+ * @param potentialKeys Array of potential keys from transaction data
+ * @param adapter The storage layout adapter
+ * @param results Array to collect the matching results
+ * @returns A boolean indicating if a match was found (results are pushed directly)
+ */
+export const findMappingMatch = (
+  variableName: string,
+  targetSlot: Hex,
+  mapping: StorageAdapter<`mapping(${string} => ${string})`>,
+  potentialKeys: MappingKey[],
+  adapter: StorageLayoutAdapter,
+): SlotLabelResult | undefined => {
+  // Parse mapping type to understand its structure (single or nested)
+  const keyTypes = mapping.keys;
+  const valueType = mapping.value;
+  const baseSlot = mapping.getSlot();
+
+  // Early termination if we have no keys to try
+  if (potentialKeys.length === 0) return undefined;
+
+  // For simple mappings with a single key type, we can optimize the search
+  if (keyTypes.length === 1) {
+    // Try each potential key and see if it produces our target slot
+    for (const key of potentialKeys) {
+      try {
+        const computedSlot = mapping.getSlot({ keys: [key.hex] });
+        if (computedSlot === targetSlot) {
+          return {
+            label: variableName,
+            slot: targetSlot,
+            matchType: "mapping",
+            type: valueType as AbiType,
+            keys: [key],
+          };
+        }
+      } catch (e) {
+        // Skip this key if there's any error
+        continue;
+      }
+    }
+    // No match found for a single mapping
+    return undefined;
+  }
+
+  /** Inner recursive function to find matching key combinations */
+  const findMatch = (
+    currentLevel: number,
+    currentSlot: Hex,
+    usedKeys: Array<MappingKey>,
+  ): SlotLabelResult | undefined => {
+    // Direct slot match check
+    if (currentSlot === targetSlot) {
+      return {
+        label: variableName,
+        slot: targetSlot,
+        matchType: usedKeys.length > 0 ? (usedKeys.length > 1 ? "nested-mapping" : "mapping") : "exact",
+        type: currentLevel >= keyTypes.length ? (valueType as AbiType) : (mapping.type as AbiType),
+        keys: [...usedKeys],
+      };
+    }
+
+    // Stop recursion if we've reached max depth or used all key types
+    if (currentLevel >= keyTypes.length || currentLevel >= NESTED_MAPPINGS_LIMIT) return undefined;
+
+    // Get the expected key type for this level
+    const expectedKeyType = keyTypes[currentLevel];
+
+    // Prioritize keys by type compatibility for efficiency
+    const prioritizedKeys = potentialKeys
+      .filter((key) => {
+        // Skip keys we've already used
+        if (usedKeys.some((uk) => uk.hex === key.hex)) return false;
+
+        // Skip keys that we know for sure won't match the expected type
+        if (key.type && expectedKeyType && key.type !== expectedKeyType) {
+          // Special case for addresses which might be formatted differently
+          if (!(expectedKeyType === "address" && key.hex.length === 66)) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        // Exact type match has highest priority
+        if (a.type === expectedKeyType && b.type !== expectedKeyType) return -1;
+        if (a.type !== expectedKeyType && b.type === expectedKeyType) return 1;
+
+        // Keys with defined types have next priority
+        if (a.type && !b.type) return -1;
+        if (!a.type && b.type) return 1;
+
+        return 0;
+      });
+
+    // Try each potential key for this level
+    for (const key of prioritizedKeys) {
+      try {
+        // Create new keys array with this key added
+        const keysForThisLevel = [...usedKeys, key];
+
+        try {
+          // Use the adapter to compute the next slot
+          const variable = adapter[variableName] as StorageAdapter<`mapping(${string} => ${string})`>;
+          // @ts-expect-error - We purposely try with unexpected types
+          const nextSlot = variable.getSlot({ keys: keysForThisLevel.map((k) => k.hex) });
+
+          // Check for direct match with target slot
+          if (nextSlot === targetSlot) {
+            return {
+              label: variableName,
+              slot: targetSlot,
+              matchType: keysForThisLevel.length > 1 ? "nested-mapping" : "mapping",
+              type: valueType as AbiType,
+              keys: keysForThisLevel,
+            };
+          }
+
+          // If we're not at the final level, recurse to the next level
+          if (currentLevel < keyTypes.length - 1) {
+            const slotInfo = findMatch(currentLevel + 1, nextSlot, keysForThisLevel);
+            if (slotInfo) return slotInfo;
+          }
+        } catch (e) {
+          // Fallback: If adapter fails, use manual Solidity pattern
+          // TODO: we probably want to kill this, adapter should always work
+          try {
+            const nextSlot = computeMappingSlot(currentSlot, key.hex);
+
+            // Check for direct match
+            if (nextSlot === targetSlot) {
+              return {
+                label: variableName,
+                slot: targetSlot,
+                matchType: keysForThisLevel.length > 1 ? "nested-mapping" : "mapping",
+                type: valueType as AbiType,
+                keys: keysForThisLevel,
+              };
+            }
+
+            // Recurse to next level if not at max depth
+            if (currentLevel < keyTypes.length - 1) {
+              const slotInfo = findMatch(currentLevel + 1, nextSlot, keysForThisLevel);
+              if (slotInfo) return slotInfo;
+            }
+          } catch (innerError) {
+            // Both approaches failed, try next key
+            continue;
+          }
+        }
+      } catch (error) {
+        // Skip this key if any error occurs
+        continue;
+      }
+    }
+
+    // No match found with any key combination
+    return undefined;
+  };
+
+  // Start the search from the base slot with no keys used
+  return findMatch(0, baseSlot, []);
 };

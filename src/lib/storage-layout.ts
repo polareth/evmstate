@@ -1,23 +1,29 @@
-import { Address, Hex, hexToBigInt, isHex, toHex } from "tevm";
-import { createSolc, releases, SolcSettings } from "tevm/bundler/solc";
+import { Address, Hex } from "tevm";
+import {
+  createSolc,
+  releases,
+  SolcSettings,
+  SolcStorageLayout,
+  SolcStorageLayoutItem,
+  SolcStorageLayoutTypes,
+} from "tevm/bundler/solc";
 import { randomBytes } from "tevm/utils";
 import { autoload, loaders } from "@shazow/whatsabi";
 
-import { findLayoutInfoAtSlot } from "@/lib/slot-engine";
+import { debug } from "@/debug";
 import {
   GetContractsOptions,
   GetContractsResult,
   LabeledStorageRead,
   LabeledStorageWrite,
   MappingKey,
-  StorageLayoutItem,
-  StorageLayoutOutput,
-  StorageLayoutTypes,
   StorageReads,
-  StorageSlotInfo,
   StorageWrites,
 } from "@/lib/types";
 import { decodeHex } from "@/lib/utils";
+
+import { createStorageLayoutAdapter, StorageLayoutAdapter } from "./layout/adapter";
+import { findLayoutInfoAtSlot } from "./slot-engine";
 
 const ignoredSourcePaths = ["metadata.json", "creator-tx-hash.txt", "immutable-references"];
 
@@ -72,7 +78,11 @@ export const getContracts = async ({
   }
 };
 
-/** Gets the storage layout for a contract from its sources and metadata */
+/**
+ * Gets the storage layout for a contract from its sources and metadata
+ *
+ * @returns A comprehensive storage layout adapter with methods for accessing storage data & utils
+ */
 export const getStorageLayout = async ({
   address,
   metadata,
@@ -82,11 +92,8 @@ export const getStorageLayout = async ({
 
   // Return empty layout if we're missing critical information
   if (!compilerVersion || !evmVersion || !sources || sources.length === 0) {
-    console.warn(`Missing compiler info for ${address}. Cannot generate storage layout.`);
-    return {
-      layout: { storage: [], types: {} },
-      labeledSlots: [],
-    };
+    debug(`Missing compiler info for ${address}. Cannot generate storage layout.`);
+    return {};
   }
 
   try {
@@ -106,126 +113,41 @@ export const getStorageLayout = async ({
 
     const layouts = Object.values(output.contracts)
       .flatMap((layouts) => Object.values(layouts))
-      .map((l) => l.storageLayout) as Array<StorageLayoutOutput>;
+      .map((l) => l.storageLayout) as unknown as Array<SolcStorageLayout>;
 
     // Aggregate all storage items and types from different layouts
-    const aggregatedTypes: StorageLayoutTypes = layouts.reduce((acc, layout) => {
+    const aggregatedTypes: SolcStorageLayoutTypes = layouts.reduce((acc, layout) => {
       if (!layout?.types) return acc;
       return { ...acc, ...layout.types };
-    }, {} as StorageLayoutTypes);
+    }, {} as SolcStorageLayoutTypes);
 
     // Now that we have all types, we can properly type the storage items
-    const aggregatedStorage: Array<StorageLayoutItem<typeof aggregatedTypes>> = layouts.reduce(
+    const aggregatedStorage: Array<SolcStorageLayoutItem<typeof aggregatedTypes>> = layouts.reduce(
       (acc, layout) => {
         if (!layout?.storage) return acc;
         return [...acc, ...layout.storage];
       },
-      [] as Array<StorageLayoutItem<typeof aggregatedTypes>>,
+      [] as Array<SolcStorageLayoutItem<typeof aggregatedTypes>>,
     );
 
-    // Create the final storage layout with properly typed relationships
-    const finalLayout: StorageLayoutOutput<typeof aggregatedTypes> = {
-      storage: aggregatedStorage,
-      types: aggregatedTypes,
-    };
-
-    // Process storage layout into a more usable format
-    const labeledSlots: StorageSlotInfo[] = processStorageLayout(finalLayout);
-
-    return {
-      layout: finalLayout,
-      labeledSlots,
-    };
+    // Return a storage layout adapter for advanced access patterns
+    return createStorageLayoutAdapter(
+      {
+        storage: aggregatedStorage,
+        types: aggregatedTypes,
+      },
+      undefined,
+    ); // no need to inject a client here as we don't want to access storage
   } catch (error) {
-    console.error(`Error generating storage layout for ${address}:`, error);
-    return {
-      layout: { storage: [], types: {} },
-      labeledSlots: [],
-    };
+    debug(`Error generating storage layout for ${address}:`, error);
+    return {};
   }
-};
-
-/**
- * Processes storage layout from the Solidity compiler into a more usable format. Handles static variables, mappings,
- * arrays, and structs.
- */
-const processStorageLayout = (layout: StorageLayoutOutput): StorageSlotInfo[] => {
-  const slots: StorageSlotInfo[] = [];
-
-  layout.storage.forEach((item) => {
-    const typeInfo = layout.types[item.type];
-    const path = `${item.contract}.${item.label}`;
-    const slotHex = toHex(Number(item.slot), { size: 32 });
-
-    // Base case: Direct storage slot (non-mapping, non-dynamic array)
-    if (typeInfo.encoding === "inplace" || typeInfo.encoding === "bytes") {
-      slots.push({
-        slot: slotHex,
-        label: item.label,
-        path,
-        type: typeInfo.label,
-        encoding: typeInfo.encoding,
-        isComputed: false,
-        offset: item.offset,
-      } as const satisfies StorageSlotInfo<"inplace" | "bytes">);
-
-      // If this is a struct, add its members
-      if ("members" in typeInfo) {
-        typeInfo.members.forEach((member) => {
-          const memberTypeInfo = layout.types[member.type];
-          const memberSlotHex = toHex(hexToBigInt(slotHex) + BigInt(member.slot), { size: 32 });
-
-          slots.push({
-            slot: memberSlotHex,
-            label: `${item.label}.${member.label}`,
-            path: `${path}.${member.label}`,
-            type: memberTypeInfo.label,
-            encoding: memberTypeInfo.encoding as "inplace" | "bytes",
-            isComputed: false,
-            offset: member.offset,
-          } as const satisfies StorageSlotInfo<"inplace" | "bytes">);
-        });
-      }
-    }
-    // Mapping: The values are stored at keccak256(key, baseSlot)
-    else if (typeInfo.encoding === "mapping") {
-      const keyTypeInfo = layout.types[typeInfo.key];
-      const valueTypeInfo = layout.types[typeInfo.value];
-
-      slots.push({
-        slot: slotHex,
-        label: item.label,
-        path,
-        type: typeInfo.label,
-        encoding: typeInfo.encoding,
-        isComputed: true,
-        keyType: keyTypeInfo.label,
-        valueType: valueTypeInfo.label,
-      } as const satisfies StorageSlotInfo<"mapping">);
-    }
-    // Dynamic Array: The values are stored at keccak256(baseSlot) + index
-    else if (typeInfo.encoding === "dynamic_array") {
-      const baseTypeInfo = layout.types[typeInfo.base];
-
-      slots.push({
-        slot: slotHex,
-        label: item.label,
-        path,
-        type: typeInfo.label,
-        encoding: typeInfo.encoding,
-        isComputed: true,
-        baseType: baseTypeInfo.label,
-      } as const satisfies StorageSlotInfo<"dynamic_array">);
-    }
-  });
-
-  return slots;
 };
 
 type FormatLabeledStorageOpOptions<T extends StorageReads[Hex] | StorageWrites[Hex]> = {
   op: T;
   slot: Hex;
-  contractLayout: Array<StorageSlotInfo>;
+  adapter: StorageLayoutAdapter;
   potentialKeys: Array<MappingKey>;
 };
 
@@ -238,13 +160,13 @@ type FormatLabeledStorageOpResult<T extends StorageReads[Hex] | StorageWrites[He
 export const formatLabeledStorageOp = <T extends StorageReads[Hex] | StorageWrites[Hex]>({
   op,
   slot,
-  contractLayout,
+  adapter,
   potentialKeys,
 }: FormatLabeledStorageOpOptions<T>): FormatLabeledStorageOpResult<T> => {
   const { current: currentHex } = op;
 
   // Find all labels for this slot using our slot engine
-  const slotInfo = findLayoutInfoAtSlot(slot, contractLayout, potentialKeys);
+  const slotInfo = findLayoutInfoAtSlot(slot, adapter, potentialKeys);
 
   if (slotInfo.length > 0) {
     // Found matches - return an array of labeled reads for this slot
@@ -300,15 +222,15 @@ const getSolcVersion = (_version: string) => {
       .sort((a, b) => b[1].localeCompare(a[1]))[0]; // Sort to get latest
 
     if (fallbackRelease) {
-      console.warn(`Exact Solc version ${_version} not found, using ${fallbackRelease[1]}`);
+      debug(`Exact Solc version ${_version} not found, using ${fallbackRelease[1]}`);
       return fallbackRelease[0] as keyof typeof releases;
     }
 
     // Default to a recent 0.8.x version
-    console.warn(`No compatible Solc version for ${_version}, using fallback`);
+    debug(`No compatible Solc version for ${_version}, using fallback`);
     return "0.8.17" as keyof typeof releases;
   } catch (error) {
-    console.error(`Error finding Solc version for ${_version}:`, error);
+    debug(`Error finding Solc version for ${_version}:`, error);
     return "0.8.17" as keyof typeof releases;
   }
 };

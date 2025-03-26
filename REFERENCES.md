@@ -16,6 +16,7 @@
 
 ## TODO
 
+- [ ] new storage adapter works if there is a storage layout but make it work if there is none as well (getData, etc would return hex?) - need more research on storage layout for unverified contracts
 - [ ] if a function writes to storage BUT doesn't modify the value(s), it returns a read (because pre-post state is the same)
   - -> this is an _access_ list so it makes sense, we should rather have either a single object instead of read/write, with or without a "next" property
   - -> or maybe better we track SSTOREs and SLOADs separately, so we can accurately populate read and write
