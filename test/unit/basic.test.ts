@@ -23,8 +23,9 @@ const { caller } = ACCOUNTS;
  * 8. Large numeric values handling
  * 9. Tracer class
  */
+// TODO: with replay on both traceStorageAccess and Tracer
 describe("Basic slots access and packing", () => {
-  describe("traceStorageAccess with transaction data", () => {
+  describe("traceStorageAccess with contract call", () => {
     it("should handle packed storage variables correctly", async () => {
       const client = getClient();
 
@@ -33,7 +34,9 @@ describe("Basic slots access and packing", () => {
         client,
         from: caller.toString(),
         to: StoragePacking.address,
-        data: encodeFunctionData(StoragePacking.write.setSmallValues(42, 123, true, caller.toString())),
+        abi: StoragePacking.abi,
+        functionName: "setSmallValues",
+        args: [42, 123, true, caller.toString()],
       });
 
       // Check the read and write operations
@@ -85,7 +88,9 @@ describe("Basic slots access and packing", () => {
         client,
         from: caller.toString(),
         to: StoragePacking.address,
-        data: encodeFunctionData(StoragePacking.write.setMediumValue1(999)),
+        abi: StoragePacking.abi,
+        functionName: "setMediumValue1",
+        args: [999],
       });
 
       expect(trace[StoragePacking.address].reads).toEqual({});
@@ -124,7 +129,9 @@ describe("Basic slots access and packing", () => {
         client,
         from: caller.toString(),
         to: StoragePacking.address,
-        data: encodeFunctionData(StoragePacking.write.updateAllValues(10, 20, 1000, 2000, 12345n)),
+        abi: StoragePacking.abi,
+        functionName: "updateAllValues",
+        args: [10, 20, 1000, 2000, 12345n],
       });
 
       expect(trace[StoragePacking.address].reads).toEqual({});
@@ -204,14 +211,14 @@ describe("Basic slots access and packing", () => {
     it("should handle large numeric values correctly", async () => {
       const client = getClient();
 
-      const largeNumber = 123456789012345678901234567890n;
-
       // Set a large value in a non-packed slot
       const trace = await traceStorageAccess({
         client,
         from: caller.toString(),
         to: StoragePacking.address,
-        data: encodeFunctionData(StoragePacking.write.setLargeValue1(largeNumber)),
+        abi: StoragePacking.abi,
+        functionName: "setLargeValue1",
+        args: [123456789012345678901234567890n],
       });
 
       // Verify that the large value was set correctly
@@ -241,7 +248,9 @@ describe("Basic slots access and packing", () => {
         client,
         from: caller.toString(),
         to: StoragePacking.address,
-        data: encodeFunctionData(StoragePacking.write.setData(testBytes32)),
+        abi: StoragePacking.abi,
+        functionName: "setData",
+        args: [testBytes32],
       });
 
       // Verify that the data was set correctly
@@ -266,7 +275,9 @@ describe("Basic slots access and packing", () => {
         client,
         from: caller.toString(),
         to: StoragePacking.address,
-        data: encodeFunctionData(StoragePacking.read.getLargeValue1()),
+        abi: StoragePacking.abi,
+        functionName: "getLargeValue1",
+        args: [],
       });
 
       // Verify that we have a read operation but no write operations
@@ -284,7 +295,9 @@ describe("Basic slots access and packing", () => {
         client,
         from: caller.toString(),
         to: StoragePacking.address,
-        data: encodeFunctionData(StoragePacking.write.setLargeValue1(1n)),
+        abi: StoragePacking.abi,
+        functionName: "setLargeValue1",
+        args: [1n],
       });
 
       const callerTrace = trace[caller.toString()];
@@ -303,7 +316,7 @@ describe("Basic slots access and packing", () => {
     });
   });
 
-  describe("traceStorageAccess with ABI", () => {
+  describe("traceStorageAccess with transaction calldata", () => {
     it("should work similarily to traceStorageAccess", async () => {
       const client = getClient();
 
@@ -311,9 +324,7 @@ describe("Basic slots access and packing", () => {
         client,
         from: caller.toString(),
         to: StoragePacking.address,
-        abi: StoragePacking.abi,
-        functionName: "setSmallValues",
-        args: [1, 2, true, caller.toString()],
+        data: encodeFunctionData(StoragePacking.write.setSmallValues(1, 2, true, caller.toString())),
       });
 
       // Check the read and write operations
@@ -359,6 +370,7 @@ describe("Basic slots access and packing", () => {
   });
 
   describe("Tracer class", () => {
+    // TODO: with ABI
     it("should work similarily to traceStorageAccess", async () => {
       const client = getClient();
       const tracer = new Tracer({ client });

@@ -1,58 +1,14 @@
-/// All of the below typing to retrieve TypeScript types from Solidity types is borrowed from MUD.
+/// All of the below typing to retrieve TypeScript types from Solidity types is borrowed from MUD,
+/// and heavily modified to fit our needs (additional types for structs, mappings, static arrays, etc.).
 /// We use this both to infer types for type-safety and to decode Hex values into accurate JavaScript types.
 /// see: https://github.com/latticexyz/mud/blob/main/packages/recs/src/types.ts
 /// see: https://github.com/latticexyz/mud/blob/main/packages/schema-type/src/typescript/schemaAbiTypes.ts
 
 import { Hex } from "tevm";
 
-// TODO: figure out if we can retrieve arrays in this context?
-// TODO: is it useful? is it worth bloating the library with this?
-
-/** Used to specify the types for properties, and infer their TypeScript type. */
-enum AdapterType {
-  Boolean,
-  Number,
-  NumberArray,
-  BigInt,
-  BigIntArray,
-  String,
-  StringArray,
-  Hex,
-  HexArray,
-  T,
-}
-
-/** Defines the Typescript types of values that can be decoded from a Hex value. */
-type PrimitiveType =
-  | boolean
-  | number
-  | number[]
-  | bigint
-  | bigint[]
-  | string
-  | string[]
-  | Hex
-  | Hex[]
-  | unknown
-  | undefined;
-
-/**
- * Defines a mapping between JavaScript {@link Type} enums and their corresponding TypeScript types.
- *
- * @category Schema
- */
-type MappedType<T = unknown> = {
-  [AdapterType.Boolean]: boolean;
-  [AdapterType.Number]: number;
-  [AdapterType.NumberArray]: number[];
-  [AdapterType.BigInt]: bigint;
-  [AdapterType.BigIntArray]: bigint[];
-  [AdapterType.String]: string;
-  [AdapterType.StringArray]: string[];
-  [AdapterType.Hex]: Hex;
-  [AdapterType.HexArray]: Hex[];
-  [AdapterType.T]: T;
-};
+/* -------------------------------------------------------------------------- */
+/*                                  ABI TYPES                                 */
+/* -------------------------------------------------------------------------- */
 
 /** Defines the Solidity types for later conversion to TypeScript types. */
 const abiTypes = [
@@ -262,7 +218,7 @@ const staticAbiTypes = abiTypes.slice(0, 98) as any as TupleSplit<typeof abiType
 const dynamicAbiTypes = abiTypes.slice(98) as any as TupleSplit<typeof abiTypes, 98>[1];
 
 export type StaticAbiType = (typeof staticAbiTypes)[number];
-type DynamicAbiType = (typeof dynamicAbiTypes)[number];
+export type DynamicAbiType = (typeof dynamicAbiTypes)[number];
 
 type StaticPrimitiveType = number | bigint | boolean | Hex;
 
@@ -370,7 +326,7 @@ const staticAbiTypeToDefaultValue = {
   address: "0x0000000000000000000000000000000000000000",
 } as const satisfies Record<StaticAbiType, StaticPrimitiveType>;
 
-type StaticAbiTypeToPrimitiveType<TStaticAbiType extends StaticAbiType = StaticAbiType> = LiteralToBroad<
+export type StaticAbiTypeToPrimitiveType<TStaticAbiType extends StaticAbiType = StaticAbiType> = LiteralToBroad<
   (typeof staticAbiTypeToDefaultValue)[TStaticAbiType]
 >;
 
@@ -587,11 +543,14 @@ const dynamicAbiTypeToDefaultValue = {
   string: "",
 } as const satisfies Record<DynamicAbiType, DynamicPrimitiveType>;
 
-type DynamicAbiTypeToPrimitiveType<TDynamicAbiType extends DynamicAbiType = DynamicAbiType> = LiteralToBroad<
+export type DynamicAbiTypeToPrimitiveType<TDynamicAbiType extends DynamicAbiType = DynamicAbiType> = LiteralToBroad<
   (typeof dynamicAbiTypeToDefaultValue)[TDynamicAbiType]
 >;
 
-/* ---------------------------------- UTILS --------------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                                    UTILS                                   */
+/* -------------------------------------------------------------------------- */
+
 type LiteralToBroad<T> =
   T extends Readonly<Array<infer Element>>
     ? readonly LiteralToBroad<Element>[]
@@ -615,7 +574,11 @@ type TupleSplit<T, N extends number, O extends readonly any[] = readonly []> = O
     ? TupleSplit<readonly [...R], N, readonly [...O, F]>
     : [O, T];
 
-/* --------------------------------- EXPORTS -------------------------------- */
+/* -------------------------------------------------------------------------- */
+/*                                   EXPORTS                                  */
+/* -------------------------------------------------------------------------- */
+
+/* ----------------------------------- ABI ---------------------------------- */
 export type AbiType = (typeof abiTypes)[number];
 
 /** Infer a TypeScript type (an enum associated with the type) from an ABI type. */

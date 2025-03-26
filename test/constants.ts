@@ -19,8 +19,9 @@ export const CONTRACTS = {
   TransparentProxy: contracts.TransparentProxy.withAddress(`0x${"d".repeat(40)}`),
   SimpleERC20: contracts.SimpleERC20.withAddress(`0x${"e".repeat(40)}`),
   Factory: contracts.Factory.withAddress(`0x${"f".repeat(40)}`),
-  NativeTransfer: contracts.NativeTransfer.withAddress(`0x${"0a".repeat(20)}`),
-  ETHReceiver: contracts.ETHReceiver.withAddress(`0x${"0b".repeat(20)}`),
+  SimpleContract: contracts.SimpleContract.withAddress(`0x${"0a".repeat(20)}`),
+  NativeTransfer: contracts.NativeTransfer.withAddress(`0x${"0b".repeat(20)}`),
+  ETHReceiver: contracts.ETHReceiver.withAddress(`0x${"0c".repeat(20)}`),
 };
 
 export const FORK = {

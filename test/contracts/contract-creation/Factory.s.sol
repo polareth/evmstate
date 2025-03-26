@@ -7,7 +7,7 @@ pragma solidity ^0.8.23;
  */
 contract Factory {
     // Created contract addresses are stored here
-    address[] public createdContracts;
+    address[] private createdContracts;
     
     /**
      * @notice Creates a new SimpleContract with the given value
@@ -34,7 +34,7 @@ contract Factory {
  * @notice A simple contract created by the Factory
  */
 contract SimpleContract {
-    uint256 public value;
+    uint256 private value;
     
     constructor(uint256 initialValue) {
         value = initialValue;
@@ -42,5 +42,9 @@ contract SimpleContract {
     
     function setValue(uint256 newValue) external {
         value = newValue;
+    }
+
+    function getValue() external view returns (uint256) {
+        return value;
     }
 }

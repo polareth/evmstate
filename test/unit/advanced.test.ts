@@ -1,4 +1,3 @@
-import { encodeFunctionData } from "tevm";
 import { padHex } from "viem";
 import { describe, expect, it } from "vitest";
 
@@ -10,7 +9,7 @@ const { AssemblyStorage } = CONTRACTS;
 const { caller, recipient } = ACCOUNTS;
 
 /**
- * Advanced Assembly-Based Storage Access Tests
+ * Storage access with assembly & 1-level mappings tests
  *
  * This test suite verifies:
  *
@@ -25,24 +24,28 @@ describe("Assembly-based storage access", () => {
       const client = getClient();
 
       // First set the value using assembly
-      const traceWrite = await traceStorageAccess({
+      const writeTrace = await traceStorageAccess({
         client,
         from: caller.toString(),
         to: AssemblyStorage.address,
-        data: encodeFunctionData(AssemblyStorage.write.setValueAssembly(123n)),
+        abi: AssemblyStorage.abi,
+        functionName: "setValueAssembly",
+        args: [123n],
       });
 
       // Then read the value using assembly
-      const traceRead = await traceStorageAccess({
+      const readTrace = await traceStorageAccess({
         client,
         from: caller.toString(),
         to: AssemblyStorage.address,
-        data: encodeFunctionData(AssemblyStorage.read.getValueAssembly()),
+        abi: AssemblyStorage.abi,
+        functionName: "getValueAssembly",
+        args: [],
       });
 
       // Verify the write operation was captured
-      expect(traceWrite[AssemblyStorage.address].reads).toEqual({});
-      expect(traceWrite[AssemblyStorage.address].writes).toEqual({
+      expect(writeTrace[AssemblyStorage.address].reads).toEqual({});
+      expect(writeTrace[AssemblyStorage.address].writes).toEqual({
         [getSlotHex(0)]: [
           {
             label: "value",
@@ -54,8 +57,8 @@ describe("Assembly-based storage access", () => {
       });
 
       // Verify the read operation was captured
-      expect(traceRead[AssemblyStorage.address].writes).toEqual({});
-      expect(traceRead[AssemblyStorage.address].reads).toEqual({
+      expect(readTrace[AssemblyStorage.address].writes).toEqual({});
+      expect(readTrace[AssemblyStorage.address].reads).toEqual({
         [getSlotHex(0)]: [
           {
             label: "value",
@@ -70,23 +73,27 @@ describe("Assembly-based storage access", () => {
       const client = getClient();
 
       // Set balance for an address using assembly
-      const traceWrite = await traceStorageAccess({
+      const writeTrace = await traceStorageAccess({
         client,
         from: caller.toString(),
         to: AssemblyStorage.address,
-        data: encodeFunctionData(AssemblyStorage.write.setBalanceAssembly(recipient.toString(), 1000n)),
+        abi: AssemblyStorage.abi,
+        functionName: "setBalanceAssembly",
+        args: [recipient.toString(), 1000n],
       });
 
-      const traceRead = await traceStorageAccess({
+      const readTrace = await traceStorageAccess({
         client,
         from: caller.toString(),
         to: AssemblyStorage.address,
-        data: encodeFunctionData(AssemblyStorage.read.getBalanceAssembly(recipient.toString())),
+        abi: AssemblyStorage.abi,
+        functionName: "getBalanceAssembly",
+        args: [recipient.toString()],
       });
 
       // Verify the write operation was captured
-      expect(traceWrite[AssemblyStorage.address].reads).toEqual({});
-      expect(traceWrite[AssemblyStorage.address].writes).toEqual({
+      expect(writeTrace[AssemblyStorage.address].reads).toEqual({});
+      expect(writeTrace[AssemblyStorage.address].writes).toEqual({
         [getMappingSlotHex(1, recipient.toString())]: [
           {
             label: "balances",
@@ -99,8 +106,8 @@ describe("Assembly-based storage access", () => {
       });
 
       // Verify the read operation was captured
-      expect(traceRead[AssemblyStorage.address].writes).toEqual({});
-      expect(traceRead[AssemblyStorage.address].reads).toEqual({
+      expect(readTrace[AssemblyStorage.address].writes).toEqual({});
+      expect(readTrace[AssemblyStorage.address].reads).toEqual({
         [getMappingSlotHex(1, recipient.toString())]: [
           {
             label: "balances",
@@ -120,9 +127,9 @@ describe("Assembly-based storage access", () => {
         client,
         from: caller.toString(),
         to: AssemblyStorage.address,
-        data: encodeFunctionData(
-          AssemblyStorage.write.batchUpdateAssembly(789n, [caller.toString(), recipient.toString()], [111n, 222n]),
-        ),
+        abi: AssemblyStorage.abi,
+        functionName: "batchUpdateAssembly",
+        args: [789n, [caller.toString(), recipient.toString()], [111n, 222n]],
       });
 
       expect(trace[AssemblyStorage.address].reads).toEqual({});

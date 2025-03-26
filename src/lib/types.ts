@@ -1,9 +1,12 @@
 import { Abi, Address, ContractFunctionName, GetAccountResult, Hex, MemoryClient } from "tevm";
+import { SolcStorageLayoutTypes } from "tevm/bundler/solc";
 import { Common } from "tevm/common";
 import { abi } from "@shazow/whatsabi";
-import { AbiStateMutability, ContractFunctionArgs, WriteContractParameters } from "viem";
+import { AbiStateMutability, ContractFunctionArgs } from "viem";
 
-import { AbiType, AbiTypeToPrimitiveType } from "@/lib/schema";
+import { AbiType, AbiTypeToPrimitiveType } from "@/lib/adapter/schema";
+
+import { GetMappingKeyTypes, SolidityTypeToTsType } from "./adapter/types";
 
 /* -------------------------------------------------------------------------- */
 /*                                    TRACE                                   */
@@ -164,6 +167,27 @@ export type LabeledStorageWrite<T extends AbiType = AbiType> = LabeledStorageRea
   };
 };
 
+export type LabeledStorageAccess<
+  T extends string = string,
+  L extends string = string,
+  Types extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
+> = {
+  /** The name of the variable in the layout */
+  label: L;
+  /** The type of the variable */
+  type: T;
+  /** The decoded value of the variable */
+  current: SolidityTypeToTsType<T, Types, Hex>;
+  /** The next value after the transaction (if it was modified) */
+  next?: SolidityTypeToTsType<T, Types, Hex>;
+  /** The slots storing some of the variable's data that were accessed */
+  slots: Array<Hex>;
+  /** The keys that were used to access the variable (if it's a mapping) */
+  keys?: T extends `mapping(${string} => ${string})` ? GetMappingKeyTypes<T, Types> : never;
+  /** The indexes that were used to access the variable (if it's an array) */
+  indexes?: T extends `${string}[]` | `${string}[${string}]` ? number[] : never;
+};
+
 /* -------------------------------------------------------------------------- */
 /*                                 ACCESS LIST                                */
 /* -------------------------------------------------------------------------- */
@@ -261,20 +285,6 @@ export type AccountDiff<EOA extends boolean = false> = {
 /* -------------------------------------------------------------------------- */
 
 /* ---------------------------------- SLOTS --------------------------------- */
-/** Type for representing labeled storage slots */
-// TODO: review
-export type StorageSlotInfo<T extends StorageLayoutType["encoding"] = StorageLayoutType["encoding"]> = {
-  slot: Hex;
-  label: string;
-  path: string;
-  type: AbiType;
-  encoding: T;
-  isComputed: boolean;
-  keyType?: T extends "mapping" ? AbiType : never;
-  valueType?: T extends "mapping" ? AbiType : never;
-  baseType?: T extends "dynamic_array" ? AbiType : never;
-  offset?: number;
-};
 
 export interface MappingKey<T extends AbiType = AbiType> {
   // Value padded to 32 bytes
@@ -297,9 +307,35 @@ export interface SlotLabelResult<M extends SlotMatchType = SlotMatchType> {
   // The variable type (from Solidity)
   type?: AbiType;
   // The detected keys or indices (if applicable)
-  keys?: M extends "mapping" | "nested-mapping" ? Array<MappingKey> : never; // TODO: then decode it for the consumer
+  keys?: M extends "mapping" | "nested-mapping" ? Array<MappingKey> : never;
   // The detected index (if applicable)
-  index?: M extends "array" ? Hex : never; // TODO: same here, decode to bigint? or number?
+  index?: M extends "array" ? Hex : never;
+  // The offset of the variable within the slot (for packed variables)
+  offset?: number;
+}
+
+/**
+ * Information about a storage slot in a contract.
+ *
+ * Includes the variable name, type, and slot location.
+ */
+export interface StorageSlotInfo {
+  // The variable name
+  label: string;
+  // The storage slot hex string
+  slot: Hex;
+  // The variable type (from Solidity)
+  type?: AbiType;
+  // The encoding of the variable (inplace, bytes, mapping, etc.)
+  encoding?: "inplace" | "bytes" | "mapping" | "dynamic_array";
+  // Whether this slot is computed (for mappings/arrays)
+  isComputed?: boolean;
+  // The base type for arrays
+  baseType?: AbiType;
+  // The key type for mappings
+  keyType?: AbiType;
+  // The value type for mappings
+  valueType?: AbiType;
   // The offset of the variable within the slot (for packed variables)
   offset?: number;
 }
@@ -323,63 +359,3 @@ export type GetContractsResult = Record<
     abi: abi.ABI;
   }
 >;
-
-/* ------------------------------- TODO: TEMP ------------------------------- */
-// WARNING: the following types are experimental (?) and subject to change in non breaking releases
-// Define the base structure for all storage layout types
-export interface StorageLayoutTypeBase {
-  encoding: "inplace" | "mapping" | "dynamic_array" | "bytes";
-  label: AbiType;
-  numberOfBytes: string;
-}
-
-// Define specific storage layout types with their unique properties
-export interface StorageLayoutInplaceType extends StorageLayoutTypeBase {
-  encoding: "inplace";
-}
-
-export interface StorageLayoutBytesType extends StorageLayoutTypeBase {
-  encoding: "bytes";
-}
-
-export interface StorageLayoutMappingType extends StorageLayoutTypeBase {
-  encoding: "mapping";
-  key: `t_${string}`;
-  value: `t_${string}`;
-}
-
-export interface StorageLayoutDynamicArrayType extends StorageLayoutTypeBase {
-  encoding: "dynamic_array";
-  base: `t_${string}`;
-}
-
-export interface StorageLayoutStructType extends StorageLayoutInplaceType {
-  members: Array<StorageLayoutItem>;
-}
-
-// Union of all possible storage layout types
-export type StorageLayoutType =
-  | StorageLayoutInplaceType
-  | StorageLayoutBytesType
-  | StorageLayoutMappingType
-  | StorageLayoutDynamicArrayType
-  | StorageLayoutStructType;
-
-// Type-safe record of storage layout types
-export type StorageLayoutTypes = Record<`t_${string}`, StorageLayoutType>;
-
-// Type-safe storage layout item that references a type in StorageLayoutTypes
-export type StorageLayoutItem<T extends StorageLayoutTypes = StorageLayoutTypes> = {
-  astId: number;
-  contract: string;
-  label: string;
-  offset: number;
-  slot: string;
-  type: keyof T;
-};
-
-// Type-safe storage layout output
-export type StorageLayoutOutput<T extends StorageLayoutTypes = StorageLayoutTypes> = {
-  storage: Array<StorageLayoutItem<T>>;
-  types: T;
-};

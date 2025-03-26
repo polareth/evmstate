@@ -10,9 +10,13 @@ export const getSlotHex = (slot: number) => {
   return toHex(slot, { size: 32 });
 };
 
-export const getMappingSlotHex = (slot: number, key: Hex) => {
-  const slotHex = getSlotHex(slot);
-  const paddedKey = padHex(key, { size: 32 });
+export const getMappingSlotHex = (slot: number, ...keys: Hex[]) => {
+  let currentSlot = getSlotHex(slot);
 
-  return keccak256(`0x${paddedKey.replace("0x", "")}${slotHex.replace("0x", "")}`);
+  for (const key of keys) {
+    const paddedKey = padHex(key, { size: 32 });
+    currentSlot = keccak256(`0x${paddedKey.replace("0x", "")}${currentSlot.replace("0x", "")}`);
+  }
+
+  return currentSlot;
 };

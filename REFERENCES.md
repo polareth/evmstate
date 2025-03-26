@@ -16,6 +16,7 @@
 
 ## TODO
 
+- [ ] new storage adapter works if there is a storage layout but make it work if there is none as well (getData, etc would return hex?) - need more research on storage layout for unverified contracts
 - [ ] if a function writes to storage BUT doesn't modify the value(s), it returns a read (because pre-post state is the same)
   - -> this is an _access_ list so it makes sense, we should rather have either a single object instead of read/write, with or without a "next" property
   - -> or maybe better we track SSTOREs and SLOADs separately, so we can accurately populate read and write
@@ -25,6 +26,45 @@
 - [ ] ? add a "details" property to the returned trace, with the raw tevm call result (gas, errors, etc)
 - [ ] ? pass a "label"/something flag to label or not storage slots (default true, but setting to false would save a lot on compute)
 - [ ] export types and utilities for decoding abi types and mention on readme? or don't bloat the package? maybe would be good as a second package provided lattice authorization
+- [ ] provide same api as viem/tevm with "as const" abi except it's with the storage layout, and you get a fully typed api with decoded types, etc
+- [ ] provide some state listeners -> listen to a contract's state changes; same api as listening to contract events, you get the typed state change
+  ```typescript
+  const sub = watchState({
+    address: "0xabc...",
+    // we (probably?) don't _need_ the abi, but it will help decoding inputs on function calls to retrieve potential mapping keys
+    // and compute the mapping slot at which data was updated faster (we prioritize keys with known types), or even to compute it at all
+    abi: [] as const,
+    storageLayout: {} as const,
+    onChange: (state) => {
+      console.log(state);
+      // An ERC20 transfer just happened
+      // {
+      //   label: "balances",
+      //   type: "uint256",
+      //   current: {
+      //     hex: "0x...",
+      //     decoded: 1000n
+      //   },
+      //   prev: {
+      //     hex: "0x...",
+      //     decoded: 0n
+      //   },
+      //   keys: [ // since this is a mapping, we get the keys (an array in case it's a nested mapping)
+      //     {
+      //       hex: "0x...", // the recipient address padded to 32 bytes
+      //       decoded: "0x..." // the recipient address
+      //       type: "address"
+      //     }
+      //   ]
+      // }
+      // An update will also fire for the sender's balance change
+      // Also an update will fire for the account's state change for whoever made the transaction
+      // (balance change because of gas, nonce increment if it's an EOA)
+    },
+  });
+  ```
+
+````
 
 ## Listen to steps during call
 
@@ -81,4 +121,4 @@ const result = await client.tevmCall({
     next?.();
   },
 });
-```
+````

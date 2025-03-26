@@ -1,5 +1,6 @@
 import { Address, Hex, MemoryClient } from "tevm";
 
+import { debug } from "@/debug";
 import {
   AccessList,
   AccountDiff,
@@ -89,18 +90,33 @@ export const intrinsicSnapshot = async (
 ): Promise<Record<Address, IntrinsicsSnapshot>> => {
   const results = await Promise.all(
     accounts.map(async (address) => {
-      const state = await client.tevmGetAccount({ address, returnStorage: true });
+      try {
+        const state = await client.tevmGetAccount({ address, returnStorage: true });
 
-      return [
-        address,
-        {
-          balance: { value: state.balance },
-          nonce: { value: state.nonce },
-          deployedBytecode: { value: state.deployedBytecode },
-          codeHash: { value: state.codeHash },
-          storageRoot: { value: state.storageRoot },
-        },
-      ] as [Address, IntrinsicsSnapshot];
+        return [
+          address,
+          {
+            balance: { value: state.balance },
+            nonce: { value: state.nonce },
+            deployedBytecode: { value: state.deployedBytecode },
+            codeHash: { value: state.codeHash },
+            storageRoot: { value: state.storageRoot },
+          },
+        ] as [Address, IntrinsicsSnapshot];
+      } catch (err) {
+        debug(`Error fetching account state for ${address}:`, err);
+        return [
+          address,
+          // TODO: the account doesn't "exist", e.g. a contract deployed that didn't exist there before; is it correct to return this?
+          {
+            balance: { value: 0n },
+            nonce: { value: 0n },
+            deployedBytecode: { value: "0x" },
+            codeHash: { value: "0x" },
+            storageRoot: { value: "0x" },
+          },
+        ] as [Address, IntrinsicsSnapshot];
+      }
     }),
   );
 
