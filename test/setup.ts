@@ -16,7 +16,7 @@ import { createStorageLayoutAdapter } from "@/lib/layout/adapter";
 import * as storageLayout from "@/lib/storage-layout";
 
 beforeEach(async () => {
-  const client = createMemoryClient({ loggingLevel: "debug" });
+  const client = createMemoryClient({ loggingLevel: "warn" });
   // @ts-expect-error type
   globalThis.client = client;
 
@@ -114,8 +114,6 @@ const setupContractsMock = () => {
       const contractPath = getContractPath(contract?.name ?? "");
       const artifacts = cache.readArtifactsSync(contractPath);
 
-      // (Will): This blocks the test. Commenting it out unblocks as well? Doesn't seem to make sense either.
-      // But sometimes after commenting everything out, then uncommenting up to this, it still works. Then we uncomment the big if statement below and it blocks.
       let layouts = Object.values(artifacts?.solcOutput?.contracts ?? {})
         .flatMap(
           (source) =>

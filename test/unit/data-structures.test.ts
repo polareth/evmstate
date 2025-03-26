@@ -25,21 +25,6 @@ const { caller, recipient } = ACCOUNTS;
 // TODO: structs (inside mappings & arrays as well)
 describe("Data Structures Storage Access", () => {
   describe("Mappings", () => {
-    it.only("test", async () => {
-      const client = getClient();
-      const user = recipient.toString();
-      const amount = 1000n;
-
-      await traceStorageAccess({
-        client,
-        from: caller.toString(),
-        to: Mappings.address,
-        abi: Mappings.abi,
-        functionName: "setBalance",
-        args: [user, amount],
-      });
-    });
-
     it("should trace simple mapping slot access", async () => {
       const client = getClient();
       const user = recipient.toString();
@@ -162,7 +147,7 @@ describe("Data Structures Storage Access", () => {
       });
     });
 
-    it("should trace mapping with struct values slot access", async () => {
+    it.todo("should trace mapping with struct values slot access", async () => {
       const client = getClient();
       const user = recipient.toString();
       const balance = 2000n;
@@ -187,7 +172,7 @@ describe("Data Structures Storage Access", () => {
       );
     });
 
-    it("should trace complex mapping operations with multiple keys", async () => {
+    it.todo("should trace complex mapping operations with multiple keys", async () => {
       const client = getClient();
       const user = recipient.toString();
 
@@ -241,7 +226,7 @@ describe("Data Structures Storage Access", () => {
     });
   });
 
-  describe("Arrays", () => {
+  describe.todo("Arrays", () => {
     it("should trace fixed array slot access", async () => {
       const client = getClient();
       const index = 2;

@@ -84,14 +84,14 @@ export class MappingStorageAdapter<
     [this.keys, this.value] = this.extractMappingTypes();
   }
 
-  getSlot(params?: GetSlotParams<T, Types>): Hex {
+  getSlot(params?: GetSlotParams<T, Types> & { encode?: boolean }): Hex {
     if (!params?.keys || params.keys.length !== this.keys.length) {
       debug("No keys provided, returning base slot");
       return super.getSlot();
     }
 
     // @ts-expect-error: TODO: why is it typed as any here
-    return this.computeMappingSlot(super.getSlot(), params.keys);
+    return this.computeMappingSlot(super.getSlot(), params.keys, params.encode);
   }
 
   async getData<P extends GetDataParams<T, Types>>(params?: P): Promise<GetDataReturnType<T, Types, P>> {
@@ -136,9 +136,9 @@ export class MappingStorageAdapter<
     return [keyTypes as GetMappingKeyTypes<T, Types>, currentType as ExtractMappingValueType<T>];
   }
 
-  private computeMappingSlot(baseSlot: Hex, keys: GetMappingKeyTypes<T, Types>): Hex {
+  private computeMappingSlot(baseSlot: Hex, keys: GetMappingKeyTypes<T, Types>, encode = true): Hex {
     return keys.reduce((slot, key, index) => {
-      const hexKey = encodeAbiParameters([{ type: this.keys[index] }], [key]);
+      const hexKey = encode ? encodeAbiParameters([{ type: this.keys[index] }], [key]) : key;
       return computeMappingSlot(slot, padHex(hexKey, { size: 32 }));
     }, baseSlot);
   }
