@@ -1,11 +1,18 @@
-import { readFileSync } from "fs";
+import fs from "node:fs";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "path";
+import { createCache } from "@tevm/bundler-cache";
 import { createMemoryClient } from "tevm";
-import { EthjsAccount, parseEther } from "tevm/utils";
+import { bundler, FileAccessObject } from "tevm/bundler";
+import { ResolvedCompilerConfig } from "tevm/bundler/config";
+import { createSolc, SolcStorageLayout, SolcStorageLayoutItem, SolcStorageLayoutTypes } from "tevm/bundler/solc";
+import { EthjsAccount, parseEther, randomBytes } from "tevm/utils";
 import { toFunctionSelector } from "viem";
 import { beforeEach, vi } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants";
+import { debug } from "@/debug";
+import { createStorageLayoutAdapter } from "@/lib/layout/adapter";
 import * as storageLayout from "@/lib/storage-layout";
 
 beforeEach(async () => {
@@ -34,6 +41,22 @@ beforeEach(async () => {
   if (process.env.TEST_ENV !== "staging") setupContractsMock();
 });
 
+const config = JSON.parse(fs.readFileSync(join(__dirname, "../tevm.config.json"), "utf8")) as ResolvedCompilerConfig;
+const fileAccess: FileAccessObject = {
+  writeFileSync: fs.writeFileSync,
+  writeFile,
+  readFile: (path, encoding) => fs.promises.readFile(path, { encoding }),
+  readFileSync: fs.readFileSync,
+  exists: async (path) => !!(await fs.promises.stat(path).catch(() => false)),
+  existsSync: fs.existsSync,
+  statSync: fs.statSync,
+  stat,
+  mkdirSync: fs.mkdirSync,
+  mkdir,
+};
+
+const cache = createCache(config.cacheDir, fileAccess, process.cwd());
+
 /**
  * Create a mock for the getContracts function that returns contract information directly from our test contracts rather
  * than fetching from external APIs.
@@ -48,54 +71,136 @@ const setupContractsMock = () => {
           return [
             address,
             {
-              metadata: {},
               sources: [],
               abi: [],
             },
           ];
         }
 
+        const output = cache.readArtifactsSync(getContractPath(contract.name ?? ""));
         return [
           address,
           {
-            metadata: {
-              name: contract.name,
-              evmVersion: "paris",
-              compilerVersion: "0.8.23+commit.f704f362",
-            },
-            sources: [{ path: contract.name, content: getContractCode(contract.name ?? "") }],
-            abi: contract.abi.map((item) => {
-              if (item.type === "function") {
-                return { ...item, selector: toFunctionSelector(item) };
-              } else {
-                return item;
-              }
-            }),
+            sources: output?.solcOutput?.sources,
+            abi: Object.values(output?.artifacts ?? {})
+              .flatMap((artifact) => artifact.abi)
+              .map((item) => {
+                if (item.type === "function") {
+                  return { ...item, selector: toFunctionSelector(item) };
+                } else {
+                  return item;
+                }
+              }),
           },
         ];
       }),
     );
   });
+
+  vi.spyOn(storageLayout, "getStorageLayout").mockImplementation(async ({ address, metadata, sources }) => {
+    // Return empty layout if we're missing critical information
+    if (!sources || sources.length === 0) {
+      debug(`Missing compiler info for ${address}. Cannot generate storage layout.`);
+      return {};
+    }
+
+    try {
+      const contract = Object.values(CONTRACTS).find((contract) => contract.address === address);
+      const contractPath = getContractPath(contract?.name ?? "");
+      const artifacts = cache.readArtifactsSync(contractPath);
+
+      let layouts = Object.values(artifacts?.solcOutput?.contracts ?? {})
+        .flatMap(
+          (source) =>
+            Object.values(source).flatMap((contract) => contract.storageLayout as unknown as SolcStorageLayout), // TODO: wrong type, soon fixed
+        )
+        .filter(Boolean);
+
+      if (layouts.length === 0) {
+        const solcInput = artifacts?.solcInput;
+        const solc = await createSolc("0.8.23");
+        const output = solc.compile({
+          language: solcInput?.language ?? "Solidity",
+          settings: {
+            evmVersion: solcInput?.settings?.evmVersion ?? "paris",
+            outputSelection: {
+              "*": {
+                "*": [...(solcInput?.settings?.outputSelection["*"]["*"] ?? []), "storageLayout"],
+              },
+            },
+          },
+          sources: solcInput?.sources ?? {},
+        });
+
+        layouts = Object.values(output.contracts)
+          .flatMap((layouts) => Object.values(layouts))
+          .map((l) => l.storageLayout) as unknown as Array<SolcStorageLayout>;
+
+        cache.writeArtifactsSync(contractPath, {
+          ...artifacts,
+          solcOutput: {
+            ...artifacts?.solcOutput,
+            // @ts-expect-error undefined abi
+            contracts: {
+              ...artifacts?.solcOutput?.contracts,
+              [join(process.cwd(), contractPath)]: {
+                ...artifacts?.solcOutput?.contracts?.[contractPath],
+                [contract?.name ?? ""]: {
+                  ...artifacts?.solcOutput?.contracts?.[contractPath]?.[contract?.name ?? ""],
+                  storageLayout: layouts,
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Aggregate all storage items and types from different layouts
+      const aggregatedTypes: SolcStorageLayoutTypes = layouts.reduce((acc, layout) => {
+        if (!layout?.types) return acc;
+        return { ...acc, ...layout.types };
+      }, {} as SolcStorageLayoutTypes);
+
+      // Now that we have all types, we can properly type the storage items
+      const aggregatedStorage: Array<SolcStorageLayoutItem<typeof aggregatedTypes>> = layouts.reduce(
+        (acc, layout) => {
+          if (!layout?.storage) return acc;
+          return [...acc, ...layout.storage];
+        },
+        [] as Array<SolcStorageLayoutItem<typeof aggregatedTypes>>,
+      );
+
+      // Return a storage layout adapter for advanced access patterns
+      return createStorageLayoutAdapter(
+        {
+          storage: aggregatedStorage,
+          types: aggregatedTypes,
+        },
+        undefined,
+      ); // no need to inject a client here as we don't want to access storage
+    } catch (error) {
+      debug(`Error generating storage layout for ${address}:`, error);
+      return {};
+    }
+  });
 };
 
-const getContractCode = (name: string) => {
+const getContractPath = (name: string) => {
   const indexPath = join(__dirname, "contracts/index.ts");
-  let contractCode = "";
 
   try {
-    const indexContent = readFileSync(indexPath, "utf8");
+    const indexContent = fs.readFileSync(indexPath, "utf8");
     // Find the export line for this contract
     const regex = new RegExp(`export\\s+\\{\\s*${name}(?:\\s*,\\s*[\\w]+)*\\s*\\}\\s+from\\s+["'](.+?)["']`);
     const match = indexContent.match(regex);
 
     if (match && match[1]) {
-      // Construct the full path to the contract file
-      const contractPath = join(__dirname, "contracts", match[1]);
-      contractCode = readFileSync(contractPath, "utf8");
+      const path = match[1].replace(/^\.\//, ""); // Remove leading "./" if present
+      return `test/contracts/${path}`;
     }
   } catch (error) {
-    console.warn(`Could not find contract file for ${name}:`, error);
+    console.warn(`Could not find contract path for ${name}:`, error);
   }
 
-  return contractCode;
+  return "";
 };
