@@ -1,7 +1,5 @@
-import { Hex } from "tevm";
-import { SolcStorageLayout, SolcStorageLayoutTypeBase, SolcStorageLayoutTypes } from "tevm/bundler/solc";
-
-import { AbiType, AbiTypeToPrimitiveType } from "./schema";
+import { SolcStorageLayoutTypes } from "tevm/bundler/solc";
+import { AbiType, AbiTypeToPrimitiveType } from "abitype";
 
 /* -------------------------------------------------------------------------- */
 /*                              TYPE HELPERS                                  */

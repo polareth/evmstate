@@ -11,6 +11,9 @@ importers:
       '@shazow/whatsabi':
         specifier: ^0.21.0
         version: 0.21.0(@noble/hashes@1.7.1)(typescript@5.8.2)(zod@3.24.2)
+      abitype:
+        specifier: ^1.0.8
+        version: 1.0.8(typescript@5.8.2)(zod@3.24.2)
       debug:
         specifier: ^4.4.0
         version: 4.4.0

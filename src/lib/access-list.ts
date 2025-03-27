@@ -119,17 +119,3 @@ export const intrinsicDiff = (preTx: IntrinsicsSnapshot, postTx: IntrinsicsSnaps
     return result;
   }, {} as IntrinsicsDiff);
 };
-
-/**
- * Creates a complete address state diff by combining slot and account changes.
- *
- * @param slotsDiff - Changes to address storage slots (for contracts)
- * @param accountDiff - Changes to account fields
- * @returns Complete address state diff
- */
-export const createAccountDiff = (storageDiff: StorageDiff, intrinsicDiff: IntrinsicsDiff): AccountDiff => {
-  return {
-    storage: storageDiff,
-    intrinsic: intrinsicDiff,
-  };
-};

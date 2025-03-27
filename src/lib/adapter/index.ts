@@ -9,7 +9,6 @@ import {
 import { Address, decodeAbiParameters, encodeAbiParameters, Hex, hexToBigInt, padHex, toHex } from "viem";
 
 import { debug } from "@/debug";
-import { StaticAbiType } from "@/lib/adapter/schema";
 import {
   DecodedSnapshot,
   DeepReadonly,

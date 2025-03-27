@@ -2,16 +2,10 @@ import { Abi, Address, ContractFunctionName, GetAccountResult, Hex, MemoryClient
 import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
 import { Common } from "tevm/common";
 import { abi } from "@shazow/whatsabi";
+import { AbiType, AbiTypeToPrimitiveType } from "abitype";
 import { AbiStateMutability, ContractFunctionArgs } from "viem";
 
-import { AbiType, AbiTypeToPrimitiveType } from "@/lib/adapter/schema";
-import {
-  DeepReadonly,
-  GetMappingKeysTuple,
-  GetMappingKeyTypes,
-  ParseSolidityType,
-  SolidityTypeToTsType,
-} from "@/lib/adapter/types";
+import { DeepReadonly, GetMappingKeysTuple, ParseSolidityType, SolidityTypeToTsType } from "@/lib/adapter/types";
 
 /* -------------------------------------------------------------------------- */
 /*                                    TRACE                                   */
@@ -247,31 +241,6 @@ export type IntrinsicsDiff = {
     /** Value after transaction (undefined if not modified) */
     next?: Intrinsics[K];
   };
-};
-
-/* -------------------------- AGGREGATED STATE TYPES -------------------------- */
-/**
- * Complete snapshot of an account's storage and account state at a point in time.
- *
- * This can represent either a contract or an EOA.
- */
-export type AccountSnapshot<EOA extends boolean = false> = {
-  /** Storage slots state (only applicable for contracts) */
-  storage: EOA extends false ? StorageSnapshot : never;
-  /** Account fields state */
-  intrinsic: IntrinsicsSnapshot;
-};
-
-/**
- * Complete difference between pre-transaction and post-transaction states for an address.
- *
- * This can represent either a contract or an EOA (Externally Owned Account).
- */
-export type AccountDiff<EOA extends boolean = false> = {
-  /** Storage slots that were accessed (with "next" if written) during transaction (only applicable for contracts) */
-  storage: EOA extends false ? StorageDiff : never;
-  /** Account field changes during transaction */
-  intrinsic: IntrinsicsDiff;
 };
 
 /* -------------------------------------------------------------------------- */

@@ -11,10 +11,10 @@ import {
   MemoryClient,
 } from "tevm";
 import { Common } from "tevm/common";
+import { AbiType, AbiTypeToPrimitiveType } from "abitype";
 import { padHex } from "viem";
 
 import { debug } from "@/debug";
-import { AbiType, AbiTypeToPrimitiveType, StaticAbiType, staticAbiTypeToByteLength } from "@/lib/adapter/schema";
 import { TraceStorageAccessOptions, TraceStorageAccessTxParams, TraceStorageAccessTxWithData } from "@/lib/types";
 
 /** Creates a Tevm client from the provided options */
@@ -115,7 +115,7 @@ export const decodeHex = <T extends AbiType = AbiType>(
   if (!type) return { hex: valueHex };
 
   try {
-    const byteLength = staticAbiTypeToByteLength[type];
+    // const byteLength = staticAbiTypeToByteLength[type];
 
     // Extract the relevant part of the storage slot
     const extractedHex = extractRelevantHex(valueHex, offset ?? 0, byteLength);
@@ -131,14 +131,14 @@ export const decodeHex = <T extends AbiType = AbiType>(
 /**
  * Extract relevant hex from a hex string based on its offset and length, especially useful for packed variables
  *
- * @param {Hex} data - The 32-byte hex string
+ * @param {Hex} data - The hex string
  * @param {number} offset - The offset in bytes from the right where the value starts
  * @param {number} length - The length in bytes of the value to extract
- * @returns {Hex} - The extracted hex substring
+ * @returns {Hex} - The extracted hex substring padded to 32 bytes
  */
 export const extractRelevantHex = (data: Hex, offset: number, length: number): Hex => {
   if (!data.startsWith("0x")) data = `0x${data}`;
-  if (data === "0x" || data === "0x00") return data;
+  if (data === "0x" || data === "0x00") return padHex("0x00", { size: 32 });
 
   // Fill up to 32 bytes
   data = padHex(data, { size: 32, dir: "left" });
@@ -155,5 +155,5 @@ export const extractRelevantHex = (data: Hex, offset: number, length: number): H
   const endPos = startPos + length * 2;
 
   // Extract the substring and add 0x prefix
-  return `0x${data.slice(startPos, endPos)}`;
+  return padHex(`0x${data.slice(startPos, endPos)}`, { size: 32 });
 };

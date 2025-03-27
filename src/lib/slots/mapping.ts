@@ -1,7 +1,7 @@
 import { Hex, keccak256 } from "tevm";
+import { AbiType } from "abitype";
 
 import { StorageAdapter, StorageLayoutAdapter } from "@/lib/adapter";
-import { AbiType } from "@/lib/adapter/schema";
 import { MappingKey, SlotLabelResult } from "@/lib/types";
 
 // Maximum nesting depth to prevent excessive computation

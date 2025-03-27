@@ -11,10 +11,7 @@ import { randomBytes } from "tevm/utils";
 import { autoload, loaders } from "@shazow/whatsabi";
 
 import { debug } from "@/debug";
-import { createStorageLayoutAdapter, StorageLayoutAdapter } from "@/lib/adapter";
-import { findLayoutInfoAtSlot } from "@/lib/slots/engine";
-import { GetContractsOptions, GetContractsResult, LabeledStorageAccess, MappingKey, StorageDiff } from "@/lib/types";
-import { decodeHex } from "@/lib/utils";
+import { GetContractsOptions, GetContractsResult } from "@/lib/types";
 
 const ignoredSourcePaths = ["metadata.json", "creator-tx-hash.txt", "immutable-references"];
 
@@ -74,7 +71,7 @@ export const getContracts = async ({
  *
  * @returns A comprehensive storage layout adapter with methods for accessing storage data & utils
  */
-export const getStorageLayoutAdapter = async ({
+export const getStorageLayout = async ({
   address,
   metadata,
   sources,
@@ -84,7 +81,7 @@ export const getStorageLayoutAdapter = async ({
   // Return empty layout if we're missing critical information
   if (!compilerVersion || !evmVersion || !sources || sources.length === 0) {
     debug(`Missing compiler info for ${address}. Cannot generate storage layout.`);
-    return {};
+    return undefined;
   }
 
   try {
@@ -122,99 +119,13 @@ export const getStorageLayoutAdapter = async ({
     );
 
     // Return a storage layout adapter for advanced access patterns
-    return createStorageLayoutAdapter(
-      {
-        storage: aggregatedStorage,
-        types: aggregatedTypes,
-      },
-      undefined,
-    ); // no need to inject a client here as we don't want to access storage
+    return {
+      storage: aggregatedStorage,
+      types: aggregatedTypes,
+    };
   } catch (error) {
     debug(`Error generating storage layout for ${address}:`, error);
-    return {};
-  }
-};
-
-type FormatLabeledStorageAccessOptions = {
-  access: StorageDiff[Hex];
-  slot: Hex;
-  adapter: StorageLayoutAdapter;
-  potentialKeys: Array<MappingKey>;
-};
-
-export const formatLabeledStorageAccess = ({
-  access,
-  slot,
-  adapter,
-  potentialKeys,
-}: FormatLabeledStorageAccessOptions): Array<LabeledStorageAccess> => {
-  const { current: currentHex, next: nextHex } = access;
-
-  // Find all labels for this slot using our slot engine
-  const slotInfo = findLayoutInfoAtSlot(slot, adapter, potentialKeys);
-
-  if (slotInfo.length > 0) {
-    // Found matches - return an array of labeled reads for this slot
-    return slotInfo.map((info) => {
-      let result = {
-        label: info.label,
-        type: info.type,
-        kind:
-          info.matchType === "mapping" || info.matchType === "nested-mapping"
-            ? "mapping"
-            : info.matchType === "array"
-              ? "array"
-              : info.type?.startsWith("struct")
-                ? "struct"
-                : info.type === "string" || info.type === "bytes"
-                  ? "bytes"
-                  : !!info.type
-                    ? "primitive"
-                    : undefined,
-
-        slots: [slot],
-      };
-
-      // Decode the value based on its type and offset (if applicable)
-      const current = decodeHex(currentHex, info.type, info.offset);
-      const next = nextHex ? decodeHex(nextHex, info.type, info.offset) : undefined;
-      const modified = !!next?.decoded && current.decoded !== next.decoded;
-      const trace = {
-        current: current.decoded,
-        modified,
-      };
-      if (modified) trace.next = next.decoded;
-
-      if (result.kind === "mapping") {
-        result.trace = [
-          {
-            ...trace,
-            keys:
-              info.keys && info.keys.length > 0
-                ? info.keys.map((key) => ({
-                    value: key.decoded ?? decodeHex(key.hex, key.type).decoded,
-                    type: key.type,
-                  }))
-                : [],
-          },
-        ];
-      } else if (result.kind === "array") {
-        result.trace = [{ ...trace, index: info.index ? decodeHex(info.index, "uint256").decoded : 0 }];
-      } else {
-        result.trace = trace;
-        if (info.offset) result.offset = info.offset;
-      }
-      return result;
-    }) as Array<LabeledStorageAccess>;
-  } else {
-    // No match found, use a fallback label
-    return [
-      {
-        label: `slot_${slot.slice(0, 10)}`,
-        trace: { current: currentHex, next: access.next },
-        slots: [slot],
-      } as LabeledStorageAccess,
-    ];
+    return undefined;
   }
 };
 
