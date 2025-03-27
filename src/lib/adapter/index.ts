@@ -113,7 +113,7 @@ export class MappingStorageAdapter<
    * @returns Array of key types in order
    */
   private extractMappingTypes(): [GetMappingKeyTypes<T, Types>, ExtractMappingValueType<T>] {
-    const keyTypes: Array<StaticAbiType> = [];
+    const keyTypes = [] as GetMappingKeyTypes<T, Types>;
     let currentType = this.type;
 
     // Continue extracting keys as long as we have a mapping
@@ -125,7 +125,8 @@ export class MappingStorageAdapter<
       const valueType = match[2];
 
       // Add the current key type
-      keyTypes.push(keyType as StaticAbiType);
+      // @ts-expect-error: not assignable to type never
+      keyTypes.push(keyType);
 
       // If the value is another mapping, continue with that
       currentType = valueType as SolidityKeyToTsType<T, Types>;
@@ -134,7 +135,7 @@ export class MappingStorageAdapter<
       }
     }
 
-    return [keyTypes as GetMappingKeyTypes<T, Types>, currentType as ExtractMappingValueType<T>];
+    return [keyTypes, currentType as ExtractMappingValueType<T>];
   }
 
   private computeMappingSlot(baseSlot: Hex, keys: GetMappingKeyTypes<T, Types>, encode = true): Hex {

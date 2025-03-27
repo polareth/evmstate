@@ -1,15 +1,14 @@
 import { Abi, AbiFunction, Address, CallResult, ContractFunctionName, Hex } from "tevm";
+import { SolcStorageLayoutTypes } from "tevm/bundler/solc";
 import { toFunctionSignature } from "viem";
 
 import { debug } from "@/debug";
 import { createAccountDiff, intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
 import { StorageLayoutAdapter } from "@/lib/adapter";
 import { extractPotentialKeys } from "@/lib/slots/engine";
-import { formatLabeledStorageOp, getContracts, getStorageLayoutAdapter } from "@/lib/storage-layout";
+import { formatLabeledStorageAccess, getContracts, getStorageLayoutAdapter } from "@/lib/storage-layout";
 import {
   LabeledStorageAccess,
-  LabeledStorageRead,
-  LabeledStorageWrite,
   StorageAccessTrace,
   TraceStorageAccessOptions,
   TraceStorageAccessTxParams,
@@ -171,79 +170,155 @@ export const traceStorageAccess = async <
         return acc;
       }
 
-      // For EOAs (accounts without code) we won't have storage data
-      const slotsDiff =
-        storage.pre && storage.post ? storageDiff(storage.pre, storage.post) : { reads: {}, writes: {} };
-
-      // Compare account state changes
-      const accountDiff = intrinsicDiff(intrinsics.pre, intrinsics.post);
-
-      // Combine into complete diff
-      const trace = createAccountDiff(slotsDiff, accountDiff);
+      // Create a complete diff
+      const trace = createAccountDiff(
+        // For EOAs (accounts without code) we won't have storage data
+        storage.pre && storage.post ? storageDiff(storage.pre, storage.post) : {},
+        // Compare account state changes
+        intrinsicDiff(intrinsics.pre, intrinsics.post),
+      );
 
       // Grab the adapter for this contract
       const layoutAdapter = layoutAdapters[address];
 
+      /* ------------------------------------ x ----------------------------------- */
       // TODO: Redesign
       // Current design:
       // Go through each read, and for each go through all known variables to try to decode
       // Same for writes
       // If we can't decode, return a generic variable name
       // New design:
-      // let exploredSlots: Set<Hex> = new Set();
-      // // variable name -> decoded (+ maybe add slots that contain data?)
-      // const decodedAccess: Record<string, LabeledStorageAccess> = Object.fromEntries(
-      //   Object.entries(layoutAdapter).map(([label, storageAdapter]) => {
-      //     // Use a way to explore slots specific to each variable type
-      //     // Explore all slots because there might be packed variables (unexplored will just be to signify that we couldn't label it at all)
-      //     // Pass the slot values as well
-      //     // When decoding, find out if the slot(s) changed before/after tx to not decode twice if not necessary
+      // Will be just [...Object.keys(trace.contract)]
 
-      //     // 1. It's a mapping (try all keys to try to compute slots; we could get multiple slots if the mapping was modified multiple times)
-      //     // 3. It's an array (decode the highest length of the array—before and after tx—and try to compute slots—could be multiple— with all possible indexes)
-      //     // 2. It's a struct (compute slots for each member from the base slot, find out if one was affected, if it's the case decode members we can decode entirely)
-      //     // 4. It's a bytes/string (decode the highest length of the variable—before and after tx—and decode it—might need to extract out 0 bytes?)
-      //     // 5. It's a "primitive" (decode using the type directly and using the extracting relevant bytes if there is an offset)
+      // See in the Process how we eliminate slots
+      let unexploredSlots: Set<Hex> = new Set([...Object.keys(trace.storage)] as Array<Hex>);
 
-      //     // TODO: implement
+      // variable name -> decoded (+ maybe add slots that contain data?)
+      const decodedAccess = Object.fromEntries(
+        Object.entries(layoutAdapter ?? {}).flatMap(([_, storageAdapter]) => {
+          // Process:
+          // (at every step of the process, if there is no slot left in the unexplored set, we can return early)
+          // 1. Start with the simplest:
+          // a. get the variables with non-computed slots
+          //   - primitives
+          //   - structs
+          //   - bytes and strings
+          // b. find out if their slot(s) is(are) included in the trace
+          //   - primitives: simple slot lookup
+          //   - structs: get the numberOfBytes and lookup for all populated slots
+          //     - sort by numberOfBytes low -> high
+          // TODO: - later we would also check array & mappings in structs, and do the appropriate lookup
+          //   - bytes and strings: get the length (before & after tx, keep the highest) and lookup for all populated slots
+          //     - sort by length low -> high
+          // c. for each of these, return an array of associated slots that were accessed
+          // d. then we can safely eliminate these slots from the unexplored set
+          //   - this way, mappings & arrays won't consider them as we know they start at a new slot + colliding with a computed slot is improbable
+          // 2. Continue with mappings; for each mapping (sorted lowest -> highest nesting)
+          // a. try all potential keys to try to compute slots
+          // TODO: - later we would need to consider the value type:
+          //       e.g. if it's a struct, get the numberOfBytes and each time add the next slots to the computed one
+          //       e.g. if it's an array, fortunately the legth would have changed, so when checking for keys if we get a match we can get the length (pre&post tx) and check for all index slots
+          // b. aggregate any slots that were computed (there could be multiple if the mapping was modified multiple times)
+          // c. return an array of {keys, slot} (or slots later when we include structs/arrays)
+          // d. eliminate these slots from the unexplored set (same reason, improbable to collide)
+          // 3. Continue with fixed-size arrays; for each array (sorted lowest -> highest size)
+          // a. compute slot at each index (from 0 to length - 1)
+          // b. find out if their slot is included in the trace (could be multiple if multiple items were modified)
+          // c. return an array of {index, slot}
+          // d. eliminate these slots from the unexplored set
+          // 4. Continue with dynamic arrays; for each array (sorted lowest -> highest size, after retrieving the highest length from prev & post tx)
+          // a.b.c.d. same as fixed-size arrays
+          // 5. For all of these, decode the pre/post tx values
+          //   - if the value at relevant slots is not modified, only decode once
+          // a. primitives: decode using the type directly and extracting relevant bytes if there is an offset
+          // b. structs: decode all members extracting relevant bytes with offset & next slots
+          //   - might need to get storage for missing—unmodified—members, but probably not as we usually access the entire struct (except if it was done in assembly)
+          // c. bytes and strings: decode using the length (pre/post tx) and extracting relevant bytes
+          //   - here as well we might be missing some storage if only some part of the variable was modified and it doesn't overlap some other slot
+          // d. mappings: decode using the type directly
+          // TODO: - later we would need to consider the value type, and route to the appropriate decoder
+          //         - we should be able to do some nested decoding: everytime the value type is non primitive, keep decoding from this slot
+          // e. arrays: decode using the type directly
+          //   - might need to extract relevant bytes if it doesn't occupy the entire slot?
+          // 6. Return everything
+          //   - for mappings, return an array of {keys, value}
+          //   - for arrays, return an array of {indexes, value}
 
-      //     return [label, {}];
-      //   }),
-      // );
+          // TODO: implement
 
-      // const unknownAccess: Record<string, LabeledStorageAccess> = {}; // generic variable name -> undecoded slot value(s)
+          // storageDiff should be {[slot: Hex]: {current: Hex, next: Hex}} with no regard to writes/reads
+          // Attempt to decode in engine for each kind and return the labeled access
+          const decodedAccess: [
+            LabeledStorageAccess<"map", "mapping(uint256 => mapping(address => bool))">,
+            LabeledStorageAccess<"value", "uint256">,
+          ] = [
+            {
+              label: "map",
+              type: "mapping(uint256 => mapping(address => bool))" as const,
+              trace: [
+                {
+                  current: true,
+                  keys: [
+                    { type: "uint256", value: 3n },
+                    { type: "address", value: "0x123" },
+                  ],
+                  modified: false,
+                },
+              ],
+              slots: [],
+              kind: "mapping",
+            },
+            {
+              label: "value",
+              type: "uint256",
+              trace: { current: 5n, next: 6n, modified: true },
+              slots: [],
+              kind: "primitive",
+            },
+          ]; // or can be a single one
+          decodedAccess.forEach((access) => access.slots.forEach((slot) => unexploredSlots.delete(slot)));
 
-      // Create labeled reads and writes
-      const labeledReads = Object.entries(trace.reads).reduce(
-        (acc, [slotHex, read]) => {
-          acc[slotHex as Hex] = formatLabeledStorageOp({
-            op: read,
-            slot: slotHex as Hex,
-            adapter: layoutAdapter,
-            potentialKeys,
-          });
-          return acc;
-        },
-        {} as Record<Hex, [LabeledStorageRead, ...LabeledStorageRead[]]>,
+          return decodedAccess.map((access) => [storageAdapter.label, access]);
+        }),
       );
 
-      const labeledWrites = Object.entries(trace.writes).reduce(
-        (acc, [slotHex, write]) => {
-          acc[slotHex as Hex] = formatLabeledStorageOp({
-            op: write,
+      // generic variable name -> undecoded slot value(s)
+      const unknownAccess: Record<
+        string,
+        LabeledStorageAccess<`slot_${string}`, undefined, SolcStorageLayoutTypes>
+      > = Object.fromEntries(
+        [...unexploredSlots].map((slot) => [
+          `slot_${slot.slice(0, 10)}`,
+          {
+            label: `slot_${slot.slice(0, 10)}`,
+            type: undefined,
+            trace: { current: "0x", modified: false },
+            slots: [slot],
+            kind: "primitive",
+          },
+        ]),
+      );
+      /* ------------------------------------ x ----------------------------------- */
+
+      // Create labeled access
+      const labeledAccess = Object.entries(trace.storage).reduce(
+        (acc, [slotHex, access]) => {
+          const formatted = formatLabeledStorageAccess({
+            access,
             slot: slotHex as Hex,
             adapter: layoutAdapter,
             potentialKeys,
           });
+
+          formatted.forEach((access) => (acc[access.label] = access));
           return acc;
         },
-        {} as Record<Hex, [LabeledStorageWrite, ...LabeledStorageWrite[]]>,
+        {} as Record<string, LabeledStorageAccess>,
       );
 
       // Return enhanced trace with labels
       acc[address] = {
-        reads: labeledReads,
-        writes: labeledWrites,
+        storage: labeledAccess,
         intrinsic: trace.intrinsic,
       };
 

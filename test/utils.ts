@@ -1,5 +1,9 @@
-import { Hex, keccak256, MemoryClient, toHex } from "tevm";
+import { Abi, ContractFunctionName, Hex, keccak256, MemoryClient, toHex } from "tevm";
+import { SolcStorageLayout } from "tevm/bundler/solc";
 import { padHex } from "viem";
+
+import { DeepReadonly } from "@/lib/adapter/types";
+import { StorageAccessTrace, TraceStorageAccessTxWithAbi } from "@/lib/types";
 
 export const getClient = (): MemoryClient => {
   // @ts-expect-error no index signature
@@ -20,3 +24,9 @@ export const getMappingSlotHex = (slot: number, ...keys: Hex[]) => {
 
   return currentSlot;
 };
+
+/** Helper to type an access trace based on a storage layout */
+export const expectedStorage = <StorageLayout extends DeepReadonly<SolcStorageLayout>>(
+  _: StorageLayout,
+  expectedStorage: Partial<StorageAccessTrace<StorageLayout>["storage"]>,
+) => expectedStorage;

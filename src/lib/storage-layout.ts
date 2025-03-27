@@ -13,15 +13,7 @@ import { autoload, loaders } from "@shazow/whatsabi";
 import { debug } from "@/debug";
 import { createStorageLayoutAdapter, StorageLayoutAdapter } from "@/lib/adapter";
 import { findLayoutInfoAtSlot } from "@/lib/slots/engine";
-import {
-  GetContractsOptions,
-  GetContractsResult,
-  LabeledStorageRead,
-  LabeledStorageWrite,
-  MappingKey,
-  StorageReads,
-  StorageWrites,
-} from "@/lib/types";
+import { GetContractsOptions, GetContractsResult, LabeledStorageAccess, MappingKey, StorageDiff } from "@/lib/types";
 import { decodeHex } from "@/lib/utils";
 
 const ignoredSourcePaths = ["metadata.json", "creator-tx-hash.txt", "immutable-references"];
@@ -143,26 +135,20 @@ export const getStorageLayoutAdapter = async ({
   }
 };
 
-type FormatLabeledStorageOpOptions<T extends StorageReads[Hex] | StorageWrites[Hex]> = {
-  op: T;
+type FormatLabeledStorageAccessOptions = {
+  access: StorageDiff[Hex];
   slot: Hex;
   adapter: StorageLayoutAdapter;
   potentialKeys: Array<MappingKey>;
 };
 
-type FormatLabeledStorageOpResult<T extends StorageReads[Hex] | StorageWrites[Hex]> = T extends StorageWrites[Hex]
-  ? [LabeledStorageWrite, ...LabeledStorageWrite[]]
-  : T extends StorageReads[Hex]
-    ? [LabeledStorageRead, ...LabeledStorageRead[]]
-    : never;
-
-export const formatLabeledStorageOp = <T extends StorageReads[Hex] | StorageWrites[Hex]>({
-  op,
+export const formatLabeledStorageAccess = ({
+  access,
   slot,
   adapter,
   potentialKeys,
-}: FormatLabeledStorageOpOptions<T>): FormatLabeledStorageOpResult<T> => {
-  const { current: currentHex } = op;
+}: FormatLabeledStorageAccessOptions): Array<LabeledStorageAccess> => {
+  const { current: currentHex, next: nextHex } = access;
 
   // Find all labels for this slot using our slot engine
   const slotInfo = findLayoutInfoAtSlot(slot, adapter, potentialKeys);
@@ -170,40 +156,65 @@ export const formatLabeledStorageOp = <T extends StorageReads[Hex] | StorageWrit
   if (slotInfo.length > 0) {
     // Found matches - return an array of labeled reads for this slot
     return slotInfo.map((info) => {
-      // Decode the value based on its type and offset (if applicable)
-      const current = decodeHex(currentHex, info.type, info.offset);
-
-      const result: LabeledStorageRead | LabeledStorageWrite = {
+      let result = {
         label: info.label,
         type: info.type,
-        current,
+        kind:
+          info.matchType === "mapping" || info.matchType === "nested-mapping"
+            ? "mapping"
+            : info.matchType === "array"
+              ? "array"
+              : info.type?.startsWith("struct")
+                ? "struct"
+                : info.type === "string" || info.type === "bytes"
+                  ? "bytes"
+                  : !!info.type
+                    ? "primitive"
+                    : undefined,
+
+        slots: [slot],
       };
 
-      if ("next" in op) (result as LabeledStorageWrite).next = decodeHex(op.next, info.type, info.offset);
+      // Decode the value based on its type and offset (if applicable)
+      const current = decodeHex(currentHex, info.type, info.offset);
+      const next = nextHex ? decodeHex(nextHex, info.type, info.offset) : undefined;
+      const modified = !!next?.decoded && current.decoded !== next.decoded;
+      const trace = {
+        current: current.decoded,
+        modified,
+      };
+      if (modified) trace.next = next.decoded;
 
-      if (info.offset) result.offset = info.offset;
-      if (info.index !== undefined) result.index = decodeHex(info.index, "uint256").decoded;
-      if (info.keys && info.keys.length > 0)
-        result.keys = info.keys.map((key) => (key.decoded ? key : { ...decodeHex(key.hex, key.type), type: key.type }));
-
+      if (result.kind === "mapping") {
+        result.trace = [
+          {
+            ...trace,
+            keys:
+              info.keys && info.keys.length > 0
+                ? info.keys.map((key) => ({
+                    value: key.decoded ?? decodeHex(key.hex, key.type).decoded,
+                    type: key.type,
+                  }))
+                : [],
+          },
+        ];
+      } else if (result.kind === "array") {
+        result.trace = [{ ...trace, index: info.index ? decodeHex(info.index, "uint256").decoded : 0 }];
+      } else {
+        result.trace = trace;
+        if (info.offset) result.offset = info.offset;
+      }
       return result;
-    }) as FormatLabeledStorageOpResult<T>;
+    }) as Array<LabeledStorageAccess>;
   } else {
     // No match found, use a fallback label
-    return ("next" in op
-      ? [
-          {
-            label: `var_${slot.slice(0, 10)}`,
-            current: { hex: currentHex },
-            next: { hex: op.next },
-          },
-        ]
-      : [
-          {
-            label: `var_${slot.slice(0, 10)}`,
-            current: { hex: currentHex },
-          },
-        ]) as unknown as FormatLabeledStorageOpResult<T>;
+    return [
+      {
+        label: `slot_${slot.slice(0, 10)}`,
+        trace: { current: currentHex, next: access.next },
+        slots: [slot],
+      } as LabeledStorageAccess,
+    ];
   }
 };
 

@@ -56,7 +56,7 @@ export type SolidityKeyToTsType<KeyType extends string, Types extends SolcStorag
 /* -------------------------------------------------------------------------- */
 
 /** Map Solidity types to TypeScript return types */
-export type SolidityTypeToTsType<T extends string, Types extends SolcStorageLayoutTypes, Default = unknown> =
+export type SolidityTypeToTsType<T extends string, Types extends SolcStorageLayoutTypes> =
   // Handle primitive types
   T extends AbiType
     ? AbiTypeToPrimitiveType<T>
@@ -73,7 +73,7 @@ export type SolidityTypeToTsType<T extends string, Types extends SolcStorageLayo
             T extends "bytes" | "string"
             ? string
             : // Default case
-              Default;
+              unknown;
 
 /** Convert a struct type to an object with fields */
 export type StructToObject<StructName extends string, Types extends Record<string, any>> = {
@@ -94,16 +94,39 @@ export type StructToObject<StructName extends string, Types extends Record<strin
 /*                            MAPPING TYPE HELPERS                            */
 /* -------------------------------------------------------------------------- */
 
-/** Get all key types from a nested mapping */
-export type GetMappingKeyTypes<
+/** Extract mapping key types with their corresponding TypeScript types */
+export type GetMappingKeyTypePairs<
   T extends string,
   Types extends SolcStorageLayoutTypes,
-  Result extends any[] = [],
-> = T extends `mapping(${string} => ${infer ValueType})`
+  Result extends readonly [string, any][] = [],
+> = T extends `mapping(${infer KeyType} => ${infer ValueType})`
   ? ValueType extends `mapping(${string} => ${string})`
-    ? GetMappingKeyTypes<ValueType, Types, [...Result, SolidityKeyToTsType<ExtractMappingKeyType<T>, Types>]>
-    : [...Result, SolidityKeyToTsType<ExtractMappingKeyType<T>, Types>]
+    ? GetMappingKeyTypePairs<ValueType, Types, [...Result, [KeyType, SolidityKeyToTsType<KeyType, Types>]]>
+    : [...Result, [KeyType, SolidityKeyToTsType<KeyType, Types>]]
   : Result;
+
+/** Get just the Solidity type strings for mapping keys as a tuple */
+export type GetMappingKeyTypes<T extends string, Types extends SolcStorageLayoutTypes> =
+  GetMappingKeyTypePairs<T, Types> extends readonly [...infer Pairs]
+    ? { [K in keyof Pairs]: Pairs[K] extends [infer SolType, any] ? SolType : never }
+    : [];
+
+/** Get just the TypeScript types for mapping keys as a tuple */
+export type GetMappingKeyTsTypes<T extends string, Types extends SolcStorageLayoutTypes> =
+  GetMappingKeyTypePairs<T, Types> extends readonly [...infer Pairs]
+    ? { [K in keyof Pairs]: Pairs[K] extends [string, infer TsType] ? TsType : never }
+    : [];
+
+/**
+ * Create a tuple type of mapping keys with their types (for display/debugging) Each element has both type and value
+ * properties
+ */
+export type GetMappingKeysTuple<T extends string, Types extends SolcStorageLayoutTypes> =
+  GetMappingKeyTypePairs<T, Types> extends readonly [...infer Pairs]
+    ? {
+        [K in keyof Pairs]: Pairs[K] extends [infer SolType, infer TsType] ? { type: SolType; value: TsType } : never;
+      }
+    : [];
 
 /* -------------------------------------------------------------------------- */
 /*                                 PARAMETERS                                 */
@@ -119,7 +142,7 @@ type ArrayDataParams =
 export type GetDataParams<T extends string, Types extends SolcStorageLayoutTypes> =
   // Mappings with typed keys
   T extends `mapping(${string} => ${string})`
-    ? { keys: GetMappingKeyTypes<T, Types> }
+    ? { keys: GetMappingKeyTsTypes<T, Types> }
     : // Arrays with flexible access patterns
       T extends `${string}[]` | `${string}[${string}]`
       ? ArrayDataParams
@@ -130,7 +153,7 @@ export type GetDataParams<T extends string, Types extends SolcStorageLayoutTypes
 export type GetSlotParams<T extends string, Types extends SolcStorageLayoutTypes> =
   // For mappings with typed keys
   T extends `mapping(${string} => ${string})`
-    ? { keys: GetMappingKeyTypes<T, Types> }
+    ? { keys: GetMappingKeyTsTypes<T, Types> }
     : // Arrays need index
       T extends `${string}[]` | `${string}[${string}]`
       ? { index: number }
