@@ -3,6 +3,8 @@ import { mainnet } from "tevm/common";
 
 import * as contracts from "./contracts";
 
+export * as LAYOUTS from "./generated/layouts";
+
 export const CONTRACTS = {
   AssemblyStorage: contracts.AssemblyStorage.withAddress(`0x${"1".repeat(40)}`),
   StoragePacking: contracts.StoragePacking.withAddress(`0x${"2".repeat(40)}`),
