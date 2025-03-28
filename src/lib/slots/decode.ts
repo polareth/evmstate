@@ -6,23 +6,10 @@ import {
   SolcStorageLayoutTypeBase,
   SolcStorageLayoutTypes,
 } from "tevm/bundler/solc";
-import {
-  bytesToString,
-  decodeAbiParameters,
-  Hex,
-  hexToBigInt,
-  hexToString,
-  isHex,
-  keccak256,
-  padHex,
-  toHex,
-} from "viem";
+import { decodeAbiParameters, Hex, hexToBigInt, hexToString, keccak256, padHex, toHex } from "viem";
 
 import { debug } from "@/debug";
-import { DecodedSnapshot } from "@/lib/adapter/types";
-
-import { StorageDiff } from "../types";
-import { extractRelevantHex } from "../utils";
+import { LabeledStorageAccess, StorageDiff } from "@/lib/types";
 
 export const decode = <T extends SolcStorageLayoutTypes>(
   storageTrace: StorageDiff,
@@ -40,12 +27,12 @@ export const decode = <T extends SolcStorageLayoutTypes>(
   const bytes = handleBytes(storageTrace, byType.bytes, types, unexploredSlots);
 
   // Remove occupied slots from unexplored slots
-  primitives.forEach((primitive) => primitive.slots.forEach((slot) => unexploredSlots.delete(slot)));
-  structs.forEach((struct) => struct.slots.forEach((slot) => unexploredSlots.delete(slot)));
-  bytes.forEach((byte) => byte.slots.forEach((slot) => unexploredSlots.delete(slot)));
+  Object.values(primitives).forEach((primitive) => primitive.slots.forEach((slot) => unexploredSlots.delete(slot)));
+  Object.values(structs).forEach((struct) => struct.slots.forEach((slot) => unexploredSlots.delete(slot)));
+  Object.values(bytes).forEach((byte) => byte.slots.forEach((slot) => unexploredSlots.delete(slot)));
 
   return {
-    decoded: Object.fromEntries([...primitives, ...structs, ...bytes].map((obj) => [obj.label, obj])),
+    decoded: { ...primitives, ...structs, ...bytes } as Record<string, LabeledStorageAccess>,
     unexploredSlots,
   };
 };
@@ -83,14 +70,19 @@ const handlePrimitives = <T extends SolcStorageLayoutTypes>(
   unexploredSlots: Set<Hex>,
 ) => {
   const touchedPrimitives = primitives.filter((item) => unexploredSlots.has(toHex(BigInt(item.slot), { size: 32 })));
-  return touchedPrimitives.map((item) => ({
-    trace: decodePrimitive(storageTrace, item, types),
-    slots: [toHex(BigInt(item.slot), { size: 32 })],
-    label: item.label,
-    type: (types[item.type] as SolcStorageLayoutInplaceType).label,
-    offset: item.offset,
-    kind: "primitive",
-  }));
+  return Object.fromEntries(
+    touchedPrimitives.map((item) => [
+      item.label,
+      omitZeroOffset({
+        trace: decodePrimitive(storageTrace, item, types),
+        slots: [toHex(BigInt(item.slot), { size: 32 })],
+        label: item.label,
+        type: (types[item.type] as SolcStorageLayoutInplaceType).label,
+        offset: item.offset,
+        kind: "primitive" as const,
+      }) as LabeledStorageAccess<typeof item.label, string, T>,
+    ]),
+  );
 };
 
 const decodePrimitive = <T extends SolcStorageLayoutTypes>(
@@ -112,9 +104,13 @@ const decodePrimitive = <T extends SolcStorageLayoutTypes>(
     }
   };
 
+  const current = decode(storage.current);
+  const next = storage.next && storage.next !== storage.current ? decode(storage.next) : undefined;
+  const modified = next ? next !== current : false;
   return {
-    current: decode(storage.current),
-    next: storage.next && storage.next !== storage.current ? decode(storage.next) : undefined,
+    current,
+    next: modified ? next : undefined,
+    modified,
   };
 };
 
@@ -164,23 +160,28 @@ const handleStructs = <T extends SolcStorageLayoutTypes>(
   });
 
   // Return two objects (current and next)
-  return structsWithOccupiedSlots
-    .filter((struct) => struct !== undefined)
-    .map(({ struct, ...rest }) => ({
-      trace: Object.entries(struct).reduce(
-        (acc, [label, value]) => {
-          if (!value) return acc;
-          acc.current[label] = value.current;
-          if (value.next && value.next !== value.current) {
-            acc.next[label] = value.next;
-          }
+  return Object.fromEntries(
+    structsWithOccupiedSlots
+      .filter((struct) => struct !== undefined)
+      .map(({ struct, ...rest }) => [
+        rest.label,
+        omitZeroOffset({
+          trace: Object.entries(struct).reduce(
+            (acc, [label, value]) => {
+              if (!value) return acc;
+              acc.current[label] = value.current;
+              if (value.next && value.next !== value.current) {
+                acc.next[label] = value.next;
+              }
 
-          return acc;
-        },
-        { current: {}, next: {} } as { current: Record<string, unknown>; next: Record<string, unknown> },
-      ),
-      ...rest,
-    }));
+              return acc;
+            },
+            { current: {}, next: {} } as { current: Record<string, unknown>; next: Record<string, unknown> },
+          ),
+          ...rest,
+        }) as LabeledStorageAccess<typeof rest.label, `struct ${string}`, T>,
+      ]),
+  );
 };
 /**
  * Extracts and organizes struct member data from storage slots
@@ -375,7 +376,14 @@ const handleBytes = <T extends SolcStorageLayoutTypes>(
   // We don't filter by unexplored slots yet because the bytes might have changed but its length not
   const decodedBytes = bytes.map((item) => decodeBytes(storageTrace, item, types, unexploredSlots));
   // Filter out undefined results (where we couldn't decode the bytes)
-  return decodedBytes.filter((result): result is NonNullable<typeof result> => result !== undefined);
+  return Object.fromEntries(
+    decodedBytes
+      .filter((result): result is NonNullable<typeof result> => result !== undefined)
+      .map((bytes) => [
+        bytes.label,
+        omitZeroOffset(bytes) as LabeledStorageAccess<typeof bytes.label, "bytes" | "string", T>,
+      ]),
+  );
 };
 
 const decodeBytes = <T extends SolcStorageLayoutTypes>(
@@ -532,4 +540,43 @@ const extractBytesData = (storageTrace: StorageDiff, baseSlot: Hex, length: numb
     // Trim to the exact length needed
     return `0x${fullDataHex.slice(0, length * 2)}` as Hex;
   }
+};
+
+/* -------------------------------------------------------------------------- */
+/*                                    UTILS                                   */
+/* -------------------------------------------------------------------------- */
+/**
+ * Extract relevant hex from a hex string based on its offset and length, especially useful for packed variables
+ *
+ * @param {Hex} data - The hex string
+ * @param {number} offset - The offset in bytes from the right where the value starts
+ * @param {number} length - The length in bytes of the value to extract
+ * @returns {Hex} - The extracted hex substring padded to 32 bytes
+ */
+const extractRelevantHex = (data: Hex, offset: number, length: number): Hex => {
+  if (!data.startsWith("0x")) data = `0x${data}`;
+  if (data === "0x" || data === "0x00") return padHex("0x00", { size: 32 });
+
+  // Fill up to 32 bytes
+  data = padHex(data, { size: 32, dir: "left" });
+
+  // Calculate start and end positions (in hex characters)
+  // Each byte is 2 hex characters, and we need to account for '0x' prefix
+  const totalLength = (data.length - 2) / 2; // Length in bytes (excluding 0x prefix)
+
+  // Calculate offset from left
+  const offsetFromLeft = totalLength - offset - length;
+
+  // Calculate character positions
+  const startPos = offsetFromLeft * 2 + 2; // +2 for '0x' prefix
+  const endPos = startPos + length * 2;
+
+  // Extract the substring and add 0x prefix
+  return padHex(`0x${data.slice(startPos, endPos)}`, { size: 32 });
+};
+
+// A helper function to omit zero offsets
+const omitZeroOffset = (obj: any) => {
+  const { offset, ...rest } = obj;
+  return offset ? { ...rest, offset } : rest;
 };

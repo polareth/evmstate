@@ -136,7 +136,7 @@ export type StorageAccessTrace<T extends DeepReadonly<SolcStorageLayout> = SolcS
 
 export type LabeledStorageAccess<
   L extends string = string,
-  T extends string | undefined = undefined,
+  T extends string | undefined = string | undefined,
   Types extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
 > = {
   /** The name of the variable in the layout */

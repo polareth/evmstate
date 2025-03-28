@@ -1,12 +1,12 @@
 import { Abi, AbiFunction, Address, CallResult, ContractFunctionName, Hex } from "tevm";
-import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
+import { SolcStorageLayout } from "tevm/bundler/solc";
 import { toFunctionSignature } from "viem";
 
 import { debug } from "@/debug";
 import { intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
-import { StorageLayoutAdapter } from "@/lib/adapter";
+import { decode } from "@/lib/slots/decode";
 import { extractPotentialKeys } from "@/lib/slots/engine";
-import { formatLabeledStorageAccess, getContracts, getStorageLayout } from "@/lib/storage-layout";
+import { getContracts, getStorageLayout } from "@/lib/storage-layout";
 import {
   LabeledStorageAccess,
   StorageAccessTrace,
@@ -14,8 +14,6 @@ import {
   TraceStorageAccessTxParams,
 } from "@/lib/types";
 import { createClient /* , uniqueAddresses */, getUnifiedParams } from "@/lib/utils";
-
-import { decode } from "./slots/decode";
 
 /**
  * Analyzes storage access patterns during transaction execution.
@@ -210,7 +208,6 @@ export const traceStorageAccess = async <
 
       // Return enhanced trace with labels
       acc[address] = {
-        // TODO: handle kind always being primitive
         storage: { ...decoded, ...unknownAccess },
         intrinsic: intrinsicDiff(intrinsics.pre, intrinsics.post),
       };
