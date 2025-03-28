@@ -2,6 +2,7 @@ import {
   SolcStorageLayoutBytesType,
   SolcStorageLayoutInplaceType,
   SolcStorageLayoutItem,
+  SolcStorageLayoutMappingType,
   SolcStorageLayoutStructType,
   SolcStorageLayoutTypeBase,
   SolcStorageLayoutTypes,
@@ -9,12 +10,15 @@ import {
 import { decodeAbiParameters, Hex, hexToBigInt, hexToString, keccak256, padHex, toHex } from "viem";
 
 import { debug } from "@/debug";
-import { LabeledStorageAccess, StorageDiff } from "@/lib/types";
+import { ExtractMappingValueType, GetMappingKeyTypes, SolidityKeyToTsType } from "@/lib/adapter/types";
+import { findMappingMatch } from "@/lib/slots/mapping";
+import { LabeledStorageAccess, MappingKey, StorageDiff } from "@/lib/types";
 
 export const decode = <T extends SolcStorageLayoutTypes>(
   storageTrace: StorageDiff,
   storageItems: Array<SolcStorageLayoutItem<T>>,
   types: T,
+  potentialKeys: Array<MappingKey>,
 ) => {
   const byType = getItemsByType(storageItems, types);
   let unexploredSlots: Set<Hex> = new Set([...Object.keys(storageTrace)] as Array<Hex>);
@@ -26,13 +30,20 @@ export const decode = <T extends SolcStorageLayoutTypes>(
   // 3. Same for bytes (string or bytes)
   const bytes = handleBytes(storageTrace, byType.bytes, types, unexploredSlots);
 
-  // Remove occupied slots from unexplored slots
-  Object.values(primitives).forEach((primitive) => primitive.slots.forEach((slot) => unexploredSlots.delete(slot)));
-  Object.values(structs).forEach((struct) => struct.slots.forEach((slot) => unexploredSlots.delete(slot)));
-  Object.values(bytes).forEach((byte) => byte.slots.forEach((slot) => unexploredSlots.delete(slot)));
+  // 4. Remove occupied slots from unexplored slots
+  Object.values(primitives).forEach(({ trace: { slots } }) => slots.forEach((slot) => unexploredSlots.delete(slot)));
+  Object.values(structs).forEach(({ trace: { slots } }) => slots.forEach((slot) => unexploredSlots.delete(slot)));
+  Object.values(bytes).forEach(({ trace: { slots } }) => slots.forEach((slot) => unexploredSlots.delete(slot)));
+
+  // 5. Try to retrieve mapping slots and decode them
+  const mappings = handleMappings(storageTrace, byType.mappings, types, unexploredSlots, potentialKeys);
+  // and directly remove any computed slot from unexplored slots
+  Object.values(mappings).forEach(({ trace }) =>
+    trace.forEach(({ slots }) => slots.forEach((slot) => unexploredSlots.delete(slot))),
+  );
 
   return {
-    decoded: { ...primitives, ...structs, ...bytes } as Record<string, LabeledStorageAccess>,
+    decoded: { ...primitives, ...structs, ...bytes, ...mappings } as Record<string, LabeledStorageAccess>,
     unexploredSlots,
   };
 };
@@ -49,9 +60,12 @@ const getItemsByType = <T extends SolcStorageLayoutTypes>(storageItems: Array<So
   bytes: storageItems.filter((item) =>
     Object.entries(types).find(([typeId, type]) => item.type === typeId && type.encoding === "bytes"),
   ),
-  mappings: storageItems.filter((item) =>
-    Object.entries(types).find(([typeId, type]) => item.type === typeId && type.encoding === "mapping"),
-  ),
+  mappings: storageItems
+    .filter((item) =>
+      Object.entries(types).find(([typeId, type]) => item.type === typeId && type.encoding === "mapping"),
+    )
+    // sort from lowest to highest level of nesting
+    .sort((a, b) => nestingLevel(a.type.toString()) - nestingLevel(b.type.toString())),
   arrays: {
     static: storageItems.filter((item) =>
       Object.entries(types).find(([typeId, type]) => item.type === typeId && type.label.match(/\[\d+\]$/)),
@@ -68,45 +82,41 @@ const handlePrimitives = <T extends SolcStorageLayoutTypes>(
   primitives: Array<SolcStorageLayoutItem<T>>,
   types: T,
   unexploredSlots: Set<Hex>,
-) => {
+): Record<string, LabeledStorageAccess> => {
   const touchedPrimitives = primitives.filter((item) => unexploredSlots.has(toHex(BigInt(item.slot), { size: 32 })));
   return Object.fromEntries(
     touchedPrimitives.map((item) => [
       item.label,
-      omitZeroOffset({
-        trace: decodePrimitive(storageTrace, item, types),
-        slots: [toHex(BigInt(item.slot), { size: 32 })],
+      cleanTrace({
+        trace: {
+          ...decodePrimitive(
+            storageTrace[toHex(BigInt(item.slot), { size: 32 })],
+            types[item.type] as SolcStorageLayoutInplaceType,
+            item.offset,
+          ),
+          slots: [toHex(BigInt(item.slot), { size: 32 })],
+        },
         label: item.label,
         type: (types[item.type] as SolcStorageLayoutInplaceType).label,
         offset: item.offset,
         kind: "primitive" as const,
-      }) as LabeledStorageAccess<typeof item.label, string, T>,
+      }),
     ]),
   );
 };
 
-const decodePrimitive = <T extends SolcStorageLayoutTypes>(
-  storageTrace: StorageDiff,
-  item: SolcStorageLayoutItem<T>,
-  types: T,
+const decodePrimitive = <T extends SolcStorageLayoutTypes, I extends SolcStorageLayoutItem<T>>(
+  storage: StorageDiff[Hex],
+  typeInfo: SolcStorageLayoutInplaceType,
+  offset?: number,
 ) => {
-  const slotHex = toHex(BigInt(item.slot), { size: 32 });
-  const typeInfo = types[item.type] as SolcStorageLayoutInplaceType;
-  const storage = storageTrace[slotHex];
+  const current = _decodePrimitive(storage.current, typeInfo.label, offset, Number(typeInfo.numberOfBytes));
+  const next =
+    storage.next && storage.next !== storage.current
+      ? _decodePrimitive(storage.next, typeInfo.label, offset, Number(typeInfo.numberOfBytes))
+      : undefined;
+  const modified = next !== undefined && next !== current;
 
-  const decode = (hex: Hex) => {
-    try {
-      const extractedHex = extractRelevantHex(hex, item.offset, Number(typeInfo.numberOfBytes));
-      return decodeAbiParameters([{ type: typeInfo.label }], extractedHex)[0];
-    } catch (error) {
-      debug(`Error decoding ${item.type.toString()} of type ${typeInfo.label}:`, error);
-      return undefined;
-    }
-  };
-
-  const current = decode(storage.current);
-  const next = storage.next && storage.next !== storage.current ? decode(storage.next) : undefined;
-  const modified = next ? next !== current : false;
   return {
     current,
     next: modified ? next : undefined,
@@ -120,69 +130,117 @@ const handleStructs = <T extends SolcStorageLayoutTypes>(
   structs: Array<SolcStorageLayoutItem<T>>,
   types: T,
   unexploredSlots: Set<Hex>,
-) => {
-  // First retrieve all slots occupied by structs depending on their size
-  const structsWithOccupiedSlots = structs.map((item) => {
-    const typeInfo = types[item.type] as SolcStorageLayoutStructType;
-
-    // Extract current and next storage for each slot
-    const currentStorage = Object.fromEntries(Object.entries(storageTrace).map(([slot, data]) => [slot, data.current]));
-    const nextStorage = Object.fromEntries(Object.entries(storageTrace).map(([slot, data]) => [slot, data.next]));
-
-    // Extract struct members from the current storage
-    const extractedMembers = extractStructMembers(currentStorage, item.slot, item.offset, typeInfo.members, types);
-
-    const occupiedSlots = extractedMembers.map((member) => member.slot);
-    const commonSlots = [...unexploredSlots].filter((slot) => occupiedSlots.includes(slot));
-
-    // If no occupied slot is included in the unexplored slots, this struct was not touched
-    if (commonSlots.length === 0) return undefined;
-
-    // If the struct was touched, we might not have all the storage available
-    // Usually, we access an entire struct so every occupied slot should be included,
-    // but if it was read/modified e.g. with assembly, it could only be partial (?)
-    // In such case, we'll just ignore the missing slots and create the object with all available members (later we might want to fetch missing storage from the contract)
-    return {
-      struct: decodeStructMembers(
-        extractedMembers.map((member) => ({
-          slot: member.slot,
-          current: member.data,
-          params: member.params,
-          next: nextStorage[member.slot],
-        })),
-      ),
-      slots: extractedMembers.map((member) => member.slot),
-      label: item.label,
-      type: (types[item.type] as SolcStorageLayoutStructType).label,
-      offset: item.offset,
-      kind: "struct" as const,
-    };
-  });
-
-  // Return two objects (current and next)
+): Record<string, LabeledStorageAccess> => {
   return Object.fromEntries(
-    structsWithOccupiedSlots
-      .filter((struct) => struct !== undefined)
-      .map(({ struct, ...rest }) => [
-        rest.label,
-        omitZeroOffset({
-          trace: Object.entries(struct).reduce(
-            (acc, [label, value]) => {
-              if (!value) return acc;
-              acc.current[label] = value.current;
-              if (value.next && value.next !== value.current) {
-                acc.next[label] = value.next;
-              }
+    structs
+      .map((item) => {
+        const typeInfo = types[item.type] as SolcStorageLayoutStructType;
 
-              return acc;
+        // Extract current and next storage for each slot
+        const currentStorage = Object.fromEntries(
+          Object.entries(storageTrace).map(([slot, data]) => [slot, data.current]),
+        );
+        const nextStorage = Object.fromEntries(Object.entries(storageTrace).map(([slot, data]) => [slot, data.next]));
+
+        // Extract struct members from the current storage
+        const extractedMembers = extractStructMembers(currentStorage, item.slot, item.offset, typeInfo.members, types);
+
+        const occupiedSlots = extractedMembers.map((member) => member.slot);
+        const commonSlots = [...unexploredSlots].filter((slot) => occupiedSlots.includes(slot));
+
+        // If no occupied slot is included in the unexplored slots, this struct was not touched
+        if (commonSlots.length === 0) return [item.label, undefined];
+
+        // If the struct was touched, we might not have all the storage available
+        // Usually, we access an entire struct so every occupied slot should be included,
+        // but if it was read/modified e.g. with assembly, it could only be partial (?)
+        // In such case, we'll just ignore the missing slots and create the object with all available members (later we might want to fetch missing storage from the contract)
+        return [
+          item.label,
+          cleanTrace({
+            trace: {
+              ...decodeStruct(
+                extractedMembers.map((member) => ({
+                  slot: member.slot,
+                  current: member.data,
+                  params: member.params,
+                  next: nextStorage[member.slot],
+                })),
+              ),
+              slots: extractedMembers.map((member) => member.slot),
             },
-            { current: {}, next: {} } as { current: Record<string, unknown>; next: Record<string, unknown> },
-          ),
-          ...rest,
-        }) as LabeledStorageAccess<typeof rest.label, `struct ${string}`, T>,
-      ]),
+            label: item.label,
+            type: typeInfo.label,
+            offset: item.offset,
+            kind: "struct" as const,
+          }),
+        ];
+      })
+      .filter(([_, value]) => value !== undefined),
   );
 };
+
+/**
+ * Decodes the struct members from the organized slot data into the expected trace format
+ *
+ * @param slotData - Organized slot data with member information
+ * @returns Decoded struct trace with current and next values
+ */
+const decodeStruct = (
+  slotData: Array<{
+    slot: Hex;
+    current: Hex | undefined;
+    next: Hex | undefined;
+    params: Array<{
+      name: string;
+      type: string;
+      offset: number;
+      size: number;
+    }>;
+  }>,
+) => {
+  const current: Record<string, unknown> = {};
+  const next: Record<string, unknown> = {};
+  let modified = false;
+
+  // We're decoding each member separately instead of decoding the whole struct at once to account for the potential initial slot offset
+  slotData.forEach(({ params, current: currentHex, next: nextHex }) => {
+    if (!currentHex) return;
+
+    params.forEach(({ name, type, offset, size }) => {
+      const decode = (hex: Hex) => {
+        try {
+          // Extract the relevant portion of the slot data for this member
+          const extractedHex = extractRelevantHex(hex, offset, size);
+          return decodeAbiParameters([{ type }], extractedHex)[0];
+        } catch (error) {
+          debug(`Error decoding ${name} of type ${type}:`, error);
+          return undefined;
+        }
+      };
+
+      // Decode current value
+      const currentValue = decode(currentHex);
+      current[name] = currentValue;
+
+      // Decode next value if it exists and is different
+      if (nextHex && nextHex !== currentHex) {
+        const nextValue = decode(nextHex);
+        if (nextValue !== currentValue) {
+          next[name] = nextValue;
+          modified = true;
+        }
+      }
+    });
+  });
+
+  return {
+    current,
+    next: modified ? next : undefined,
+    modified,
+  };
+};
+
 /**
  * Extracts and organizes struct member data from storage slots
  *
@@ -222,9 +280,9 @@ export const extractStructMembers = <T extends SolcStorageLayoutTypes>(
   let currentSlotOffset = 0;
   let currentOffset = baseOffset;
 
-  members.forEach((member) => {
-    const typeInfo = types[member.type as keyof T] as SolcStorageLayoutTypeBase;
-    if (!typeInfo) throw new Error(`Type information not found for ${member.type}`);
+  members.forEach(({ label, type }) => {
+    const typeInfo = types[type as keyof T] as SolcStorageLayoutTypeBase;
+    if (!typeInfo) throw new Error(`Type information not found for ${type}`);
 
     const memberSize = Number(typeInfo.numberOfBytes);
 
@@ -259,8 +317,8 @@ export const extractStructMembers = <T extends SolcStorageLayoutTypes>(
 
     // Add this member to the appropriate slot
     result[memberSlot].members.push({
-      name: member.label,
-      type: member.type,
+      name: label,
+      type,
       offset: currentOffset,
       size: memberSize,
       slotOffset: currentSlotOffset,
@@ -316,73 +374,20 @@ export const extractStructMembers = <T extends SolcStorageLayoutTypes>(
   return decodableSlots;
 };
 
-/**
- * Decodes the struct members from the organized slot data
- *
- * @param slotData - Organized slot data with member information
- * @param types - Type definitions from the storage layout
- * @returns Decoded struct as an object
- */
-const decodeStructMembers = (
-  slotData: Array<{
-    slot: Hex;
-    current: Hex | undefined;
-    next: Hex | undefined;
-    params: Array<{
-      name: string;
-      type: string;
-      offset: number;
-      size: number;
-    }>;
-  }>,
-) => {
-  const result: Record<string, { current: unknown; next?: unknown } | undefined> = {};
-
-  slotData.forEach((slot) => {
-    // We're decoding each member separately instead of decoding the whole struct at once to account for the potential initial slot offset
-    slot.params.forEach((param) => {
-      const decode = (hex: Hex) => {
-        try {
-          // Extract the relevant portion of the slot data for this member
-          const extractedHex = extractRelevantHex(hex, param.offset, param.size);
-          return decodeAbiParameters([{ type: param.type }], extractedHex)[0];
-        } catch (error) {
-          debug(`Error decoding ${param.name} of type ${param.type}:`, error);
-          return undefined;
-        }
-      };
-
-      const currentHex = slot.current;
-      const nextHex = slot.next && slot.next !== slot.current ? slot.next : undefined;
-
-      if (!currentHex) return undefined;
-      result[param.name] = {
-        current: decode(currentHex),
-        next: nextHex ? decode(nextHex) : undefined,
-      };
-    });
-  });
-
-  return result;
-};
-
 /* ---------------------------------- BYTES --------------------------------- */
 const handleBytes = <T extends SolcStorageLayoutTypes>(
   storageTrace: StorageDiff,
   bytes: Array<SolcStorageLayoutItem<T>>,
   types: T,
   unexploredSlots: Set<Hex>,
-) => {
+): Record<string, LabeledStorageAccess> => {
   // We don't filter by unexplored slots yet because the bytes might have changed but its length not
   const decodedBytes = bytes.map((item) => decodeBytes(storageTrace, item, types, unexploredSlots));
   // Filter out undefined results (where we couldn't decode the bytes)
   return Object.fromEntries(
     decodedBytes
       .filter((result): result is NonNullable<typeof result> => result !== undefined)
-      .map((bytes) => [
-        bytes.label,
-        omitZeroOffset(bytes) as LabeledStorageAccess<typeof bytes.label, "bytes" | "string", T>,
-      ]),
+      .map((bytes) => [bytes.label, cleanTrace(bytes)]),
   );
 };
 
@@ -391,16 +396,7 @@ const decodeBytes = <T extends SolcStorageLayoutTypes>(
   item: SolcStorageLayoutItem<T>,
   types: T,
   unexploredSlots: Set<Hex>,
-):
-  | {
-      trace: { current: string; next?: string };
-      slots: Hex[];
-      label: string;
-      type: string;
-      offset: number;
-      kind: "bytes";
-    }
-  | undefined => {
+) => {
   const baseSlot = toHex(BigInt(item.slot), { size: 32 });
   const baseSlotData = storageTrace[baseSlot];
 
@@ -422,8 +418,8 @@ const decodeBytes = <T extends SolcStorageLayoutTypes>(
       trace: {
         current: "",
         next: nextLength !== undefined && nextLength !== currentLength ? "" : undefined,
+        slots: [baseSlot],
       },
-      slots: [baseSlot],
       label: item.label,
       type: (types[item.type] as SolcStorageLayoutBytesType).label,
       offset: item.offset,
@@ -485,8 +481,8 @@ const decodeBytes = <T extends SolcStorageLayoutTypes>(
     trace: {
       current: isString ? hexToString(currentBytes) : currentBytes,
       next: nextBytes !== undefined ? (isString ? hexToString(nextBytes) : nextBytes) : undefined,
+      slots: relevantSlots,
     },
-    slots: relevantSlots,
     label: item.label,
     type: typeInfo.label,
     offset: item.offset,
@@ -542,9 +538,164 @@ const extractBytesData = (storageTrace: StorageDiff, baseSlot: Hex, length: numb
   }
 };
 
+/* -------------------------------- MAPPINGS -------------------------------- */
+
+const handleMappings = <T extends `mapping(${string} => ${string})`, Types extends SolcStorageLayoutTypes>(
+  storageTrace: StorageDiff,
+  mappings: Array<SolcStorageLayoutItem<Types>>,
+  types: Types,
+  unexploredSlots: Set<Hex>,
+  potentialKeys: Array<MappingKey>,
+): Record<string, LabeledStorageAccess<string, T>> => {
+  // TODO: we're only considering a match at the direct slot of a mapping value BUT if the data occupies multiple slots, we can miss an update
+  // also we're only decoding simple values ("primitives"); later we can handle structs, arrays
+  return Object.fromEntries(
+    mappings
+      .map((mapping) => {
+        const typeInfo = types[mapping.type] as SolcStorageLayoutMappingType;
+        const [keyTypes, valueType] = extractMappingTypes(typeInfo.label);
+        const baseSlot = toHex(BigInt(mapping.slot), { size: 32 });
+
+        // This will try to exhaust possible matches for the mapping by using the potential keys
+        // Refer to the function directly for details on the tree search
+        const matches = findMappingMatch({ baseSlot, keyTypes, valueType }, typeInfo, unexploredSlots, potentialKeys);
+        if (matches.length === 0) return [mapping.label, undefined];
+
+        return [
+          mapping.label,
+          cleanTrace({
+            trace: matches
+              .sort((a, b) => a.slot.localeCompare(b.slot))
+              .map((match) =>
+                decodeMappingMatch(storageTrace, mapping, types, { ...typeInfo, keyTypes, valueType }, match),
+              ),
+            label: mapping.label,
+            type: typeInfo.label,
+            offset: mapping.offset,
+            kind: "mapping" as const,
+          }),
+        ];
+      })
+      .filter(([_, value]) => value !== undefined),
+  );
+};
+
+const decodeMappingMatch = <T extends SolcStorageLayoutTypes>(
+  storageTrace: StorageDiff,
+  mapping: SolcStorageLayoutItem<T>,
+  types: T,
+  typeInfo: SolcStorageLayoutMappingType & {
+    keyTypes: GetMappingKeyTypes<typeof mapping.label, T>;
+    valueType: ExtractMappingValueType<typeof mapping.label>;
+  },
+  match: { slot: Hex; keys: Array<MappingKey> },
+) => {
+  const { slot, keys } = match;
+  const storage = storageTrace[slot];
+
+  const formattedKeys = keys.map((key) => ({
+    type: key.type,
+    value: key.decoded ?? (key.type ? _decodePrimitive(key.hex, key.type) : key.hex),
+  }));
+
+  // Get the last type (after the last nested mapping, since we handled that already)
+  let valueTypeInfo = types[typeInfo.value] as SolcStorageLayoutTypeBase;
+  while (valueTypeInfo.label.startsWith("mapping")) {
+    valueTypeInfo = types[(valueTypeInfo as SolcStorageLayoutMappingType).value];
+  }
+
+  // TODO: this is temporary, we want something much more composable (decoder -> is value primitive? -> if not decoder -> etc)
+  if (valueTypeInfo.label.startsWith("struct")) {
+    const currentStorage = Object.fromEntries(Object.entries(storageTrace).map(([slot, data]) => [slot, data.current]));
+    const nextStorage = Object.fromEntries(Object.entries(storageTrace).map(([slot, data]) => [slot, data.next]));
+
+    const structType = types[typeInfo.value] as SolcStorageLayoutStructType;
+    const extractedMembers = extractStructMembers(currentStorage, slot, 0, structType.members, types);
+
+    return {
+      ...decodeStruct(
+        extractedMembers.map((member) => ({
+          slot: member.slot,
+          current: member.data,
+          params: member.params,
+          next: nextStorage[member.slot],
+        })),
+      ),
+      keys: formattedKeys,
+      slots: extractedMembers.map((member) => member.slot),
+    };
+  }
+
+  // TODO: if it's an array
+
+  return {
+    ...decodePrimitive(storage, valueTypeInfo as SolcStorageLayoutInplaceType, mapping.offset),
+    keys: formattedKeys,
+    slots: [match.slot],
+  };
+};
+
+/**
+ * Calculates the nesting level of a mapping type For example:
+ *
+ * - T_mapping(t_address,t_uint256) has nesting level 1
+ * - T_mapping(t_address,t_mapping(t_uint256,t_bool)) has nesting level 2
+ *
+ * @param item Storage layout item
+ * @returns The nesting level of the mapping (1 for simple mappings, >1 for nested mappings)
+ */
+const nestingLevel = (type: string): number => {
+  // Count the number of "t_mapping" occurrences in the type string
+  const matches = type.match(/t_mapping/g);
+  return matches ? matches.length : 0;
+};
+
+const extractMappingTypes = <T extends string, Types extends SolcStorageLayoutTypes>(
+  type: T,
+): [GetMappingKeyTypes<T, Types>, ExtractMappingValueType<T>] => {
+  const keyTypes = [] as GetMappingKeyTypes<T, Types>;
+  let currentType = type;
+
+  // Continue extracting keys as long as we have a mapping
+  while (currentType.startsWith("mapping(")) {
+    const match = currentType.match(/mapping\((.+?) => (.+)\)/);
+    if (!match) break;
+
+    const keyType = match[1];
+    const valueType = match[2];
+
+    // Add the current key type
+    // @ts-expect-error: not assignable to type never
+    keyTypes.push(keyType);
+
+    // If the value is another mapping, continue with that
+    currentType = valueType as SolidityKeyToTsType<T, Types>;
+    if (!valueType.startsWith("mapping(")) {
+      break;
+    }
+  }
+
+  return [keyTypes, currentType as unknown as ExtractMappingValueType<T>];
+};
+
 /* -------------------------------------------------------------------------- */
 /*                                    UTILS                                   */
 /* -------------------------------------------------------------------------- */
+
+const _decodePrimitive = <T extends SolcStorageLayoutTypes>(
+  data: Hex,
+  type: string,
+  offset?: number,
+  length?: number,
+) => {
+  try {
+    const extractedHex = extractRelevantHex(data, offset ?? 0, length ?? 32);
+    return decodeAbiParameters([{ type }], extractedHex)[0];
+  } catch (error) {
+    debug(`Error decoding type ${type}:`, error);
+    return undefined;
+  }
+};
 /**
  * Extract relevant hex from a hex string based on its offset and length, especially useful for packed variables
  *
@@ -575,8 +726,35 @@ const extractRelevantHex = (data: Hex, offset: number, length: number): Hex => {
   return padHex(`0x${data.slice(startPos, endPos)}`, { size: 32 });
 };
 
-// A helper function to omit zero offsets
-const omitZeroOffset = (obj: any) => {
-  const { offset, ...rest } = obj;
-  return offset ? { ...rest, offset } : rest;
+// A helper function to clean up trace objects by removing undefined or zero values
+export const cleanTrace = (obj: any) => {
+  const { offset, type, trace, ...rest } = obj;
+  const result = { ...rest };
+
+  // Only include offset if it exists and is not zero
+  if (offset) result.offset = offset;
+  // Only include type if it exists
+  if (type !== undefined) result.type = type;
+
+  // Clean up the trace object
+  if (trace) {
+    // Handle array of traces (for mappings)
+    if (Array.isArray(trace)) {
+      result.trace = trace.map((item) => {
+        const cleanedItem = { ...item };
+        // Remove next if it's undefined
+        if (cleanedItem.next === undefined) delete cleanedItem.next;
+        return cleanedItem;
+      });
+    }
+    // Handle single trace object
+    else {
+      const cleanedTrace = { ...trace };
+      // Remove next if it's undefined
+      if (cleanedTrace.next === undefined) delete cleanedTrace.next;
+      result.trace = cleanedTrace;
+    }
+  }
+
+  return result as LabeledStorageAccess;
 };

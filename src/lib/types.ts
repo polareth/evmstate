@@ -158,16 +158,14 @@ export type LabeledStorageAccess<
               ? undefined
               : never;
   /** The trace of the variable's access */
-  trace: LabeledAccessTrace<T, Types>;
-  /** The slots storing some of the variable's data that were accessed */
-  slots: Array<Hex>;
+  trace: LabeledStorageAccessTrace<T, Types>;
   /** The offset of the variable within the slot (for packed variables) */
   offset?: number;
 };
 
-type LabeledAccessTrace<
-  T extends string | undefined,
-  Types extends SolcStorageLayoutTypes,
+export type LabeledStorageAccessTrace<
+  T extends string | undefined = string | undefined,
+  Types extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
 > = T extends `mapping(${string} => ${string})`
   ? Array<LabeledAccessTraceValue<T, Types> & { keys: GetMappingKeysTuple<T, Types> }>
   : T extends `${string}[]` | `${string}[${string}]`
@@ -179,6 +177,8 @@ type LabeledAccessTraceValue<T extends string | undefined, Types extends SolcSto
       modified: false;
       /** The decoded value of the variable */
       current: T extends string ? SolidityTypeToTsType<T, Types> : Hex;
+      /** The slots storing some of the variable's data that were accessed */
+      slots: Array<Hex>;
     }
   | {
       modified: true;
@@ -186,6 +186,8 @@ type LabeledAccessTraceValue<T extends string | undefined, Types extends SolcSto
       current: T extends string ? SolidityTypeToTsType<T, Types> : Hex;
       /** The next value after the transaction (if it was modified) */
       next: T extends string ? SolidityTypeToTsType<T, Types> : Hex;
+      /** The slots storing some of the variable's data that were accessed */
+      slots: Array<Hex>;
     };
 /* -------------------------------------------------------------------------- */
 /*                                 ACCESS LIST                                */

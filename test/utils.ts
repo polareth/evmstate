@@ -1,6 +1,6 @@
 import { Abi, ContractFunctionName, Hex, keccak256, MemoryClient, toHex } from "tevm";
 import { SolcStorageLayout } from "tevm/bundler/solc";
-import { padHex } from "viem";
+import { hexToBigInt, isHex, padHex } from "viem";
 
 import { DeepReadonly } from "@/lib/adapter/types";
 import { StorageAccessTrace, TraceStorageAccessTxWithAbi } from "@/lib/types";
@@ -23,6 +23,11 @@ export const getMappingSlotHex = (slot: number, ...keys: Hex[]) => {
   }
 
   return currentSlot;
+};
+
+export const getSlotAtOffsetHex = (slot: Hex | number, offset: number) => {
+  const slotBigInt = isHex(slot) ? hexToBigInt(slot) : BigInt(slot);
+  return toHex(slotBigInt + BigInt(offset), { size: 32 });
 };
 
 /** Helper to type an access trace based on a storage layout */

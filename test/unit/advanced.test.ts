@@ -50,8 +50,7 @@ describe("Assembly-based storage access", () => {
             label: "value",
             type: "uint256",
             kind: "primitive",
-            trace: { current: 0n, next: 123n, modified: true },
-            slots: [getSlotHex(0)],
+            trace: { current: 0n, next: 123n, modified: true, slots: [getSlotHex(0)] },
           },
         }),
       );
@@ -63,8 +62,7 @@ describe("Assembly-based storage access", () => {
             label: "value",
             type: "uint256",
             kind: "primitive",
-            trace: { current: 123n, modified: false },
-            slots: [getSlotHex(0)],
+            trace: { current: 123n, modified: false, slots: [getSlotHex(0)] },
           },
         }),
       );
@@ -105,9 +103,9 @@ describe("Assembly-based storage access", () => {
                 next: 1000n,
                 modified: true,
                 keys: [{ type: "address", value: recipient.toString() }],
+                slots: [getMappingSlotHex(1, recipient.toString())],
               },
             ],
-            slots: [getMappingSlotHex(1, recipient.toString())],
           },
         }),
       );
@@ -121,13 +119,12 @@ describe("Assembly-based storage access", () => {
             kind: "mapping",
             trace: [
               {
-                current: 0n,
-                next: 1000n,
-                modified: true,
+                current: 1000n,
+                modified: false,
                 keys: [{ type: "address", value: recipient.toString() }],
+                slots: [getMappingSlotHex(1, recipient.toString())],
               },
             ],
-            slots: [getMappingSlotHex(1, recipient.toString())],
           },
         }),
       );
@@ -152,8 +149,7 @@ describe("Assembly-based storage access", () => {
             label: "value",
             type: "uint256",
             kind: "primitive",
-            trace: { current: 0n, next: 789n, modified: true },
-            slots: [getSlotHex(0)],
+            trace: { current: 0n, next: 789n, modified: true, slots: [getSlotHex(0)] },
           },
           balances: {
             label: "balances",
@@ -165,15 +161,16 @@ describe("Assembly-based storage access", () => {
                 next: 111n,
                 modified: true,
                 keys: [{ type: "address", value: caller.toString() }],
+                slots: [getMappingSlotHex(1, caller.toString())],
               },
               {
                 current: 0n,
                 next: 222n,
                 modified: true,
                 keys: [{ type: "address", value: recipient.toString() }],
+                slots: [getMappingSlotHex(1, recipient.toString())],
               },
             ],
-            slots: [getMappingSlotHex(1, caller.toString()), getMappingSlotHex(1, recipient.toString())],
           },
         }),
       );

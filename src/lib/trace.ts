@@ -4,7 +4,7 @@ import { toFunctionSignature } from "viem";
 
 import { debug } from "@/debug";
 import { intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
-import { decode } from "@/lib/slots/decode";
+import { cleanTrace, decode } from "@/lib/slots/decode";
 import { extractPotentialKeys } from "@/lib/slots/engine";
 import { getContracts, getStorageLayout } from "@/lib/storage-layout";
 import {
@@ -175,8 +175,20 @@ export const traceStorageAccess = async <
       const layout = layouts[address];
       if (!layout) {
         acc[address] = {
-          // TODO: return generic access traces without labels
-          storage: {},
+          storage: Object.fromEntries(
+            Object.entries(storageTrace).map(([slot, { current, next }]) => [
+              slot,
+              cleanTrace({
+                label: `slot_${slot}`,
+                trace: {
+                  current,
+                  modified: next !== undefined && next !== current,
+                  next,
+                  slots: [slot],
+                },
+              }),
+            ]),
+          ),
           intrinsic: intrinsicDiff(intrinsics.pre, intrinsics.post),
         };
 
@@ -184,7 +196,7 @@ export const traceStorageAccess = async <
       }
 
       // 1. Decode using all known variables
-      const { unexploredSlots, decoded } = decode(storageTrace, layout.storage, layout.types);
+      const { unexploredSlots, decoded } = decode(storageTrace, layout.storage, layout.types, potentialKeys);
 
       // 2. Create unknown variables access traces for remaining slots
       const unknownAccess: Record<string, LabeledStorageAccess> = Object.fromEntries(
@@ -192,17 +204,18 @@ export const traceStorageAccess = async <
           const current = storageTrace[slot].current;
           const next = storageTrace[slot].next;
 
-          const access = {
-            label: `slot_${slot.slice(0, 10)}`,
-            type: undefined,
-            trace: { current, modified: next !== undefined && next !== current },
-            slots: [slot],
-          };
-
-          // @ts-expect-error next doesn't exist in the type
-          if (next && next !== current) access.trace.next = next;
-
-          return [`slot_${slot.slice(0, 10)}`, access] as [string, LabeledStorageAccess];
+          return [
+            `slot_${slot}`,
+            cleanTrace({
+              label: `slot_${slot}`,
+              trace: {
+                current,
+                modified: next !== undefined && next !== current,
+                next,
+                slots: [slot],
+              },
+            }),
+          ];
         }),
       );
 
