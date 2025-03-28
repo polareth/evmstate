@@ -167,28 +167,41 @@ export type LabeledStorageAccessTrace<
   T extends string | undefined = string | undefined,
   Types extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
 > = T extends `mapping(${string} => ${string})`
-  ? Array<LabeledAccessTraceValue<T, Types> & { keys: GetMappingKeysTuple<T, Types> }>
+  ? Array<_LabeledStorageAccessTrace<T, Types> & { keys: GetMappingKeysTuple<T, Types> }>
   : T extends `${string}[]` | `${string}[${string}]`
-    ? Array<LabeledAccessTraceValue<T, Types> & { index: number }>
-    : LabeledAccessTraceValue<T, Types>;
+    ? Array<_LabeledStorageAccessTrace<T, Types> & { index: number }>
+    : _LabeledStorageAccessTrace<T, Types>;
 
-type LabeledAccessTraceValue<T extends string | undefined, Types extends SolcStorageLayoutTypes> =
+type _LabeledStorageAccessTrace<T extends string | undefined, Types extends SolcStorageLayoutTypes> =
   | {
       modified: false;
       /** The decoded value of the variable */
-      current: T extends string ? SolidityTypeToTsType<T, Types> : Hex;
+      current: T extends `struct ${string}`
+        ? Partial<SolidityTypeToTsType<T, Types>>
+        : T extends string
+          ? SolidityTypeToTsType<T, Types>
+          : Hex;
       /** The slots storing some of the variable's data that were accessed */
       slots: Array<Hex>;
     }
   | {
       modified: true;
       /** The decoded value of the variable */
-      current: T extends string ? SolidityTypeToTsType<T, Types> : Hex;
+      current: T extends `struct ${string}`
+        ? Partial<SolidityTypeToTsType<T, Types>>
+        : T extends string
+          ? SolidityTypeToTsType<T, Types>
+          : Hex;
       /** The next value after the transaction (if it was modified) */
-      next: T extends string ? SolidityTypeToTsType<T, Types> : Hex;
+      next: T extends `struct ${string}`
+        ? Partial<SolidityTypeToTsType<T, Types>>
+        : T extends string
+          ? SolidityTypeToTsType<T, Types>
+          : Hex;
       /** The slots storing some of the variable's data that were accessed */
       slots: Array<Hex>;
     };
+
 /* -------------------------------------------------------------------------- */
 /*                                 ACCESS LIST                                */
 /* -------------------------------------------------------------------------- */

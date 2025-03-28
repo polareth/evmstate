@@ -78,12 +78,13 @@ export type StructToObject<StructName extends string, Types extends Record<strin
   // TODO: replace with SolcStorageLayoutTypes and fix label index
   [TypeId in keyof Types]: Types[TypeId]["label"] extends StructName
     ? Types[TypeId] extends { members: readonly any[] }
-      ? {
+      ? // TODO: properties are optional as for now we don't fetch members that were not in the trace
+        Partial<{
           [Member in Types[TypeId]["members"][number] as Member["label"]]: SolidityTypeToTsType<
             ParseSolidityType<Member["type"], Types>,
             Types
           >;
-        }
+        }>
       : never
     : never;
 }[keyof Types];

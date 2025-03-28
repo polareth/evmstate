@@ -622,7 +622,10 @@ const decodeMappingMatch = <T extends SolcStorageLayoutTypes>(
         })),
       ),
       keys: formattedKeys,
-      slots: extractedMembers.map((member) => member.slot),
+      slots: extractedMembers
+        .map((member) => member.slot)
+        // For now, filter out slots that are not in the trace as they won't be in the state
+        .filter((slot) => Object.keys(storageTrace).includes(slot)),
     };
   }
 

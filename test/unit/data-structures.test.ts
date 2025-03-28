@@ -222,7 +222,7 @@ describe("Data Structures Storage Access", () => {
       );
     });
 
-    it.todo("should trace complex mapping operations with multiple keys", async () => {
+    it("should trace complex mapping operations with multiple keys", async () => {
       const client = getClient();
       const user = recipient.toString();
 
@@ -231,7 +231,9 @@ describe("Data Structures Storage Access", () => {
         client,
         from: caller.toString(),
         to: Mappings.address,
-        data: encodeFunctionData(Mappings.write.setUserInfo(user, 100n, 100n, true)),
+        abi: Mappings.abi,
+        functionName: "setUserInfo",
+        args: [user, 100n, 100n, true],
       });
 
       // Now update just the balance field
@@ -240,39 +242,39 @@ describe("Data Structures Storage Access", () => {
         client,
         from: caller.toString(),
         to: Mappings.address,
-        data: encodeFunctionData(Mappings.write.updateUserBalance(user, newBalance)),
+        abi: Mappings.abi,
+        functionName: "updateUserBalance",
+        args: [user, newBalance],
       });
 
       // We should see writes to both balance and lastUpdate fields, but not isActive
-      expect(trace[Mappings.address].reads).toEqual({});
-      expect(Object.keys(trace[Mappings.address].writes).length).toBe(2);
-
-      const slots = Object.keys(trace[Mappings.address].writes);
-
-      // Check the balance field update
-      const balanceSlot = slots[0];
-      expect(trace[Mappings.address].writes[balanceSlot][0]).toEqual({
-        label: "userInfo[0x0000000000000000000000000000000000000002].balance",
-        current: 100n,
-        next: newBalance,
-        type: "uint256",
-        keys: [recipient.toString()],
-        keySources: [expect.anything()],
-      });
-
-      // Check the lastUpdate field update
-      const lastUpdateSlot = slots[1];
-      expect(trace[Mappings.address].writes[lastUpdateSlot][0]).toEqual({
-        label: "userInfo[0x0000000000000000000000000000000000000002].lastUpdate",
-        current: 100n,
-        next: expect.any(BigInt), // Block timestamp, which will be greater than 100
-        type: "uint256",
-        keys: [recipient.toString()],
-        keySources: [expect.anything()],
-      });
-
-      // The isActive field should not be updated
-      expect(slots.length).toBe(2);
+      const userMappingSlot = getMappingSlotHex(3, user);
+      expect(trace[Mappings.address].storage).toEqual(
+        expectedStorage(LAYOUTS.Mappings, {
+          userInfo: {
+            label: "userInfo",
+            type: "mapping(address => struct Mappings.UserInfo)",
+            kind: "mapping",
+            trace: [
+              {
+                current: {
+                  balance: 100n,
+                  lastUpdate: 100n,
+                },
+                next: {
+                  balance: newBalance,
+                  lastUpdate: expect.any(BigInt), // we don't know the exact value
+                },
+                modified: true,
+                keys: [{ type: "address", value: user }],
+                slots: [userMappingSlot, getSlotAtOffsetHex(userMappingSlot, 1)],
+              },
+            ],
+          },
+        }),
+      );
+      // @ts-expect-error 0 can't be used to access the trace
+      expect(trace[Mappings.address].storage.userInfo.trace[0].next.lastUpdate).toBeGreaterThan(100n);
     });
   });
 
