@@ -6,13 +6,15 @@ import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
 import { expectedStorage, getClient, getMappingSlotHex, getSlotAtOffsetHex, getSlotHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
 
-const { Arrays, Mappings } = CONTRACTS;
+const { Arrays, Mappings, Structs } = CONTRACTS;
 const { caller, recipient } = ACCOUNTS;
 
 /**
  * Data Structures Storage Access Tests
  *
  * This test suite verifies:
+ *
+ * Mappings:
  *
  * 1. Simple and nested mapping slot access
  * 2. Mapping with struct values
@@ -21,6 +23,17 @@ const { caller, recipient } = ACCOUNTS;
  * 5. Array length slot access and element storage
  * 6. Struct arrays with complex data storage layout
  * 7. Nested array storage patterns
+ *
+ * Arrays: TODO
+ *
+ * Structs:
+ *
+ * 1. Basic struct operations (setting, getting, updating fields)
+ * 2. Packed struct operations and storage layout
+ * 3. Nested struct operations
+ * 4. Structs with dynamic types (arrays, mappings)
+ * 5. Memory vs storage behavior
+ * 6. Struct deletion
  */
 // TODO: structs (inside mappings & arrays as well)
 describe("Data Structures Storage Access", () => {
@@ -522,5 +535,383 @@ describe("Data Structures Storage Access", () => {
     });
   });
 
-  describe.todo("Structs", () => {});
+  describe("Structs", () => {
+    describe("Basic struct operations", () => {
+      it.only("should trace basic struct storage access", async () => {
+        const client = getClient();
+        const id = 1n;
+        const name = "Named Init";
+
+        // Set a basic struct
+        const trace = await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "initializeStructs",
+          args: [],
+        });
+
+        // Verify the write operation was captured
+        expect(trace[Structs.address].storage).toEqual(
+          expectedStorage(LAYOUTS.Structs, {
+            basicStruct: {
+              label: "basicStruct",
+              type: "struct Structs.BasicStruct",
+              kind: "struct",
+              trace: {
+                current: {
+                  id: 0n,
+                  name: "",
+                },
+                next: {
+                  id: id,
+                  name: name,
+                },
+                modified: true,
+                slots: [
+                  getSlotHex(2), // id
+                  getSlotHex(3), // name
+                ],
+              },
+            },
+          }),
+        );
+      });
+
+      it("should trace memory vs storage behavior", async () => {
+        const client = getClient();
+
+        // First initialize the struct
+        await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "initializeStructs",
+          args: [],
+        });
+
+        // Now test memory vs storage behavior
+        const trace = await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "memoryVsStorage",
+          args: [],
+        });
+
+        // Verify that only the storage reference modified the actual storage
+        expect(trace[Structs.address].storage).toEqual(
+          expectedStorage(LAYOUTS.Structs, {
+            basicStruct: {
+              label: "basicStruct",
+              type: "struct Structs.BasicStruct",
+              kind: "struct",
+              trace: {
+                current: {
+                  name: "Named Init",
+                },
+                next: {
+                  name: "Storage Modified",
+                },
+                modified: true,
+                slots: [getSlotHex(3)], // Only the name slot should be modified
+              },
+            },
+          }),
+        );
+      });
+
+      it("should trace struct deletion", async () => {
+        const client = getClient();
+
+        // First initialize the struct
+        await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "initializeStructs",
+          args: [],
+        });
+
+        // Now delete the struct
+        const trace = await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "deleteStruct",
+          args: [],
+        });
+
+        // Verify that all fields are reset to their default values
+        expect(trace[Structs.address].storage).toEqual(
+          expectedStorage(LAYOUTS.Structs, {
+            basicStruct: {
+              label: "basicStruct",
+              type: "struct Structs.BasicStruct",
+              kind: "struct",
+              trace: {
+                current: {
+                  id: 1n,
+                  name: "Storage Modified", // From previous test
+                },
+                next: {
+                  id: 0n,
+                  name: "",
+                },
+                modified: true,
+                slots: [
+                  getSlotHex(2), // id
+                  getSlotHex(3), // name
+                ],
+              },
+            },
+          }),
+        );
+      });
+    });
+
+    describe("Packed struct operations", () => {
+      it("should trace packed struct with preceding value", async () => {
+        const client = getClient();
+        const preceding = 42;
+        const a = 123;
+        const b = 45678;
+        const c = 1000000;
+        const d = true;
+
+        // Set packed struct with preceding value
+        const trace = await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "initializePackedAfterPartial",
+          args: [preceding, a, b, c, d],
+        });
+
+        // Verify the write operation captures both the preceding value and packed struct
+        expect(trace[Structs.address].storage).toEqual(
+          expectedStorage(LAYOUTS.Structs, {
+            precedingValue: {
+              label: "precedingValue",
+              type: "uint8",
+              kind: "primitive",
+              trace: {
+                current: 0n,
+                next: BigInt(preceding),
+                modified: true,
+                slots: [getSlotHex(0)],
+              },
+            },
+            packedStruct: {
+              label: "packedStruct",
+              type: "struct Structs.PackedStruct",
+              kind: "struct",
+              trace: {
+                current: {
+                  a: 0n,
+                  b: 0n,
+                  c: 0n,
+                  d: false,
+                },
+                next: {
+                  a: BigInt(a),
+                  b: BigInt(b),
+                  c: BigInt(c),
+                  d: d,
+                },
+                modified: true,
+                slots: [getSlotHex(1)], // All packed into one slot
+              },
+            },
+          }),
+        );
+      });
+
+      it("should trace reading packed struct values", async () => {
+        const client = getClient();
+
+        // Read the packed struct values
+        const trace = await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "getPackedValues",
+          args: [],
+        });
+
+        // Verify the read operation
+        expect(trace[Structs.address].storage).toEqual(
+          expectedStorage(LAYOUTS.Structs, {
+            precedingValue: {
+              label: "precedingValue",
+              type: "uint8",
+              kind: "primitive",
+              trace: {
+                current: 42n,
+                modified: false,
+                slots: [getSlotHex(0)],
+              },
+            },
+            packedStruct: {
+              label: "packedStruct",
+              type: "struct Structs.PackedStruct",
+              kind: "struct",
+              trace: {
+                current: {
+                  a: 123n,
+                  b: 45678n,
+                  c: 1000000n,
+                  d: true,
+                },
+                modified: false,
+                slots: [getSlotHex(1)],
+              },
+            },
+          }),
+        );
+      });
+    });
+
+    describe("Nested struct operations", () => {
+      it("should trace nested struct initialization", async () => {
+        const client = getClient();
+
+        // Initialize nested struct
+        const trace = await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "initializeStructs",
+          args: [],
+        });
+
+        // Verify the nested struct was properly initialized
+        expect(trace[Structs.address].storage).toEqual(
+          expectedStorage(LAYOUTS.Structs, {
+            nestedStruct: {
+              label: "nestedStruct",
+              type: "struct Structs.NestedStruct",
+              kind: "struct",
+              trace: {
+                current: {
+                  id: 0n,
+                  basic: {
+                    id: 0n,
+                    name: "",
+                  },
+                },
+                next: {
+                  id: 2n,
+                  basic: {
+                    id: 3n,
+                    name: "Nested",
+                  },
+                },
+                modified: true,
+                slots: [
+                  getSlotHex(4), // nestedStruct.id
+                  getSlotHex(5), // nestedStruct.basic.id
+                  getSlotHex(6), // nestedStruct.basic.name
+                ],
+              },
+            },
+          }),
+        );
+      });
+    });
+
+    describe("Struct with dynamic types", () => {
+      it("should trace dynamic array in struct", async () => {
+        const client = getClient();
+        const value = 42n;
+
+        // First initialize the struct
+        await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "initializeStructs",
+          args: [],
+        });
+
+        // Add to dynamic array in struct
+        const trace = await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "addToDynamicArray",
+          args: [value],
+        });
+
+        // Verify the array length update and element addition
+        // The dynamicStruct.numbers array length is at slot 8
+        const lengthSlot = getSlotHex(8);
+
+        // Verify the length slot was updated
+        expect(trace[Structs.address].storage.dynamicStruct.trace.slots).toContain(lengthSlot);
+        expect(trace[Structs.address].storage.dynamicStruct.trace.modified).toBe(true);
+
+        // The array element slots will be at keccak256(slot) + index
+        // We can't predict the exact hash-based slot, so we check that there are at least 2 slots
+        // (length slot and at least one array element slot)
+        expect(trace[Structs.address].storage.dynamicStruct.trace.slots.length).toBeGreaterThanOrEqual(2);
+
+        // Check the array length
+        const lengthTrace = await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "getDynamicArrayLength",
+          args: [],
+        });
+
+        // Verify we're reading from the length slot
+        expect(lengthTrace[Structs.address].storage.dynamicStruct.trace.slots).toContain(lengthSlot);
+      });
+
+      it("should trace mapping in struct", async () => {
+        const client = getClient();
+        const key = 123n;
+        const value = true;
+
+        // Set a flag in the mapping
+        const trace = await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "setFlag",
+          args: [key, value],
+        });
+
+        // Verify the mapping update
+        // The mapping is at slot 9 in the dynamicStruct
+        expect(trace[Structs.address].storage.dynamicStruct.trace.modified).toBe(true);
+
+        // Read the flag
+        const readTrace = await traceStorageAccess({
+          client,
+          from: caller.toString(),
+          to: Structs.address,
+          abi: Structs.abi,
+          functionName: "getFlag",
+          args: [key],
+        });
+
+        // Verify the mapping read
+        expect(readTrace[Structs.address].storage.dynamicStruct.trace.modified).toBe(false);
+      });
+    });
+  });
 });

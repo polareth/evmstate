@@ -3,6 +3,7 @@ export { default as StoragePacking } from "./StoragePacking";
 export { default as Factory } from "./Factory";
 export { default as Arrays } from "./Arrays";
 export { default as Mappings } from "./Mappings";
+export { default as Structs } from "./Structs";
 export { default as DelegateBase } from "./DelegateBase";
 export { default as DelegateLogic } from "./DelegateLogic";
 export { default as ContractA } from "./ContractA";
