@@ -19,6 +19,9 @@ contract Mappings {
     }
     mapping(address => UserInfo) private userInfo;
 
+    // Mapping to an array
+    mapping(uint256 => uint256[]) private arrayMapping;
+
     function setBalance(address user, uint256 amount) public {
         balances[user] = amount;
     }
@@ -35,6 +38,10 @@ contract Mappings {
         ridiculouslyNestedMapping[a][b][c][d] = value;
     }
 
+    function setArrayMapping(uint256 index, uint256 value) public {
+        arrayMapping[index].push(value);
+    }
+
     function getAllowance(address owner, address spender) public view returns (uint256) {
         return allowances[owner][spender];
     }
@@ -49,6 +56,10 @@ contract Mappings {
 
     function getUserInfo(address user) public view returns (UserInfo memory) {
         return userInfo[user];
+    }
+
+    function getArrayMapping(uint256 index) public view returns (uint256[] memory) {
+        return arrayMapping[index];
     }
 
     function updateUserBalance(address user, uint256 newBalance) public {

@@ -2,10 +2,16 @@ import { Abi, Address, ContractFunctionName, GetAccountResult, Hex, MemoryClient
 import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
 import { Common } from "tevm/common";
 import { abi } from "@shazow/whatsabi";
-import { AbiType, AbiTypeToPrimitiveType } from "abitype";
 import { AbiStateMutability, ContractFunctionArgs } from "viem";
 
-import { DeepReadonly, GetMappingKeysTuple, ParseSolidityType, SolidityTypeToTsType } from "@/lib/adapter/types";
+import {
+  DeepReadonly,
+  ParseSolidityType,
+  PathSegment,
+  SolidityTypeToTsType,
+  VariableExpression,
+  VariablePathSegments,
+} from "@/lib/slots/types";
 
 /* -------------------------------------------------------------------------- */
 /*                                    TRACE                                   */
@@ -135,72 +141,66 @@ export type StorageAccessTrace<T extends DeepReadonly<SolcStorageLayout> = SolcS
 };
 
 export type LabeledStorageAccess<
-  L extends string = string,
+  TName extends string = string,
   T extends string | undefined = string | undefined,
   Types extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
 > = {
   /** The name of the variable in the layout */
-  label: L;
+  name: TName;
   /** The entire Solidity definition of the variable (e.g. "mapping(uint256 => mapping(address => bool))" or "uint256[]") */
   type?: T; // TODO: rename to definition (also everywhere we call it "T", e.g. TDef & definition/typeDef)
   /** The more global kind of variable for easier parsing of the trace (e.g. "mapping", "array", "struct", "primitive") */
   kind?: T extends `mapping(${string} => ${string})`
     ? "mapping"
-    : T extends `${string}[]` | `${string}[${string}]`
-      ? "array"
-      : T extends `struct ${string}`
-        ? "struct"
-        : T extends "bytes" | "string"
-          ? "bytes"
-          : T extends `${string}`
-            ? "primitive"
-            : T extends undefined
-              ? undefined
-              : never;
+    : T extends `${string}[]`
+      ? "dynamic_array"
+      : T extends `${string}[${string}]`
+        ? "static_array"
+        : T extends `struct ${string}`
+          ? "struct"
+          : T extends "bytes" | "string"
+            ? "bytes"
+            : T extends `${string}`
+              ? "primitive"
+              : T extends undefined
+                ? undefined
+                : never;
   /** The trace of the variable's access */
-  trace: LabeledStorageAccessTrace<T, Types>;
-  /** The offset of the variable within the slot (for packed variables) */
-  offset?: number;
+  trace: Array<LabeledStorageAccessTrace<TName, T, Types>>;
 };
 
 export type LabeledStorageAccessTrace<
+  TName extends string = string,
   T extends string | undefined = string | undefined,
   Types extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
-> = T extends `mapping(${string} => ${string})`
-  ? Array<_LabeledStorageAccessTrace<T, Types> & { keys: GetMappingKeysTuple<T, Types> }>
-  : T extends `${string}[]` | `${string}[${string}]`
-    ? Array<_LabeledStorageAccessTrace<T, Types> & { index: number }>
-    : _LabeledStorageAccessTrace<T, Types>;
-
-type _LabeledStorageAccessTrace<T extends string | undefined, Types extends SolcStorageLayoutTypes> =
-  | {
-      modified: false;
-      /** The decoded value of the variable */
-      current: T extends `struct ${string}`
-        ? Partial<SolidityTypeToTsType<T, Types>>
-        : T extends string
-          ? SolidityTypeToTsType<T, Types>
-          : Hex;
-      /** The slots storing some of the variable's data that were accessed */
-      slots: Array<Hex>;
-    }
+> = {
+  /** The decoded value of the variable */
+  current: {
+    decoded?: T extends string ? SolidityTypeToTsType<T, Types> : unknown;
+    hex: Hex;
+  };
+  /** The slots storing some of the variable's data that were accessed */
+  slots: Array<Hex>;
+  /** The path to the variable */
+  path: T extends string ? VariablePathSegments<T, Types> : Array<PathSegment>;
+  /** The full expression of the variable */
+  fullExpression: T extends string ? VariableExpression<TName, T, Types> : string;
+  /** Any note during decoding */
+  note?: string;
+} & (
   | {
       modified: true;
-      /** The decoded value of the variable */
-      current: T extends `struct ${string}`
-        ? Partial<SolidityTypeToTsType<T, Types>>
-        : T extends string
-          ? SolidityTypeToTsType<T, Types>
-          : Hex;
       /** The next value after the transaction (if it was modified) */
-      next: T extends `struct ${string}`
-        ? Partial<SolidityTypeToTsType<T, Types>>
-        : T extends string
-          ? SolidityTypeToTsType<T, Types>
-          : Hex;
-      /** The slots storing some of the variable's data that were accessed */
-      slots: Array<Hex>;
-    };
+      next: {
+        decoded?: T extends string ? SolidityTypeToTsType<T, Types> : unknown;
+        hex: Hex;
+      };
+    }
+  | {
+      modified: false;
+      next?: never;
+    }
+);
 
 /* -------------------------------------------------------------------------- */
 /*                                 ACCESS LIST                                */
@@ -261,62 +261,6 @@ export type IntrinsicsDiff = {
 /* -------------------------------------------------------------------------- */
 /*                                 STORAGE LAYOUT                             */
 /* -------------------------------------------------------------------------- */
-
-/* ---------------------------------- SLOTS --------------------------------- */
-
-export interface MappingKey<T extends AbiType = AbiType> {
-  // Value padded to 32 bytes
-  hex: Hex;
-  // Type of the value if known
-  type?: T;
-  // Decoded value if known
-  decoded?: AbiTypeToPrimitiveType<T>;
-}
-
-export type SlotMatchType = "exact" | "mapping" | "nested-mapping" | "array" | "struct";
-
-export interface SlotLabelResult<M extends SlotMatchType = SlotMatchType> {
-  // The variable name with formatted keys
-  label: string;
-  // The slot being accessed
-  slot: string;
-  // The type of match that was found
-  matchType: M;
-  // The variable type (from Solidity)
-  type?: AbiType;
-  // The detected keys or indices (if applicable)
-  keys?: M extends "mapping" | "nested-mapping" ? Array<MappingKey> : never;
-  // The detected index (if applicable)
-  index?: M extends "array" ? Hex : never;
-  // The offset of the variable within the slot (for packed variables)
-  offset?: number;
-}
-
-/**
- * Information about a storage slot in a contract.
- *
- * Includes the variable name, type, and slot location.
- */
-export interface StorageSlotInfo {
-  // The variable name
-  label: string;
-  // The storage slot hex string
-  slot: Hex;
-  // The variable type (from Solidity)
-  type?: AbiType;
-  // The encoding of the variable (inplace, bytes, mapping, etc.)
-  encoding?: "inplace" | "bytes" | "mapping" | "dynamic_array";
-  // Whether this slot is computed (for mappings/arrays)
-  isComputed?: boolean;
-  // The base type for arrays
-  baseType?: AbiType;
-  // The key type for mappings
-  keyType?: AbiType;
-  // The value type for mappings
-  valueType?: AbiType;
-  // The offset of the variable within the slot (for packed variables)
-  offset?: number;
-}
 
 /* -------------------------------- WHATSABI -------------------------------- */
 export type GetContractsOptions = {

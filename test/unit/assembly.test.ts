@@ -1,9 +1,9 @@
-import { padHex } from "viem";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
-import { expectedStorage, getClient, getMappingSlotHex, getSlotHex } from "@test/utils";
+import { expectedStorage, getClient, getMappingSlotHex, getSlotHex, toEvenHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
+import { PathSegmentKind } from "@/lib/slots/types";
 
 const { AssemblyStorage } = CONTRACTS;
 const { caller, recipient } = ACCOUNTS;
@@ -47,10 +47,19 @@ describe("Assembly-based storage access", () => {
       expect(writeTrace[AssemblyStorage.address].storage).toEqual(
         expectedStorage(LAYOUTS.AssemblyStorage, {
           value: {
-            label: "value",
+            name: "value",
             type: "uint256",
             kind: "primitive",
-            trace: { current: 0n, next: 123n, modified: true, slots: [getSlotHex(0)] },
+            trace: [
+              {
+                current: { hex: toEvenHex(0), decoded: 0n },
+                next: { hex: toEvenHex(123, { size: 32 }), decoded: 123n },
+                modified: true,
+                slots: [getSlotHex(0)],
+                path: [],
+                fullExpression: "value",
+              },
+            ],
           },
         }),
       );
@@ -59,10 +68,18 @@ describe("Assembly-based storage access", () => {
       expect(readTrace[AssemblyStorage.address].storage).toEqual(
         expectedStorage(LAYOUTS.AssemblyStorage, {
           value: {
-            label: "value",
+            name: "value",
             type: "uint256",
             kind: "primitive",
-            trace: { current: 123n, modified: false, slots: [getSlotHex(0)] },
+            trace: [
+              {
+                current: { hex: toEvenHex(123, { size: 32 }), decoded: 123n },
+                modified: false,
+                slots: [getSlotHex(0)],
+                path: [],
+                fullExpression: "value",
+              },
+            ],
           },
         }),
       );
@@ -94,16 +111,23 @@ describe("Assembly-based storage access", () => {
       expect(writeTrace[AssemblyStorage.address].storage).toEqual(
         expectedStorage(LAYOUTS.AssemblyStorage, {
           balances: {
-            label: "balances",
+            name: "balances",
             type: "mapping(address => uint256)",
             kind: "mapping",
             trace: [
               {
-                current: 0n,
-                next: 1000n,
+                current: { hex: toEvenHex(0), decoded: 0n },
+                next: { hex: toEvenHex(1000, { size: 32 }), decoded: 1000n },
                 modified: true,
-                keys: [{ type: "address", value: recipient.toString() }],
                 slots: [getMappingSlotHex(1, recipient.toString())],
+                path: [
+                  {
+                    kind: PathSegmentKind.MappingKey,
+                    key: recipient.toString(),
+                    keyType: "address",
+                  },
+                ],
+                fullExpression: `balances[${recipient.toString()}]`,
               },
             ],
           },
@@ -114,15 +138,22 @@ describe("Assembly-based storage access", () => {
       expect(readTrace[AssemblyStorage.address].storage).toEqual(
         expectedStorage(LAYOUTS.AssemblyStorage, {
           balances: {
-            label: "balances",
+            name: "balances",
             type: "mapping(address => uint256)",
             kind: "mapping",
             trace: [
               {
-                current: 1000n,
+                current: { hex: toEvenHex(1000, { size: 32 }), decoded: 1000n },
                 modified: false,
-                keys: [{ type: "address", value: recipient.toString() }],
                 slots: [getMappingSlotHex(1, recipient.toString())],
+                path: [
+                  {
+                    kind: PathSegmentKind.MappingKey,
+                    key: recipient.toString(),
+                    keyType: "address",
+                  },
+                ],
+                fullExpression: `balances[${recipient.toString()}]`,
               },
             ],
           },
@@ -146,29 +177,52 @@ describe("Assembly-based storage access", () => {
       expect(trace[AssemblyStorage.address].storage).toEqual(
         expectedStorage(LAYOUTS.AssemblyStorage, {
           value: {
-            label: "value",
+            name: "value",
             type: "uint256",
             kind: "primitive",
-            trace: { current: 0n, next: 789n, modified: true, slots: [getSlotHex(0)] },
+            trace: [
+              {
+                current: { hex: toEvenHex(0), decoded: 0n },
+                next: { hex: toEvenHex(789, { size: 32 }), decoded: 789n },
+                modified: true,
+                slots: [getSlotHex(0)],
+                path: [],
+                fullExpression: "value",
+              },
+            ],
           },
           balances: {
-            label: "balances",
+            name: "balances",
             type: "mapping(address => uint256)",
             kind: "mapping",
             trace: [
               {
-                current: 0n,
-                next: 111n,
+                current: { hex: toEvenHex(0), decoded: 0n },
+                next: { hex: toEvenHex(222, { size: 32 }), decoded: 222n },
                 modified: true,
-                keys: [{ type: "address", value: caller.toString() }],
-                slots: [getMappingSlotHex(1, caller.toString())],
+                slots: [getMappingSlotHex(1, recipient.toString())],
+                path: [
+                  {
+                    kind: PathSegmentKind.MappingKey,
+                    key: recipient.toString(),
+                    keyType: "address",
+                  },
+                ],
+                fullExpression: `balances[${recipient.toString()}]`,
               },
               {
-                current: 0n,
-                next: 222n,
+                current: { hex: toEvenHex(0), decoded: 0n },
+                next: { hex: toEvenHex(111, { size: 32 }), decoded: 111n },
                 modified: true,
-                keys: [{ type: "address", value: recipient.toString() }],
-                slots: [getMappingSlotHex(1, recipient.toString())],
+                slots: [getMappingSlotHex(1, caller.toString())],
+                path: [
+                  {
+                    kind: PathSegmentKind.MappingKey,
+                    key: caller.toString(),
+                    keyType: "address",
+                  },
+                ],
+                fullExpression: `balances[${caller.toString()}]`,
               },
             ],
           },

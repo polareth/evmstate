@@ -9,6 +9,8 @@ import {
 import { Address, decodeAbiParameters, encodeAbiParameters, Hex, hexToBigInt, padHex, toHex } from "viem";
 
 import { debug } from "@/debug";
+import { computeArraySlot } from "@/lib/slots/array";
+import { computeMappingSlot } from "@/lib/slots/mapping";
 import {
   DecodedSnapshot,
   DeepReadonly,
@@ -21,9 +23,7 @@ import {
   ParseSolidityType,
   SolidityKeyToTsType,
   StructToObject,
-} from "@/lib/adapter/types";
-import { computeArraySlot } from "@/lib/slots/array";
-import { computeMappingSlot } from "@/lib/slots/mapping";
+} from "@/lib/slots/types";
 import { extractRelevantHex } from "@/lib/utils";
 
 /* -------------------------------------------------------------------------- */
@@ -293,8 +293,15 @@ export class StructStorageAdapter<
   }
 
   private extractStructFields(types: Types): StructToObject<T, Types> {
-    const members = (types[this.type] as SolcStorageLayoutStructType).members; // TODO: fix the key type here as well
-    return members.map((field) => ({
+    const typeInfo = types[this.type] as SolcStorageLayoutStructType;
+
+    // Check if members exists before trying to access it
+    if (!typeInfo || !typeInfo.members) {
+      console.warn(`No members found for struct type ${this.type}`);
+      return {} as StructToObject<T, Types>;
+    }
+
+    return typeInfo.members.map((field) => ({
       [field.label]: types[field.type].label,
     })) as unknown as StructToObject<T, Types>; // TODO: actually inaccurate because we don't yet support non-primitive types as members
   }

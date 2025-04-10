@@ -1,11 +1,11 @@
 import { Abi, AbiFunction, Address, CallResult, ContractFunctionName, Hex } from "tevm";
-import { SolcStorageLayout } from "tevm/bundler/solc";
-import { toFunctionSignature } from "viem";
+import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
+import { padHex, toFunctionSignature } from "viem";
 
 import { debug } from "@/debug";
 import { intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
-import { cleanTrace, decode } from "@/lib/slots/decode";
-import { extractPotentialKeys } from "@/lib/slots/engine";
+import { exploreStorage } from "@/lib/slots/decode";
+import { cleanTrace, extractPotentialKeys } from "@/lib/slots/utils";
 import { getContracts, getStorageLayout } from "@/lib/storage-layout";
 import {
   LabeledStorageAccess,
@@ -158,7 +158,7 @@ export const traceStorageAccess = async <
   debug(`Extracted ${potentialKeys.length} unique potential values from the trace`);
 
   // Process each address and create enhanced trace with labels
-  const labeledTrace = addresses.reduce(
+  const LabeledStorageAccessTrace = addresses.reduce(
     (acc, address) => {
       const storage = { pre: storagePreTx[address], post: storagePostTx[address] };
       const intrinsics = { pre: intrinsicsPreTx[address], post: intrinsicsPostTx[address] };
@@ -177,16 +177,21 @@ export const traceStorageAccess = async <
         acc[address] = {
           storage: Object.fromEntries(
             Object.entries(storageTrace).map(([slot, { current, next }]) => [
-              slot,
-              cleanTrace({
-                label: `slot_${slot}`,
-                trace: {
-                  current,
-                  modified: next !== undefined && next !== current,
-                  next,
-                  slots: [slot],
-                },
-              }),
+              `slot_${slot}`,
+              {
+                name: `slot_${slot}`,
+                trace: [
+                  cleanTrace({
+                    modified: next !== undefined && next !== current,
+                    current: { hex: current },
+                    next: { hex: next },
+                    slots: [slot],
+                    path: [],
+                    fullExpression: `slot_${slot}`,
+                    note: "Could not label this slot access because no layout was found.",
+                  }),
+                ],
+              },
             ]),
           ),
           intrinsic: intrinsicDiff(intrinsics.pre, intrinsics.post),
@@ -195,26 +200,80 @@ export const traceStorageAccess = async <
         return acc;
       }
 
-      // 1. Decode using all known variables
-      const { unexploredSlots, decoded } = decode(storageTrace, layout.storage, layout.types, potentialKeys);
+      // 1. Decode using all known variables with optimized exploration
+      const { withLabels, unexploredSlots } = exploreStorage(
+        layout,
+        storageTrace,
+        potentialKeys.map((k) => k.hex),
+        {
+          // Generous exploration budget that balances thoroughness and performance
+          // TODO: customize
+          mappingExplorationLimit: 1_000_000,
+        },
+      );
+
+      // 1. Process results into named variables - convert all results to LabeledStorageAccess format
+      const decoded = withLabels.reduce(
+        (acc, result) => {
+          // Retrieve existing entry or create a new one
+          acc[result.name] = acc[result.name] ?? {
+            name: result.name,
+            type: result.type,
+            kind: result.type.startsWith("mapping")
+              ? "mapping"
+              : result.type.endsWith("]") && result.type.match(/\[\d+\]$/)
+                ? "static_array"
+                : result.type.endsWith("[]")
+                  ? "dynamic_array"
+                  : result.type.startsWith("struct")
+                    ? "struct"
+                    : result.type === "bytes" || result.type === "string"
+                      ? "bytes"
+                      : "primitive",
+            trace: [],
+          };
+
+          acc[result.name].trace.push(
+            cleanTrace({
+              modified:
+                result.next !== undefined &&
+                padHex(result.next.hex, { size: 32 }) !== padHex(result.current.hex, { size: 32 }),
+              current: result.current,
+              next: result.next,
+              slots: result.slots,
+              path: result.path,
+              fullExpression: result.fullExpression,
+              note: result.note,
+            }),
+          );
+
+          return acc;
+        },
+        {} as Record<string, LabeledStorageAccess<string, string, SolcStorageLayoutTypes>>,
+      );
 
       // 2. Create unknown variables access traces for remaining slots
-      const unknownAccess: Record<string, LabeledStorageAccess> = Object.fromEntries(
+      const unknownAccess = Object.fromEntries(
         [...unexploredSlots].map((slot) => {
           const current = storageTrace[slot].current;
           const next = storageTrace[slot].next;
 
           return [
             `slot_${slot}`,
-            cleanTrace({
-              label: `slot_${slot}`,
-              trace: {
-                current,
-                modified: next !== undefined && next !== current,
-                next,
-                slots: [slot],
-              },
-            }),
+            {
+              name: `slot_${slot}`,
+              trace: [
+                cleanTrace({
+                  modified: next !== undefined && next !== current,
+                  current: { hex: current },
+                  next: { hex: next },
+                  slots: [slot],
+                  path: [],
+                  fullExpression: `slot_${slot}`,
+                  note: "Could not label this slot access.",
+                }),
+              ],
+            },
           ];
         }),
       );
@@ -230,7 +289,7 @@ export const traceStorageAccess = async <
     {} as Record<Address, StorageAccessTrace>,
   );
 
-  return labeledTrace;
+  return LabeledStorageAccessTrace;
 };
 
 /**

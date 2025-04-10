@@ -28,6 +28,8 @@
 - [ ] export types and utilities for decoding abi types and mention on readme? or don't bloat the package? maybe would be good as a second package provided lattice authorization
 - [ ] upstream utilities (compute mapping slot, array slot at index, etc?) to Ox
 - [ ] provide same api as viem/tevm with "as const" abi except it's with the storage layout, and you get a fully typed api with decoded types, etc
+- [ ] support custom storage slots: maybe just popular/standardized ones? or parse from source code?
+- [ ] a similar library for zk evm could be useful because no abi for contracts
 - [ ] provide some state listeners -> listen to a contract's state changes; same api as listening to contract events, you get the typed state change
   ```typescript
   const sub = watchState({

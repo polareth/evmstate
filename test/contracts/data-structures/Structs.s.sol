@@ -62,19 +62,6 @@ contract Structs {
         dynamicStruct.id = 4;
     }
     
-    // Demonstrate memory vs storage behavior
-    function memoryVsStorage() public returns (string memory, string memory) {
-        // Memory copy
-        BasicStruct memory memStruct = basicStruct;
-        memStruct.name = "Memory Modified";
-        
-        // Storage reference
-        BasicStruct storage storageStruct = basicStruct;
-        storageStruct.name = "Storage Modified";
-        
-        return (memStruct.name, basicStruct.name);
-    }
-    
     // Work with dynamic array in struct
     function addToDynamicArray(uint256 value) public {
         dynamicStruct.numbers.push(value);

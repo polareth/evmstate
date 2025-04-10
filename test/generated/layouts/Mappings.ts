@@ -32,6 +32,14 @@ export default {
       "offset": 0,
       "slot": "3",
       "type": "t_mapping(t_address,t_struct(UserInfo)28_storage)"
+    },
+    {
+      "astId": 38,
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Mappings.s.sol:Mappings",
+      "label": "arrayMapping",
+      "offset": 0,
+      "slot": "4",
+      "type": "t_mapping(t_uint256,t_array(t_uint256)dyn_storage)"
     }
   ],
   "types": {
@@ -39,6 +47,12 @@ export default {
       "encoding": "inplace",
       "label": "address",
       "numberOfBytes": "20"
+    },
+    "t_array(t_uint256)dyn_storage": {
+      "base": "t_uint256",
+      "encoding": "dynamic_array",
+      "label": "uint256[]",
+      "numberOfBytes": "32"
     },
     "t_bool": {
       "encoding": "inplace",
@@ -79,6 +93,13 @@ export default {
       "label": "mapping(address => uint256)",
       "numberOfBytes": "32",
       "value": "t_uint256"
+    },
+    "t_mapping(t_uint256,t_array(t_uint256)dyn_storage)": {
+      "encoding": "mapping",
+      "key": "t_uint256",
+      "label": "mapping(uint256 => uint256[])",
+      "numberOfBytes": "32",
+      "value": "t_array(t_uint256)dyn_storage"
     },
     "t_struct(UserInfo)28_storage": {
       "encoding": "inplace",
