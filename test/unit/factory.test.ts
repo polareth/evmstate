@@ -1,4 +1,4 @@
-import { Address } from "tevm";
+import { Hex } from "tevm";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
@@ -37,8 +37,7 @@ describe("Contract creation", () => {
       });
 
       // Verify the factory state changes (createdContracts array)
-      const factoryAddress = Factory.address.toLowerCase() as Address;
-      expect(traceWrite[factoryAddress].storage).toEqual(
+      expect(traceWrite[Factory.address].storage).toEqual(
         expectedStorage(LAYOUTS.Factory, {
           createdContracts: {
             name: "createdContracts",
@@ -79,13 +78,13 @@ describe("Contract creation", () => {
       );
 
       // Nonce for the factory contract should be incremented
-      expect(traceWrite[factoryAddress].intrinsic.nonce).toEqual({ current: 0n, next: 1n });
+      expect(traceWrite[Factory.address].intrinsic.nonce).toEqual({ current: 0n, next: 1n });
 
       // Get the created contract address
       const createdContractAddress = (
-        (traceWrite[factoryAddress] as StorageAccessTrace<typeof LAYOUTS.Factory>).storage.createdContracts.trace[1]
-          .next?.decoded as Address
-      ).toLowerCase() as Address;
+        (traceWrite[Factory.address] as StorageAccessTrace<typeof LAYOUTS.Factory>).storage.createdContracts.trace[1]
+          .next?.decoded as Hex
+      ).toLowerCase() as Hex;
 
       // Verify the created contract's state changes (not typed as we don't know the layout)
       expect(traceWrite[createdContractAddress].storage).toEqual({
@@ -122,11 +121,10 @@ describe("Contract creation", () => {
       });
 
       // Get the created contract address
-      const factoryAddress = Factory.address.toLowerCase() as Address;
       const createdContractAddress = (
-        (createTrace[factoryAddress] as StorageAccessTrace<typeof LAYOUTS.Factory>).storage.createdContracts.trace[1]
-          .next?.decoded as Address
-      ).toLowerCase() as Address;
+        (createTrace[Factory.address] as StorageAccessTrace<typeof LAYOUTS.Factory>).storage.createdContracts.trace[1]
+          .next?.decoded as Hex
+      ).toLowerCase() as Hex;
 
       // Now interact with the created contract
       const interactTrace = await traceStorageAccess({

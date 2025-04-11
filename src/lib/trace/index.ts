@@ -42,7 +42,7 @@ export const traceStorageAccess = async <
 >(
   args: TraceStorageAccessOptions & TraceStorageAccessTxParams<TAbi, TFunctionName> & { config?: ExploreStorageConfig },
 ): Promise<Record<Address, StorageAccessTrace>> => {
-  const { client, from, to, data } = await getUnifiedParams(args);
+  const { client, from, to, data, value } = await getUnifiedParams(args);
 
   // Execute call on local vm with access list generation and trace
   let callResult: CallResult | undefined;
@@ -51,6 +51,7 @@ export const traceStorageAccess = async <
       from,
       to,
       data,
+      value,
       skipBalance: true,
       createAccessList: true,
       createTransaction: true,

@@ -5,13 +5,12 @@ import { createCache } from "@tevm/bundler-cache";
 import { createMemoryClient } from "tevm";
 import { FileAccessObject } from "tevm/bundler";
 import { ResolvedCompilerConfig } from "tevm/bundler/config";
-import { createSolc, SolcStorageLayout, SolcStorageLayoutItem, SolcStorageLayoutTypes } from "tevm/bundler/solc";
+import { createSolc, SolcStorageLayout } from "tevm/bundler/solc";
 import { EthjsAccount, parseEther } from "tevm/utils";
 import { toFunctionSelector } from "viem";
 import { beforeEach, vi } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants";
-import { generateStorageLayouts } from "@test/generate";
 import { debug } from "@/debug";
 import * as storageLayout from "@/lib/trace/storage-layout";
 
@@ -38,10 +37,7 @@ beforeEach(async () => {
   await Promise.all(Object.values(CONTRACTS).map((contract) => client.tevmSetAccount(contract)));
 
   // Setup mocks for contract-related functions
-  if (process.env.TEST_ENV !== "staging") {
-    setupContractsMock();
-    generateStorageLayouts();
-  }
+  if (process.env.TEST_ENV !== "staging") setupContractsMock();
 });
 
 const config = JSON.parse(fs.readFileSync(join(__dirname, "../tevm.config.json"), "utf8")) as ResolvedCompilerConfig;
@@ -82,7 +78,7 @@ const setupContractsMock = () => {
           ];
         }
 
-        const output = cache.readArtifactsSync(getContractPath(contract.name ?? ""));
+        const output = cache.readArtifactsSync(`test/contracts/${contract.name ?? ""}.s.sol`);
         return [
           address,
           {
@@ -124,7 +120,7 @@ const setupContractsMock = () => {
         return undefined;
       }
 
-      const contractPath = getContractPath(contract.name);
+      const contractPath = `test/contracts/${contract.name ?? ""}.s.sol`;
       const artifacts = cache.readArtifactsSync(contractPath);
 
       // Check if the layout exists in the artifacts for this specific contract
@@ -182,24 +178,4 @@ const setupContractsMock = () => {
       return undefined;
     }
   });
-};
-
-const getContractPath = (name: string) => {
-  const indexPath = join(__dirname, "contracts/index.ts");
-
-  try {
-    const indexContent = fs.readFileSync(indexPath, "utf8");
-    // Find the export line for this contract
-    const regex = new RegExp(`export\\s+\\{\\s*${name}(?:\\s*,\\s*[\\w]+)*\\s*\\}\\s+from\\s+["'](.+?)["']`);
-    const match = indexContent.match(regex);
-
-    if (match && match[1]) {
-      const path = match[1].replace(/^\.\//, ""); // Remove leading "./" if present
-      return `test/contracts/${path}`;
-    }
-  } catch (error) {
-    console.warn(`Could not find contract path for ${name}:`, error);
-  }
-
-  return "";
 };

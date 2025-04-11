@@ -1,4 +1,4 @@
-// Generated storage layout for InternalLibrary
+// Generated storage layout for NativeTransfer
 export default {
   "storage": [],
   "types": null

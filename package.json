@@ -5,8 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "generate:layouts": "tsx test/generate.ts",
     "test": "DEBUG=trace dotenvx run -f .env.test --quiet -- vitest run",
-    "test:unit": "DEBUG=trace dotenvx run -f .env.test --quiet -- vitest run test/unit",
+    "test:unit": "pnpm generate:layouts && DEBUG=trace dotenvx run -f .env.test --quiet -- vitest run test/unit",
     "test:staging": "DEBUG=trace TEST_ENV=staging dotenvx run -f .env.test --quiet -- vitest run test/staging.test"
   },
   "keywords": [],

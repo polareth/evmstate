@@ -77,11 +77,17 @@ export type TraceStorageAccessTxParams<
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
 > =
   | (Partial<
-      Record<keyof TraceStorageAccessTxWithReplay | keyof Omit<TraceStorageAccessTxWithAbi, "from" | "to">, never>
+      Record<
+        keyof TraceStorageAccessTxWithReplay | keyof Omit<TraceStorageAccessTxWithAbi, "from" | "to" | "value">,
+        never
+      >
     > &
       TraceStorageAccessTxWithData)
   | (Partial<
-      Record<keyof TraceStorageAccessTxWithReplay | keyof Omit<TraceStorageAccessTxWithData, "from" | "to">, never>
+      Record<
+        keyof TraceStorageAccessTxWithReplay | keyof Omit<TraceStorageAccessTxWithData, "from" | "to" | "value">,
+        never
+      >
     > &
       TraceStorageAccessTxWithAbi<TAbi, TFunctionName>)
   | (Partial<Record<keyof TraceStorageAccessTxWithData | keyof TraceStorageAccessTxWithAbi, never>> &
@@ -94,7 +100,7 @@ export type TraceStorageAccessTxParams<
  * @param data - Transaction calldata
  * @param to - Target contract address (optional for contract creation)
  */
-export type TraceStorageAccessTxWithData = { from: Address; data: Hex; to?: Address };
+export type TraceStorageAccessTxWithData = { from: Address; data?: Hex; to?: Address; value?: bigint };
 
 /**
  * Contract transaction parameters with ABI typed function name and arguments.
@@ -114,6 +120,7 @@ export type TraceStorageAccessTxWithAbi<
   abi: TAbi;
   functionName: TFunctionName;
   args: ContractFunctionArgs<TAbi, AbiStateMutability, TFunctionName>;
+  value?: bigint;
 };
 
 /**

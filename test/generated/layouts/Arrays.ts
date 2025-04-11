@@ -3,7 +3,7 @@ export default {
   "storage": [
     {
       "astId": 5,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Arrays.s.sol:Arrays",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Arrays.s.sol:Arrays",
       "label": "fixedArray",
       "offset": 0,
       "slot": "0",
@@ -11,7 +11,7 @@ export default {
     },
     {
       "astId": 8,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Arrays.s.sol:Arrays",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Arrays.s.sol:Arrays",
       "label": "dynamicArray",
       "offset": 0,
       "slot": "5",
@@ -19,7 +19,7 @@ export default {
     },
     {
       "astId": 19,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Arrays.s.sol:Arrays",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Arrays.s.sol:Arrays",
       "label": "items",
       "offset": 0,
       "slot": "6",
@@ -27,7 +27,7 @@ export default {
     },
     {
       "astId": 23,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Arrays.s.sol:Arrays",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Arrays.s.sol:Arrays",
       "label": "nestedArrays",
       "offset": 0,
       "slot": "7",
@@ -75,7 +75,7 @@ export default {
       "members": [
         {
           "astId": 10,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Arrays.s.sol:Arrays",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Arrays.s.sol:Arrays",
           "label": "id",
           "offset": 0,
           "slot": "0",
@@ -83,7 +83,7 @@ export default {
         },
         {
           "astId": 12,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Arrays.s.sol:Arrays",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Arrays.s.sol:Arrays",
           "label": "name",
           "offset": 0,
           "slot": "1",
@@ -91,7 +91,7 @@ export default {
         },
         {
           "astId": 14,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Arrays.s.sol:Arrays",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Arrays.s.sol:Arrays",
           "label": "active",
           "offset": 0,
           "slot": "2",

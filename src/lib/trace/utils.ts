@@ -52,19 +52,22 @@ export const getUnifiedParams = async <
   const client = _client ?? createClient({ rpcUrl, common });
 
   // Return early if the tx was already provided in calldata format
-  if (args.from && args.data) return { client, from: args.from, to: args.to, data: args.data };
+  if (args.from && args.data) return { client, from: args.from, to: args.to, data: args.data, value: args.value };
 
   // Encode calldata if the contract call was provided (abi, functionName, args)
   if (args.from && args.to && args.abi && args.functionName && args.args) {
     try {
       // @ts-expect-error complex union type not exactly similar
       const data = encodeFunctionData(args);
-      return { client, from: args.from, to: args.to, data };
+      return { client, from: args.from, to: args.to, data, value: args.value };
     } catch (err) {
       debug(`Failed to encode function data: ${err}`);
       throw err;
     }
   }
+
+  // If we provide a value but no txHash, it's a simple transfer
+  if (args.value && !args.txHash) return { client, from: args.from, to: args.to, value: args.value };
 
   // In this case, we need to replay the transaction
   if (!args.txHash)
@@ -89,6 +92,7 @@ export const getUnifiedParams = async <
       // TODO: remove when correctly formatted (tx in block mined here has data instead of input)
       // @ts-expect-error Property 'data' does not exist on type Transaction
       data: tx.input ? (tx.input as Hex) : (tx.data as Hex),
+      value: tx.value,
     };
   } catch (err) {
     debug(`Failed to get transaction for replaying ${args.txHash}: ${err}`);

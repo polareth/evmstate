@@ -55,107 +55,112 @@ export const generateStorageLayouts = async () => {
       const artifactContent = await readFile(artifactFile, "utf8");
       const artifact = JSON.parse(artifactContent);
 
-      // Get contract name
-      // @ts-ignore
-      const contractName = Object.values(artifact.artifacts)[0].contractName;
+      // Get all contract names from the artifact
+      const contractNames = Object.keys(artifact.artifacts || {});
 
-      if (!contractName) {
-        debug(`Could not find contract name in artifact: ${artifactFile}`);
+      if (contractNames.length === 0) {
+        debug(`No contracts found in artifact: ${artifactFile}`);
         continue;
       }
 
-      debug(`Processing contract: ${contractName}`);
+      debug(`Found ${contractNames.length} contracts in artifact: ${artifactFile}`);
 
       // Try to read from cache first
       const artifacts = cache.readArtifactsSync(relativePath);
-      let storageLayout: SolcStorageLayout | undefined;
 
-      // Check if we already have the storage layout in the cache
-      if (artifacts?.solcOutput?.contracts) {
-        const contracts = Object.values(artifacts.solcOutput.contracts).flatMap((source) => Object.values(source));
+      // Process each contract in the artifact
+      for (const contractName of contractNames) {
+        debug(`Processing contract: ${contractName}`);
 
-        for (const contract of contracts) {
-          if (contract.storageLayout) {
-            storageLayout = contract.storageLayout as unknown as SolcStorageLayout;
-            break;
+        let storageLayout: SolcStorageLayout | undefined;
+
+        // Check if we already have the storage layout in the cache
+        if (artifacts?.solcOutput?.contracts) {
+          for (const sourcePath in artifacts.solcOutput.contracts) {
+            const sourceContracts = artifacts.solcOutput.contracts[sourcePath];
+            if (sourceContracts[contractName]?.storageLayout) {
+              storageLayout = sourceContracts[contractName].storageLayout as unknown as SolcStorageLayout;
+              break;
+            }
           }
         }
-      }
 
-      // If not found in cache, generate it
-      if (!storageLayout) {
-        const solcInput = artifact.solcInput;
-        const solc = await createSolc("0.8.23");
+        // If not found in cache, generate it
+        if (!storageLayout) {
+          const solcInput = artifact.solcInput;
+          const solc = await createSolc("0.8.23");
 
-        const output = solc.compile({
-          language: solcInput?.language ?? "Solidity",
-          settings: {
-            evmVersion: solcInput?.settings?.evmVersion ?? "paris",
-            outputSelection: {
-              "*": {
-                "*": ["storageLayout"],
+          const output = solc.compile({
+            language: solcInput?.language ?? "Solidity",
+            settings: {
+              evmVersion: solcInput?.settings?.evmVersion ?? "paris",
+              outputSelection: {
+                "*": {
+                  "*": ["storageLayout"],
+                },
               },
             },
-          },
-          sources: solcInput?.sources ?? {},
-        });
+            sources: solcInput?.sources ?? {},
+          });
 
-        if (output.errors?.some((error) => error.severity === "error")) {
-          debug(`Compilation errors for ${contractName}:`, output.errors);
-          continue;
-        }
-
-        // Find the contract in the output
-        for (const sourcePath in output.contracts) {
-          if (output.contracts[sourcePath][contractName]) {
-            storageLayout = output.contracts[sourcePath][contractName].storageLayout as unknown as SolcStorageLayout;
-            break;
+          if (output.errors?.some((error) => error.severity === "error")) {
+            debug(`Compilation errors for ${contractName}:`, output.errors);
+            continue;
           }
-        }
 
-        // Update cache with the new storage layout
-        if (storageLayout && artifacts) {
-          // Find the source path for this contract
-          const sourcePath = Object.keys(output.contracts).find((path) => output.contracts[path][contractName]);
+          // Find the contract in the output
+          for (const sourcePath in output.contracts) {
+            if (output.contracts[sourcePath][contractName]) {
+              storageLayout = output.contracts[sourcePath][contractName].storageLayout as unknown as SolcStorageLayout;
+              break;
+            }
+          }
 
-          if (sourcePath) {
-            cache.writeArtifactsSync(relativePath, {
-              ...artifacts,
-              // @ts-ignore
-              solcOutput: {
-                ...artifacts.solcOutput,
-                contracts: {
-                  ...artifacts.solcOutput?.contracts,
-                  [sourcePath]: {
-                    ...artifacts.solcOutput?.contracts?.[sourcePath],
-                    [contractName]: {
-                      ...artifacts.solcOutput?.contracts?.[sourcePath]?.[contractName],
-                      storageLayout,
+          // Update cache with the new storage layout
+          if (storageLayout && artifacts) {
+            // Find the source path for this contract
+            const sourcePath = Object.keys(output.contracts).find((path) => output.contracts[path][contractName]);
+
+            if (sourcePath) {
+              cache.writeArtifactsSync(relativePath, {
+                ...artifacts,
+                // @ts-ignore
+                solcOutput: {
+                  ...artifacts.solcOutput,
+                  // @ts-expect-error abi undefined
+                  contracts: {
+                    ...artifacts.solcOutput?.contracts,
+                    [sourcePath]: {
+                      ...artifacts.solcOutput?.contracts?.[sourcePath],
+                      [contractName]: {
+                        ...artifacts.solcOutput?.contracts?.[sourcePath]?.[contractName],
+                        storageLayout,
+                      },
                     },
                   },
                 },
-              },
-            });
+              });
+            }
           }
         }
-      }
 
-      if (!storageLayout) {
-        debug(`No storage layout generated for ${contractName}`);
-        continue;
-      }
+        if (!storageLayout) {
+          debug(`No storage layout generated for ${contractName}`);
+          continue;
+        }
 
-      // Generate output file
-      const outputPath = join(outputDir, `${contractName}.ts`);
-      const outputContent = `// Generated storage layout for ${contractName}
+        // Generate output file
+        const outputPath = join(outputDir, `${contractName}.ts`);
+        const outputContent = `// Generated storage layout for ${contractName}
 export default ${JSON.stringify(storageLayout, null, 2)} as const;
 `;
 
-      fs.writeFileSync(outputPath, outputContent);
-      debug(`Generated storage layout for ${contractName} at ${outputPath}`);
+        fs.writeFileSync(outputPath, outputContent);
+        debug(`Generated storage layout for ${contractName} at ${outputPath}`);
 
-      // Add to the list of generated contracts
-      generatedContracts.push(contractName);
+        // Add to the list of generated contracts
+        generatedContracts.push(contractName);
+      }
     } catch (error) {
       debug(`Error processing artifact:`, error);
     }
@@ -189,3 +194,5 @@ async function findArtifactFiles(dir: string): Promise<string[]> {
 
   return artifactFiles;
 }
+
+generateStorageLayouts();

@@ -3,7 +3,7 @@ export default {
   "storage": [
     {
       "astId": 3,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/advanced/AssemblyStorage.s.sol:AssemblyStorage",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/AssemblyStorage.s.sol:AssemblyStorage",
       "label": "value",
       "offset": 0,
       "slot": "0",
@@ -11,7 +11,7 @@ export default {
     },
     {
       "astId": 7,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/advanced/AssemblyStorage.s.sol:AssemblyStorage",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/AssemblyStorage.s.sol:AssemblyStorage",
       "label": "balances",
       "offset": 0,
       "slot": "1",

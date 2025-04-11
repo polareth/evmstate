@@ -3,7 +3,7 @@ export default {
   "storage": [
     {
       "astId": 3,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/basic/StoragePacking.s.sol:StoragePacking",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/StoragePacking.s.sol:StoragePacking",
       "label": "smallValue1",
       "offset": 0,
       "slot": "0",
@@ -11,7 +11,7 @@ export default {
     },
     {
       "astId": 5,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/basic/StoragePacking.s.sol:StoragePacking",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/StoragePacking.s.sol:StoragePacking",
       "label": "smallValue2",
       "offset": 1,
       "slot": "0",
@@ -19,7 +19,7 @@ export default {
     },
     {
       "astId": 7,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/basic/StoragePacking.s.sol:StoragePacking",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/StoragePacking.s.sol:StoragePacking",
       "label": "flag",
       "offset": 2,
       "slot": "0",
@@ -27,7 +27,7 @@ export default {
     },
     {
       "astId": 9,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/basic/StoragePacking.s.sol:StoragePacking",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/StoragePacking.s.sol:StoragePacking",
       "label": "someAddress",
       "offset": 3,
       "slot": "0",
@@ -35,7 +35,7 @@ export default {
     },
     {
       "astId": 11,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/basic/StoragePacking.s.sol:StoragePacking",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/StoragePacking.s.sol:StoragePacking",
       "label": "largeValue1",
       "offset": 0,
       "slot": "1",
@@ -43,7 +43,7 @@ export default {
     },
     {
       "astId": 13,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/basic/StoragePacking.s.sol:StoragePacking",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/StoragePacking.s.sol:StoragePacking",
       "label": "data",
       "offset": 0,
       "slot": "2",
@@ -51,7 +51,7 @@ export default {
     },
     {
       "astId": 15,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/basic/StoragePacking.s.sol:StoragePacking",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/StoragePacking.s.sol:StoragePacking",
       "label": "mediumValue1",
       "offset": 0,
       "slot": "3",
@@ -59,7 +59,7 @@ export default {
     },
     {
       "astId": 17,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/basic/StoragePacking.s.sol:StoragePacking",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/StoragePacking.s.sol:StoragePacking",
       "label": "mediumValue2",
       "offset": 2,
       "slot": "3",
@@ -67,7 +67,7 @@ export default {
     },
     {
       "astId": 19,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/basic/StoragePacking.s.sol:StoragePacking",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/StoragePacking.s.sol:StoragePacking",
       "label": "mediumValue3",
       "offset": 6,
       "slot": "3",

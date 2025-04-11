@@ -3,7 +3,7 @@ export default {
   "storage": [
     {
       "astId": 33,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
       "label": "precedingValue",
       "offset": 0,
       "slot": "0",
@@ -11,7 +11,7 @@ export default {
     },
     {
       "astId": 36,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
       "label": "packedStruct",
       "offset": 0,
       "slot": "1",
@@ -19,7 +19,7 @@ export default {
     },
     {
       "astId": 39,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
       "label": "basicStruct",
       "offset": 0,
       "slot": "2",
@@ -27,7 +27,7 @@ export default {
     },
     {
       "astId": 42,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
       "label": "nestedStruct",
       "offset": 0,
       "slot": "4",
@@ -35,7 +35,7 @@ export default {
     },
     {
       "astId": 45,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
       "label": "dynamicStruct",
       "offset": 0,
       "slot": "7",
@@ -72,7 +72,7 @@ export default {
       "members": [
         {
           "astId": 3,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "id",
           "offset": 0,
           "slot": "0",
@@ -80,7 +80,7 @@ export default {
         },
         {
           "astId": 5,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "name",
           "offset": 0,
           "slot": "1",
@@ -95,7 +95,7 @@ export default {
       "members": [
         {
           "astId": 23,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "id",
           "offset": 0,
           "slot": "0",
@@ -103,7 +103,7 @@ export default {
         },
         {
           "astId": 26,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "numbers",
           "offset": 0,
           "slot": "1",
@@ -111,7 +111,7 @@ export default {
         },
         {
           "astId": 30,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "flags",
           "offset": 0,
           "slot": "2",
@@ -126,7 +126,7 @@ export default {
       "members": [
         {
           "astId": 17,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "id",
           "offset": 0,
           "slot": "0",
@@ -134,7 +134,7 @@ export default {
         },
         {
           "astId": 20,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "basic",
           "offset": 0,
           "slot": "1",
@@ -149,7 +149,7 @@ export default {
       "members": [
         {
           "astId": 8,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "a",
           "offset": 0,
           "slot": "0",
@@ -157,7 +157,7 @@ export default {
         },
         {
           "astId": 10,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "b",
           "offset": 1,
           "slot": "0",
@@ -165,7 +165,7 @@ export default {
         },
         {
           "astId": 12,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "c",
           "offset": 3,
           "slot": "0",
@@ -173,7 +173,7 @@ export default {
         },
         {
           "astId": 14,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/data-structures/Structs.s.sol:Structs",
+          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Structs.s.sol:Structs",
           "label": "d",
           "offset": 7,
           "slot": "0",
