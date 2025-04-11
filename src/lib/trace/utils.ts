@@ -12,7 +12,8 @@ import {
 import { Common } from "tevm/common";
 
 import { debug } from "@/debug";
-import { TraceStorageAccessOptions, TraceStorageAccessTxParams, TraceStorageAccessTxWithData } from "@/lib/types";
+import { ExploreStorageConfig } from "@/lib/explore/config";
+import { TraceStorageAccessOptions, TraceStorageAccessTxParams, TraceStorageAccessTxWithData } from "@/lib/trace/types";
 
 /** Creates a Tevm client from the provided options */
 export const createClient = (options: { rpcUrl?: string; common?: Common; blockTag?: BlockTag | bigint }) => {
@@ -43,7 +44,7 @@ export const getUnifiedParams = async <
   TAbi extends Abi | readonly unknown[] = Abi,
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
 >(
-  args: TraceStorageAccessOptions & TraceStorageAccessTxParams<TAbi, TFunctionName>,
+  args: TraceStorageAccessOptions & TraceStorageAccessTxParams<TAbi, TFunctionName> & { config?: ExploreStorageConfig },
 ): Promise<TraceStorageAccessTxWithData & { client: MemoryClient }> => {
   const { client: _client, rpcUrl, common } = args;
 
@@ -93,4 +94,24 @@ export const getUnifiedParams = async <
     debug(`Failed to get transaction for replaying ${args.txHash}: ${err}`);
     throw err;
   }
+};
+
+/** A helper function to clean up trace objects by removing undefined or zero values */
+export const cleanTrace = (obj: any) => {
+  const { current, next, note, ...rest } = obj;
+  let trace = { ...rest };
+
+  // Only include note if it exists
+  if (note) trace.note = note;
+
+  // Same for current and next
+  trace.current = { hex: current.hex };
+  if (current.decoded !== undefined) trace.current = { hex: current.hex, decoded: current.decoded };
+
+  if (next && rest.modified) {
+    trace.next = { hex: next.hex };
+    if (next.decoded !== undefined) trace.next = { hex: next.hex, decoded: next.decoded };
+  }
+
+  return trace;
 };

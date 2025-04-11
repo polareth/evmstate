@@ -11,7 +11,7 @@ import {
   SolidityTypeToTsType,
   VariableExpression,
   VariablePathSegments,
-} from "@/lib/slots/types";
+} from "@/lib/explore/types";
 
 /* -------------------------------------------------------------------------- */
 /*                                    TRACE                                   */

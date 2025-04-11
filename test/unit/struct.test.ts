@@ -11,7 +11,7 @@ import {
   toEvenHex,
 } from "@test/utils";
 import { traceStorageAccess } from "@/index";
-import { PathSegmentKind } from "@/lib/slots/types";
+import { PathSegmentKind } from "@/lib/explore/types";
 
 const { Structs } = CONTRACTS;
 const { caller } = ACCOUNTS;

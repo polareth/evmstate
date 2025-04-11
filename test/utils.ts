@@ -2,8 +2,8 @@ import { Hex, keccak256, MemoryClient, toHex } from "tevm";
 import { SolcStorageLayout } from "tevm/bundler/solc";
 import { ByteArray, isHex, padHex, ToHexParameters } from "viem";
 
-import { DeepReadonly } from "@/lib/slots/types";
-import { StorageAccessTrace, TraceStorageAccessTxWithAbi } from "@/lib/types";
+import { DeepReadonly } from "@/lib/explore/types";
+import { StorageAccessTrace, TraceStorageAccessTxWithAbi } from "@/lib/trace/types";
 
 export const getClient = (): MemoryClient => {
   // @ts-expect-error no index signature

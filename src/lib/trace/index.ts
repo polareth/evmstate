@@ -3,17 +3,18 @@ import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
 import { padHex, toFunctionSignature } from "viem";
 
 import { debug } from "@/debug";
-import { intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/access-list";
-import { exploreStorage } from "@/lib/slots/decode";
-import { cleanTrace, extractPotentialKeys } from "@/lib/slots/utils";
-import { getContracts, getStorageLayout } from "@/lib/storage-layout";
+import { exploreStorage } from "@/lib/explore";
+import { ExploreStorageConfig, parseConfig } from "@/lib/explore/config";
+import { extractPotentialKeys } from "@/lib/explore/mapping";
+import { intrinsicDiff, intrinsicSnapshot, storageDiff, storageSnapshot } from "@/lib/trace/access-list";
+import { getContracts, getStorageLayout } from "@/lib/trace/storage-layout";
 import {
   LabeledStorageAccess,
   StorageAccessTrace,
   TraceStorageAccessOptions,
   TraceStorageAccessTxParams,
-} from "@/lib/types";
-import { createClient /* , uniqueAddresses */, getUnifiedParams } from "@/lib/utils";
+} from "@/lib/trace/types";
+import { cleanTrace, createClient /* , uniqueAddresses */, getUnifiedParams } from "@/lib/trace/utils";
 
 /**
  * Analyzes storage access patterns during transaction execution.
@@ -39,7 +40,7 @@ export const traceStorageAccess = async <
   TAbi extends Abi | readonly unknown[] = Abi,
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
 >(
-  args: TraceStorageAccessOptions & TraceStorageAccessTxParams<TAbi, TFunctionName>,
+  args: TraceStorageAccessOptions & TraceStorageAccessTxParams<TAbi, TFunctionName> & { config?: ExploreStorageConfig },
 ): Promise<Record<Address, StorageAccessTrace>> => {
   const { client, from, to, data } = await getUnifiedParams(args);
 
@@ -205,11 +206,7 @@ export const traceStorageAccess = async <
         layout,
         storageTrace,
         potentialKeys.map((k) => k.hex),
-        {
-          // Generous exploration budget that balances thoroughness and performance
-          // TODO: customize
-          mappingExplorationLimit: 1_000_000,
-        },
+        parseConfig(args.config),
       );
 
       // 1. Process results into named variables - convert all results to LabeledStorageAccess format

@@ -1,6 +1,6 @@
 import { Hex } from "tevm";
 import { SolcStorageLayoutTypes } from "tevm/bundler/solc";
-import { AbiType, AbiTypeToPrimitiveType, SolidityAddress, SolidityBool, SolidityBytes, SolidityInt } from "abitype";
+import { AbiType, AbiTypeToPrimitiveType, SolidityAddress, SolidityBool, SolidityInt } from "abitype";
 
 /* -------------------------------------------------------------------------- */
 /*                              TYPE HELPERS                                  */
@@ -266,11 +266,11 @@ export type FullExpression<Name extends string, Path extends any[]> = Path exten
     : Name;
 
 /** Generate a full expression for a variable */
-export type VariableExpression<Name extends string, T extends string, Types extends SolcStorageLayoutTypes> = T extends
-  | `${infer BaseType}[]`
-  | `${infer BaseType}[${string}]`
-  ? FullExpression<Name, VariablePathSegments<T, Types>> | `${Name}._length`
-  : FullExpression<Name, VariablePathSegments<T, Types>>;
+export type VariableExpression<
+  Name extends string,
+  T extends string,
+  Types extends SolcStorageLayoutTypes,
+> = FullExpression<Name, VariablePathSegments<T, Types>>;
 
 /** Generic path segment type */
 export type PathSegment =
@@ -284,7 +284,7 @@ export type PathSegment =
   | { kind: PathSegmentKind.ArrayLength; name: "_length" };
 
 /* -------------------------------------------------------------------------- */
-/*                               UTILITY TYPES                               */
+/*                               INTERNAL TYPES                               */
 /* -------------------------------------------------------------------------- */
 
 /** Mapping key type */
@@ -303,3 +303,13 @@ export type AbiTypeInplace = SolidityAddress | SolidityBool | SolidityInt | `byt
 // We need our own type as we can't omit "bytes" and use AbiTypeInplace as a subset of AbiType
 // prettier-ignore
 type MBytes = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 | 32;
+
+export type DecodedResult = {
+  name: string;
+  type: string;
+  current: { hex: Hex; decoded?: unknown };
+  next?: { hex: Hex; decoded?: unknown };
+  slots: Array<Hex>;
+  path: Array<PathSegment>;
+  note?: string;
+};

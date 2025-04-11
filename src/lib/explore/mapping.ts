@@ -1,13 +1,37 @@
-import { Address, decodeAbiParameters, encodeAbiParameters, Hex, isHex, toHex } from "tevm";
+import { Address, decodeAbiParameters, encodeAbiParameters, Hex, isAddress, isHex, keccak256, toHex } from "tevm";
 import { abi } from "@shazow/whatsabi";
 import { AbiType, AbiTypeToPrimitiveType } from "abitype";
 import { padHex } from "viem";
 
-import { MappingKey } from "@/lib/slots/types";
+import { MappingKey } from "@/lib/explore/types";
 
-/* -------------------------------------------------------------------------- */
-/*                                  MAPPINGS                                  */
-/* -------------------------------------------------------------------------- */
+/**
+ * Sort candidate keys to prioritize addresses first. Passed keys here are padded to 32 bytes.
+ *
+ * This is important because addresses are the most common key types in mappings. Modified to avoid unnecessary array
+ * copy.
+ */
+export const sortCandidateKeys = (keys: Hex[]): Hex[] => {
+  // Group keys by likelihood of being addresses (more efficient than sorting)
+  const addressLikeKeys: Hex[] = [];
+  const otherKeys: Hex[] = [];
+
+  // Single pass grouping
+  for (const key of keys) {
+    if (key.startsWith("0x00000000000000000000") && isAddress(`0x${key.slice(26)}`)) {
+      addressLikeKeys.push(key);
+    } else {
+      otherKeys.push(key);
+    }
+  }
+
+  // Combine groups (address-like keys first)
+  return [...addressLikeKeys, ...otherKeys];
+};
+
+/** Compute a mapping slot directly */
+export const computeMappingSlot = (keyHex: Hex, baseSlot: Hex): Hex =>
+  keccak256(`0x${keyHex.slice(2)}${baseSlot.slice(2)}`);
 
 /** Extract values from a transaction trace that might be used as mapping keys */
 // TODO: refactor to navigate the stack trace and identify both potential keys and array indexes
@@ -125,28 +149,4 @@ export const extractPotentialKeys = (
 
     return 0;
   });
-};
-
-/* -------------------------------------------------------------------------- */
-/*                                    UTILS                                   */
-/* -------------------------------------------------------------------------- */
-
-/** A helper function to clean up trace objects by removing undefined or zero values */
-export const cleanTrace = (obj: any) => {
-  const { current, next, note, ...rest } = obj;
-  let trace = { ...rest };
-
-  // Only include note if it exists
-  if (note) trace.note = note;
-
-  // Same for current and next
-  trace.current = { hex: current.hex };
-  if (current.decoded !== undefined) trace.current = { hex: current.hex, decoded: current.decoded };
-
-  if (next && rest.modified) {
-    trace.next = { hex: next.hex };
-    if (next.decoded !== undefined) trace.next = { hex: next.hex, decoded: next.decoded };
-  }
-
-  return trace;
 };

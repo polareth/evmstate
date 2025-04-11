@@ -1,7 +1,7 @@
 import { Address, Hex, MemoryClient } from "tevm";
 
 import { debug } from "@/debug";
-import { AccessList, IntrinsicsDiff, IntrinsicsSnapshot, StorageDiff, StorageSnapshot } from "@/lib/types";
+import { AccessList, IntrinsicsDiff, IntrinsicsSnapshot, StorageDiff, StorageSnapshot } from "@/lib/trace/types";
 
 /**
  * Fetches storage values for all slots in an access list.

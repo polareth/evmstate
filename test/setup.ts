@@ -12,7 +12,7 @@ import { beforeEach, vi } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants";
 import { debug } from "@/debug";
-import * as storageLayout from "@/lib/storage-layout";
+import * as storageLayout from "@/lib/trace/storage-layout";
 
 beforeEach(async () => {
   const client = createMemoryClient({ loggingLevel: "warn" });

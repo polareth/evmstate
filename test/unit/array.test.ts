@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
 import { expectedStorage, getArraySlotHex, getClient, getSlotHex, getStringHex, toEvenHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
-import { PathSegmentKind } from "@/lib/slots/types";
+import { PathSegmentKind } from "@/lib/explore/types";
 
 const { Arrays } = CONTRACTS;
 const { caller } = ACCOUNTS;

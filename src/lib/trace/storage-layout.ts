@@ -11,7 +11,7 @@ import { randomBytes } from "tevm/utils";
 import { autoload, loaders } from "@shazow/whatsabi";
 
 import { debug } from "@/debug";
-import { GetContractsOptions, GetContractsResult } from "@/lib/types";
+import { GetContractsOptions, GetContractsResult } from "@/lib/trace/types";
 
 const ignoredSourcePaths = ["metadata.json", "creator-tx-hash.txt", "immutable-references"];
 

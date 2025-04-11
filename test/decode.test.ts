@@ -1,7 +1,7 @@
 import { Hex } from "viem";
 import { describe, expect, it } from "vitest";
 
-import { extractStructMembers } from "@/lib/slots/decode";
+import { extractStructMembers } from "@/lib/explore";
 
 describe("Decode", () => {
   describe("structs", () => {
