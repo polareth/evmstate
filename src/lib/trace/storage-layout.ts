@@ -76,7 +76,7 @@ export const getStorageLayout = async ({
   metadata,
   sources,
 }: GetContractsResult[Address] & { address: Address }) => {
-  const { compilerVersion, evmVersion } = metadata;
+  const { compilerVersion, evmVersion, name } = metadata;
 
   // Return empty layout if we're missing critical information
   if (!compilerVersion || !evmVersion || !sources || sources.length === 0) {
@@ -99,34 +99,71 @@ export const getStorageLayout = async ({
       sources: Object.fromEntries(sources.map(({ path, content }) => [path ?? randomBytes(8).toString(), { content }])),
     });
 
-    const layouts = Object.values(output.contracts)
-      .flatMap((layouts) => Object.values(layouts))
-      .map((l) => l.storageLayout) as unknown as Array<SolcStorageLayout>;
+    // Find the most relevant storage layout for this contract
+    const contractLayout = findMostRelevantLayout(output, name);
 
-    // Aggregate all storage items and types from different layouts
-    const aggregatedTypes: SolcStorageLayoutTypes = layouts.reduce((acc, layout) => {
-      if (!layout?.types) return acc;
-      return { ...acc, ...layout.types };
-    }, {} as SolcStorageLayoutTypes);
+    if (!contractLayout) {
+      debug(`Could not find a relevant storage layout for ${address} (${name || "unnamed"})`);
+      return undefined;
+    }
 
-    // Now that we have all types, we can properly type the storage items
-    const aggregatedStorage: Array<SolcStorageLayoutItem<typeof aggregatedTypes>> = layouts.reduce(
-      (acc, layout) => {
-        if (!layout?.storage) return acc;
-        return [...acc, ...layout.storage];
-      },
-      [] as Array<SolcStorageLayoutItem<typeof aggregatedTypes>>,
-    );
-
-    // Return a storage layout adapter for advanced access patterns
     return {
-      storage: aggregatedStorage,
-      types: aggregatedTypes,
+      storage: contractLayout.storage || [],
+      types: contractLayout.types || {},
     };
   } catch (error) {
     debug(`Error generating storage layout for ${address}:`, error);
     return undefined;
   }
+};
+
+/**
+ * Finds the most relevant storage layout for a contract.
+ *
+ * Prioritizes exact name matches, then falls back to the most complete layout
+ *
+ * TODO: something specific for proxies (we need the implementation layout + add some special custom variables for
+ * implementation address, etc?)
+ */
+export const findMostRelevantLayout = (output: any, contractName?: string): SolcStorageLayout | undefined => {
+  if (!output?.contracts) return undefined;
+
+  // If we have a contract name, try to find an exact match first
+  if (contractName) {
+    for (const sourcePath in output.contracts) {
+      if (output.contracts[sourcePath][contractName]) {
+        console.log(output.contracts[sourcePath][contractName].storageLayout);
+        return output.contracts[sourcePath][contractName].storageLayout;
+      }
+    }
+
+    // If no exact match, try case-insensitive match
+    const lowerName = contractName.toLowerCase();
+    for (const sourcePath in output.contracts) {
+      for (const cName in output.contracts[sourcePath]) {
+        if (cName.toLowerCase() === lowerName) {
+          return output.contracts[sourcePath][cName].storageLayout;
+        }
+      }
+    }
+  }
+
+  // If we still don't have a match, find the contract with the most storage variables
+  // This is a heuristic that assumes the implementation contract has more storage than proxies/libraries
+  let bestLayout: SolcStorageLayout | undefined;
+  let maxStorageItems = -1;
+
+  for (const sourcePath in output.contracts) {
+    for (const cName in output.contracts[sourcePath]) {
+      const layout = output.contracts[sourcePath][cName].storageLayout;
+      if (layout?.storage && layout.storage.length > maxStorageItems) {
+        maxStorageItems = layout.storage.length;
+        bestLayout = layout;
+      }
+    }
+  }
+
+  return bestLayout;
 };
 
 /** Converts a compiler version string to a recognized solc version */

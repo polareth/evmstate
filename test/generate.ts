@@ -30,7 +30,7 @@ const fileAccess: FileAccessObject = {
 
 const cache = createCache(config.cacheDir, fileAccess, process.cwd());
 
-const generateStorageLayouts = async () => {
+export const generateStorageLayouts = async () => {
   // Create output directory if it doesn't exist
   const outputDir = join(__dirname, "generated/layouts");
   await mkdir(outputDir, { recursive: true });
@@ -189,14 +189,3 @@ async function findArtifactFiles(dir: string): Promise<string[]> {
 
   return artifactFiles;
 }
-
-// Run the script
-generateStorageLayouts()
-  .then(() => {
-    console.log("Storage layout generation complete");
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error("Error generating storage layouts:", error);
-    process.exit(1);
-  });

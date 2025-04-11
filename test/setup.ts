@@ -11,6 +11,7 @@ import { toFunctionSelector } from "viem";
 import { beforeEach, vi } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants";
+import { generateStorageLayouts } from "@test/generate";
 import { debug } from "@/debug";
 import * as storageLayout from "@/lib/trace/storage-layout";
 
@@ -37,7 +38,10 @@ beforeEach(async () => {
   await Promise.all(Object.values(CONTRACTS).map((contract) => client.tevmSetAccount(contract)));
 
   // Setup mocks for contract-related functions
-  if (process.env.TEST_ENV !== "staging") setupContractsMock();
+  if (process.env.TEST_ENV !== "staging") {
+    setupContractsMock();
+    generateStorageLayouts();
+  }
 });
 
 const config = JSON.parse(fs.readFileSync(join(__dirname, "../tevm.config.json"), "utf8")) as ResolvedCompilerConfig;
@@ -65,7 +69,9 @@ const setupContractsMock = () => {
   vi.spyOn(storageLayout, "getContracts").mockImplementation(async ({ addresses }) => {
     return Object.fromEntries(
       addresses.map((address) => {
-        const contract = Object.values(CONTRACTS).find((contract) => contract.address === address);
+        const contract = Object.values(CONTRACTS).find(
+          (contract) => contract.address.toLowerCase() === address.toLowerCase(),
+        );
         if (!contract) {
           return [
             address,
@@ -109,18 +115,24 @@ const setupContractsMock = () => {
     }
 
     try {
-      const contract = Object.values(CONTRACTS).find((contract) => contract.address === address);
-      const contractPath = getContractPath(contract?.name ?? "");
+      const contract = Object.values(CONTRACTS).find(
+        (contract) => contract.address.toLowerCase() === address.toLowerCase(),
+      );
+
+      if (!contract?.name) {
+        debug(`Could not find contract name for address ${address}`);
+        return undefined;
+      }
+
+      const contractPath = getContractPath(contract.name);
       const artifacts = cache.readArtifactsSync(contractPath);
 
-      let layouts = Object.values(artifacts?.solcOutput?.contracts ?? {})
-        .flatMap(
-          (source) =>
-            Object.values(source).flatMap((contract) => contract.storageLayout as unknown as SolcStorageLayout), // TODO: wrong type, soon fixed
-        )
-        .filter(Boolean);
+      // Check if the layout exists in the artifacts for this specific contract
+      // @ts-expect-error storageLayout does not exist in the artifact
+      let layout = artifacts?.artifacts?.[contract.name]?.storageLayout as SolcStorageLayout | undefined;
 
-      if (layouts.length === 0) {
+      // If not found, recompile to get the layout
+      if (!layout) {
         const solcInput = artifacts?.solcInput;
         const solc = await createSolc("0.8.23");
 
@@ -137,48 +149,33 @@ const setupContractsMock = () => {
           sources: solcInput?.sources ?? {},
         });
 
-        layouts = Object.values(output.contracts)
-          .flatMap((layouts) => Object.values(layouts))
-          .map((l) => l.storageLayout) as unknown as Array<SolcStorageLayout>;
+        // Use findMostRelevantLayout to get the layout
+        layout = storageLayout.findMostRelevantLayout(output, contract.name);
 
-        cache.writeArtifactsSync(contractPath, {
-          ...artifacts,
-          solcOutput: {
-            ...artifacts?.solcOutput,
-            // @ts-expect-error undefined abi
-            contracts: {
-              ...artifacts?.solcOutput?.contracts,
-              [join(process.cwd(), contractPath)]: {
-                ...artifacts?.solcOutput?.contracts?.[contractPath],
-                [contract?.name ?? ""]: {
-                  ...artifacts?.solcOutput?.contracts?.[contractPath]?.[contract?.name ?? ""],
-                  storageLayout: layouts,
-                },
+        if (layout) {
+          // Write the updated artifacts back to the cache
+          cache.writeArtifactsSync(contractPath, {
+            ...artifacts,
+            artifacts: {
+              ...artifacts?.artifacts,
+              [contract.name]: {
+                ...artifacts?.artifacts?.[contract.name],
+                // @ts-expect-error storageLayout does not exist in the artifact
+                storageLayout: layout,
               },
             },
-          },
-        });
+          });
+        }
       }
 
-      // Aggregate all storage items and types from different layouts
-      const aggregatedTypes: SolcStorageLayoutTypes = layouts.reduce((acc, layout) => {
-        if (!layout?.types) return acc;
-        return { ...acc, ...layout.types };
-      }, {} as SolcStorageLayoutTypes);
+      if (!layout) {
+        debug(`Could not find storage layout for contract ${contract.name}`);
+        return undefined;
+      }
 
-      // Now that we have all types, we can properly type the storage items
-      const aggregatedStorage: Array<SolcStorageLayoutItem<typeof aggregatedTypes>> = layouts.reduce(
-        (acc, layout) => {
-          if (!layout?.storage) return acc;
-          return [...acc, ...layout.storage];
-        },
-        [] as Array<SolcStorageLayoutItem<typeof aggregatedTypes>>,
-      );
-
-      // Return a storage layout adapter for advanced access patterns
       return {
-        storage: aggregatedStorage,
-        types: aggregatedTypes,
+        storage: layout.storage || [],
+        types: layout.types || {},
       };
     } catch (error) {
       debug(`Error generating storage layout for ${address}:`, error);

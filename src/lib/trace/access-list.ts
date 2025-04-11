@@ -1,7 +1,10 @@
-import { Address, Hex, MemoryClient } from "tevm";
+import { Address, Hex, keccak256, MemoryClient } from "tevm";
 
 import { debug } from "@/debug";
 import { AccessList, IntrinsicsDiff, IntrinsicsSnapshot, StorageDiff, StorageSnapshot } from "@/lib/trace/types";
+
+const EMPTY_CODE_HASH = keccak256(new Uint8Array(0));
+const EMPTY_STORAGE_ROOT = "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421";
 
 /**
  * Fetches storage values for all slots in an access list.
@@ -78,16 +81,15 @@ export const intrinsicSnapshot = async (
           },
         ] as [Address, IntrinsicsSnapshot];
       } catch (err) {
-        debug(`Error fetching account state for ${address}:`, err);
+        debug(`Error fetching account state for ${address}, or account not initialized:`, err);
         return [
           address,
-          // TODO: the account doesn't "exist", e.g. a contract deployed that didn't exist there before; is it correct to return this?
           {
             balance: { value: 0n },
             nonce: { value: 0n },
             deployedBytecode: { value: "0x" },
-            codeHash: { value: "0x" },
-            storageRoot: { value: "0x" },
+            codeHash: { value: EMPTY_CODE_HASH },
+            storageRoot: { value: EMPTY_STORAGE_ROOT },
           },
         ] as [Address, IntrinsicsSnapshot];
       }

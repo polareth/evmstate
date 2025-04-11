@@ -105,7 +105,7 @@ export type SolidityTypeToTsType<T extends string, Types extends SolcStorageLayo
       ? SolidityTypeToTsType<ExtractMappingValueType<T>, Types>
       : // Handle arrays
         T extends `${string}[]` | `${string}[${string}]`
-        ? SolidityTypeToTsType<ExtractArrayBaseType<T>, Types>
+        ? SolidityTypeToTsType<ExtractArrayBaseType<T>, Types> | bigint // Add bigint for array length
         : // Handle struct types - use a union of all member types
           T extends `struct ${infer StructName}`
           ? ExtractStructMembers<StructName, Types> extends infer Members
