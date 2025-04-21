@@ -6,9 +6,9 @@
   "type": "module",
   "scripts": {
     "generate:layouts": "DEBUG=trace tsx test/generate.ts",
-    "test": "DEBUG=trace dotenvx run -f .env.test --quiet -- vitest run",
+    "test": "pnpm run test:unit && pnpm run test:staging",
     "test:unit": "DEBUG=trace dotenvx run -f .env.test --quiet -- vitest run test/unit",
-    "test:staging": "DEBUG=trace TEST_ENV=staging dotenvx run -f .env.test --quiet -- vitest run test/staging.test"
+    "test:staging": "DEBUG=trace TEST_ENV=staging dotenvx run -f .env.test --quiet -- vitest run test/staging"
   },
   "keywords": [],
   "author": "0xpolarzero",
