@@ -18,3 +18,7 @@ jobs:
 
       - name: Run Tests
         run: pnpm test
+        env:
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          MAINNET_ETHERSCAN_API_KEY: ${{ secrets.MAINNET_ETHERSCAN_API_KEY }}
+          MAINNET_BLOCKSCOUT_API_KEY: ${{ secrets.MAINNET_BLOCKSCOUT_API_KEY }}
