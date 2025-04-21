@@ -1,0 +1,24 @@
+name: Run tests
+
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    environment: DEV
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Tests
+        run: pnpm test
+        env:
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          MAINNET_ETHERSCAN_API_KEY: ${{ secrets.MAINNET_ETHERSCAN_API_KEY }}
+          MAINNET_BLOCKSCOUT_API_KEY: ${{ secrets.MAINNET_BLOCKSCOUT_API_KEY }}

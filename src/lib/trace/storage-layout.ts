@@ -1,12 +1,5 @@
 import { Address } from "tevm";
-import {
-  createSolc,
-  releases,
-  SolcSettings,
-  SolcStorageLayout,
-  SolcStorageLayoutItem,
-  SolcStorageLayoutTypes,
-} from "tevm/bundler/solc";
+import { createSolc, releases, SolcSettings, SolcStorageLayout } from "tevm/bundler/solc";
 import { randomBytes } from "tevm/utils";
 import { autoload, loaders } from "@shazow/whatsabi";
 
@@ -49,7 +42,7 @@ export const getContracts = async ({
     const sources = await Promise.all(responses.map((r) => r.contractResult?.getSources?.()));
 
     return responses.reduce((acc, r, index) => {
-      acc[r.address as Address] = {
+      acc[addresses[index]] = {
         metadata: {
           name: r.contractResult?.name ?? undefined,
           evmVersion: r.contractResult?.evmVersion,
@@ -57,6 +50,7 @@ export const getContracts = async ({
         },
         sources: sources[index]?.filter(({ path }) => !ignoredSourcePaths.some((p) => path?.includes(p))),
         abi: r.abi,
+        isProxy: r.address !== addresses[index],
       };
       return acc;
     }, {} as GetContractsResult);
@@ -75,7 +69,8 @@ export const getStorageLayout = async ({
   address,
   metadata,
   sources,
-}: GetContractsResult[Address] & { address: Address }) => {
+  isProxy,
+}: GetContractsResult[Address] & { address: Address }): Promise<SolcStorageLayout | undefined> => {
   const { compilerVersion, evmVersion, name } = metadata;
 
   // Return empty layout if we're missing critical information
@@ -89,7 +84,7 @@ export const getStorageLayout = async ({
     const output = solc.compile({
       language: "Solidity",
       settings: {
-        evmVersion: metadata.evmVersion as SolcSettings["evmVersion"],
+        evmVersion: metadata.evmVersion === "Default" ? undefined : (metadata.evmVersion as SolcSettings["evmVersion"]),
         outputSelection: {
           "*": {
             "*": ["storageLayout"],
@@ -99,18 +94,53 @@ export const getStorageLayout = async ({
       sources: Object.fromEntries(sources.map(({ path, content }) => [path ?? randomBytes(8).toString(), { content }])),
     });
 
+    if (output.errors && Object.keys(output.contracts).length === 0) {
+      debug(`Errors when generating storage layout for ${address} with version ${compilerVersion}:`, output.errors);
+      return undefined;
+    }
+
     // Find the most relevant storage layout for this contract
-    const contractLayout = findMostRelevantLayout(output, name);
+    let contractLayout = findMostRelevantLayout(output, name);
 
     if (!contractLayout) {
       debug(`Could not find a relevant storage layout for ${address} (${name || "unnamed"})`);
       return undefined;
     }
 
-    return {
-      storage: contractLayout.storage || [],
-      types: contractLayout.types || {},
-    };
+    const { storage, types } = !isProxy
+      ? contractLayout
+      : {
+          storage: contractLayout.storage.concat([
+            {
+              astId: -1,
+              contract: name ?? address,
+              label: "__implementation",
+              offset: 0,
+              // EIP-1967 implementation slot: bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1)
+              slot: BigInt("0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc").toString(),
+              type: "t_address",
+            },
+            {
+              astId: -1,
+              contract: name ?? address,
+              label: "__admin",
+              offset: 0,
+              // EIP-1967 admin slot: bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1)
+              slot: BigInt("0xb53127684a568b3173ae13b9f8a6016e019b2c8e8cbb2a6e0a23387fdaa12345").toString(),
+              type: "t_address",
+            },
+          ]),
+          types: {
+            ...contractLayout.types,
+            t_address: {
+              encoding: "inplace" as const,
+              label: "address",
+              numberOfBytes: "20",
+            },
+          },
+        };
+
+    return { storage, types };
   } catch (error) {
     debug(`Error generating storage layout for ${address}:`, error);
     return undefined;
@@ -132,7 +162,6 @@ export const findMostRelevantLayout = (output: any, contractName?: string): Solc
   if (contractName) {
     for (const sourcePath in output.contracts) {
       if (output.contracts[sourcePath][contractName]) {
-        console.log(output.contracts[sourcePath][contractName].storageLayout);
         return output.contracts[sourcePath][contractName].storageLayout;
       }
     }
@@ -170,7 +199,7 @@ export const findMostRelevantLayout = (output: any, contractName?: string): Solc
 const getSolcVersion = (_version: string) => {
   try {
     // Try exact version match first
-    const release = Object.entries(releases).find(([_, v]) => v === `v${_version}`);
+    const release = Object.entries(releases).find(([_, v]) => v.includes(_version));
     if (release) return release[0] as keyof typeof releases;
 
     // Try approximate match (e.g. 0.8.17 might match with 0.8.19)

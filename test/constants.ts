@@ -15,7 +15,6 @@ export const CONTRACTS = {
   SimpleContract: contracts.SimpleContract.withAddress(`0x${"7".repeat(40)}`),
   NativeTransfer: contracts.NativeTransfer.withAddress(`0x${"8".repeat(40)}`),
   ETHReceiver: contracts.ETHReceiver.withAddress(`0x${"9".repeat(40)}`),
-  TransparentProxy: contracts.TransparentProxy.withAddress(`0x${"a".repeat(40)}`),
 };
 
 export const FORK = {
@@ -33,7 +32,9 @@ export const FORK = {
       },
     },
     contracts: {
-      // UniswapERC20: contracts.SimpleERC20.withAddress("0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984"),
+      TransparentProxy: contracts.TransparentProxy.withAddress("0x6F64746625f57a146A8F2168852d73dfec6771e8"),
+      CounterImpl: contracts.CounterImpl.withAddress("0x47676f15E78BfFE13225eFF46C6A2BDd3199ed95"),
+      CounterImplV2: contracts.CounterImplV2.withAddress("0xCC0eAE411714557Ac10A0b3F310d17AA1C72A360"),
     },
   },
 } as const;
@@ -41,5 +42,4 @@ export const FORK = {
 export const ACCOUNTS = {
   caller: createAddress("0x0000000000000000000000000000000000000001"),
   recipient: createAddress("0x0000000000000000000000000000000000000002"),
-  admin: createAddress("0x0000000000000000000000000000000000000003"),
 };

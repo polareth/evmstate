@@ -68,6 +68,7 @@ const setupContractsMock = () => {
         const contract = Object.values(CONTRACTS).find(
           (contract) => contract.address.toLowerCase() === address.toLowerCase(),
         );
+
         if (!contract) {
           return [
             address,
@@ -138,7 +139,11 @@ const setupContractsMock = () => {
             evmVersion: solcInput?.settings?.evmVersion ?? "paris",
             outputSelection: {
               "*": {
-                "*": [...(solcInput?.settings?.outputSelection["*"]["*"] ?? []), "storageLayout"],
+                "*": [
+                  ...(solcInput?.settings?.outputSelection["*"]["*"] ?? []),
+                  "storageLayout",
+                  "evm.bytecode.sourceMap",
+                ],
               },
             },
           },

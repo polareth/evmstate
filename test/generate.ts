@@ -195,4 +195,12 @@ async function findArtifactFiles(dir: string): Promise<string[]> {
   return artifactFiles;
 }
 
-generateStorageLayouts();
+generateStorageLayouts()
+  .then(() => {
+    console.log("done");
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
