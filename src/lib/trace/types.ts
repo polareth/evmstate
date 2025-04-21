@@ -286,5 +286,6 @@ export type GetContractsResult = Record<
     };
     sources?: Array<{ path?: string; content: string }>;
     abi: abi.ABI;
+    isProxy: boolean;
   }
 >;

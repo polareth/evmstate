@@ -5,9 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "generate:layouts": "tsx test/generate.ts",
+    "generate:layouts": "DEBUG=trace tsx test/generate.ts",
     "test": "DEBUG=trace dotenvx run -f .env.test --quiet -- vitest run",
-    "test:unit": "pnpm generate:layouts && DEBUG=trace dotenvx run -f .env.test --quiet -- vitest run test/unit",
+    "test:unit": "DEBUG=trace dotenvx run -f .env.test --quiet -- vitest run test/unit",
     "test:staging": "DEBUG=trace TEST_ENV=staging dotenvx run -f .env.test --quiet -- vitest run test/staging.test"
   },
   "keywords": [],
@@ -17,7 +17,7 @@
     "@shazow/whatsabi": "^0.21.0",
     "abitype": "^1.0.8",
     "debug": "^4.4.0",
-    "tevm": "1.0.0-next.140",
+    "tevm": "1.0.0-next.141",
     "viem": "^2.21.1"
   },
   "devDependencies": {
@@ -35,6 +35,6 @@
     "vitest": "^3.0.9"
   },
   "peerDependencies": {
-    "tevm": "1.0.0-next.140"
+    "tevm": "1.0.0-next.141"
   }
 }

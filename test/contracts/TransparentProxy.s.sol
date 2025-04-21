@@ -52,49 +52,82 @@ contract CounterImplV2 {
 
 // Proxy contract that delegates calls to the implementation
 contract TransparentProxy {
-    address private _implementation;
-    address private _admin;
-    
-    // Storage gap to avoid storage collision with implementation
-    uint256[50] private __gap;
-    
+    // EIP-1967 implementation slot: bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1)
+    bytes32 private constant _IMPLEMENTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+    // EIP-1967 admin slot: bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1)
+    bytes32 private constant _ADMIN_SLOT = 0xb53127684a568b3173ae13b9f8a6016e019b2c8e8cbb2a6e0a23387fdaa12345;
+
     constructor(address implementation_, address admin_) {
-        _implementation = implementation_;
-        _admin = admin_;
+        _setAdmin(admin_);
+        _setImplementation(implementation_);
     }
     
-    // Admin functions
-    function changeImplementation(address newImplementation) public {
-        require(msg.sender == _admin, "Only admin can change implementation");
-        _implementation = newImplementation;
-    }
-    
-    function getImplementation() public view returns (address) {
-        return _implementation;
-    }
-    
-    // Fallback function to delegate calls to the implementation
-    fallback() external payable {
-        address implementation = _implementation;
-        require(implementation != address(0), "Implementation not set");
-        
+    // Internal functions to set the implementation and admin using unstructured storage.
+    function _setImplementation(address newImplementation) internal {
+        require(newImplementation != address(0), "Invalid implementation");
+        bytes32 slot = _IMPLEMENTATION_SLOT;
         assembly {
-            // Copy calldata to memory
-            calldatacopy(0, 0, calldatasize())
-            
-            // Delegate call to the implementation
-            let result := delegatecall(gas(), implementation, 0, calldatasize(), 0, 0)
-            
-            // Copy the returned data
-            returndatacopy(0, 0, returndatasize())
-            
-            // Return or revert based on the delegatecall result
-            switch result
-            case 0 { revert(0, returndatasize()) }
-            default { return(0, returndatasize()) }
+            sstore(slot, newImplementation)
         }
     }
     
-    // Required to receive ETH
+    function _setAdmin(address newAdmin) internal {
+        require(newAdmin != address(0), "Invalid admin");
+        bytes32 slot = _ADMIN_SLOT;
+        assembly {
+            sstore(slot, newAdmin)
+        }
+    }
+    
+    function _getImplementation() internal view returns (address impl) {
+        bytes32 slot = _IMPLEMENTATION_SLOT;
+        assembly {
+            impl := sload(slot)
+        }
+    }
+    
+    function _getAdmin() internal view returns (address adm) {
+        bytes32 slot = _ADMIN_SLOT;
+        assembly {
+            adm := sload(slot)
+        }
+    }
+    
+    // Admin functions: Only the admin can change the implementation.
+    function changeImplementation(address newImplementation) public {
+        require(msg.sender == _getAdmin(), "Only admin can change implementation");
+        _setImplementation(newImplementation);
+    }
+    
+    function getImplementation() public view returns (address) {
+        return _getImplementation();
+    }
+    
+    function getAdmin() public view returns (address) {
+        return _getAdmin();
+    }
+    
+    // Fallback function that delegates calls to the implementation.
+    fallback() external payable {
+        address implementation = _getImplementation();
+        require(implementation != address(0), "Implementation not set");
+        
+        assembly {
+            // Copy the calldata into memory starting at position 0.
+            calldatacopy(0, 0, calldatasize())
+            // Delegate call to the implementation.
+            let result := delegatecall(gas(), implementation, 0, calldatasize(), 0, 0)
+            // Retrieve the size of the returned data.
+            let size := returndatasize()
+            // Copy the returned data.
+            returndatacopy(0, 0, size)
+            // Forward the returned data or revert.
+            switch result
+            case 0 { revert(0, size) }
+            default { return(0, size) }
+        }
+    }
+    
+    // Receive function to accept ETH.
     receive() external payable {}
 }

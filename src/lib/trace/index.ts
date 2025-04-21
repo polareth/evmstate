@@ -54,7 +54,7 @@ export const traceStorageAccess = async <
       value,
       skipBalance: true,
       createAccessList: true,
-      createTransaction: true,
+      addToMempool: true,
       createTrace: true,
     });
 

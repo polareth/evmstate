@@ -48,7 +48,7 @@ describe("Mainnet ERC20", () => {
       const result = await client.tevmContract({
         ...StoragePacking.write.setSmallValues(42, 123, true, caller.toString()),
         from: caller.toString(),
-        createTransaction: true,
+        addToBlockchain: true,
       });
 
       // Wait for the transaction to be mined
