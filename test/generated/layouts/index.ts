@@ -1,5 +1,6 @@
 export { default as Arrays } from "./Arrays";
 export { default as AssemblyStorage } from "./AssemblyStorage";
+export { default as Bytes } from "./Bytes";
 export { default as Factory } from "./Factory";
 export { default as SimpleContract } from "./SimpleContract";
 export { default as Mappings } from "./Mappings";

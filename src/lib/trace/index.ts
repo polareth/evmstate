@@ -1,6 +1,6 @@
 import { Abi, AbiFunction, Address, CallResult, ContractFunctionName, Hex } from "tevm";
 import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
-import { padHex, toFunctionSignature } from "viem";
+import { toFunctionSignature, trim } from "viem";
 
 import { debug } from "@/debug";
 import { exploreStorage } from "@/lib/explore";
@@ -233,9 +233,7 @@ export const traceStorageAccess = async <
 
           acc[result.name].trace.push(
             cleanTrace({
-              modified:
-                result.next !== undefined &&
-                padHex(result.next.hex, { size: 32 }) !== padHex(result.current.hex, { size: 32 }),
+              modified: result.next !== undefined && trim(result.next.hex) !== trim(result.current.hex),
               current: result.current,
               next: result.next,
               slots: result.slots,

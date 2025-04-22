@@ -1,8 +1,8 @@
-import { Hex } from "tevm";
+import { Hex, toHex } from "tevm";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
-import { expectedStorage, getArraySlotHex, getClient, getSlotHex, toEvenHex } from "@test/utils";
+import { expectedStorage, getArraySlotHex, getClient, getSlotHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
 import { PathSegmentKind } from "@/lib/explore/types";
 import { StorageAccessTrace } from "@/lib/trace/types";
@@ -46,8 +46,8 @@ describe("Contract creation", () => {
             trace: [
               // Array length update
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
-                next: { hex: toEvenHex(1), decoded: 1n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+                next: { hex: toHex(1, { size: 1 }), decoded: 1n },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [
@@ -60,7 +60,7 @@ describe("Contract creation", () => {
               },
               // New contract address added to array
               {
-                current: { hex: toEvenHex(0), decoded: "0x0000000000000000000000000000000000000000" },
+                current: { hex: toHex(0, { size: 1 }), decoded: "0x0000000000000000000000000000000000000000" },
                 next: { hex: expect.any(String), decoded: expect.any(String) },
                 modified: true,
                 slots: [getArraySlotHex(getSlotHex(0), 0)],
@@ -97,8 +97,8 @@ describe("Contract creation", () => {
               path: [],
               fullExpression: `slot_${getSlotHex(0)}`,
               note: "Could not label this slot access because no layout was found.",
-              current: { hex: toEvenHex(0) },
-              next: { hex: toEvenHex(initialValue) },
+              current: { hex: toHex(0, { size: 1 }) },
+              next: { hex: toHex(initialValue) },
             },
           ],
         },
@@ -147,8 +147,8 @@ describe("Contract creation", () => {
               path: [],
               fullExpression: `slot_${getSlotHex(0)}`,
               note: "Could not label this slot access because no layout was found.",
-              current: { hex: toEvenHex(initialValue) },
-              next: { hex: toEvenHex(newValue) },
+              current: { hex: toHex(initialValue, { size: 1 }) },
+              next: { hex: toHex(newValue, { size: 2 }) },
             },
           ],
         },
@@ -175,7 +175,7 @@ describe("Contract creation", () => {
               path: [],
               fullExpression: `slot_${getSlotHex(0)}`,
               note: "Could not label this slot access because no layout was found.",
-              current: { hex: toEvenHex(newValue) },
+              current: { hex: toHex(newValue, { size: 2 }) },
             },
           ],
         },

@@ -1,17 +1,11 @@
+import { toHex } from "tevm";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
-import {
-  expectedStorage,
-  getArraySlotHex,
-  getClient,
-  getMappingSlotHex,
-  getSlotHex,
-  getStringHex,
-  toEvenHex,
-} from "@test/utils";
+import { expectedStorage, getArraySlotHex, getClient, getMappingSlotHex, getSlotHex, getStringHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
 import { PathSegmentKind } from "@/lib/explore/types";
+import { toHexFullBytes } from "@/lib/explore/utils";
 
 const { Structs } = CONTRACTS;
 const { caller } = ACCOUNTS;
@@ -51,13 +45,14 @@ describe("Structs", () => {
             type: "struct Structs.BasicStruct",
             kind: "struct",
             trace: [
+              // id field write
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(1, { size: 32 }),
+                  hex: toHex(1, { size: 32 }),
                   decoded: 1n,
                 },
                 modified: true,
@@ -70,13 +65,38 @@ describe("Structs", () => {
                 ],
                 fullExpression: "basicStruct.id",
               },
+              // name length field write
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
+                  decoded: 0n,
+                },
+                next: {
+                  hex: toHex(10, { size: 1 }),
+                  decoded: 10n,
+                },
+                modified: true,
+                slots: [getSlotHex(3)],
+                path: [
+                  {
+                    kind: PathSegmentKind.StructField,
+                    name: "name",
+                  },
+                  {
+                    kind: PathSegmentKind.BytesLength,
+                    name: "_length",
+                  },
+                ],
+                fullExpression: "basicStruct.name._length",
+              },
+              // name field write
+              {
+                current: {
+                  hex: toHex(0, { size: 1 }),
                   decoded: "",
                 },
                 next: {
-                  hex: getStringHex("Named Init"),
+                  hex: toHexFullBytes("Named Init"),
                   decoded: "Named Init",
                 },
                 modified: true,
@@ -98,11 +118,11 @@ describe("Structs", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(4, { size: 32 }),
+                  hex: toHex(4, { size: 32 }),
                   decoded: 4n,
                 },
                 modified: true,
@@ -122,13 +142,14 @@ describe("Structs", () => {
             type: "struct Structs.NestedStruct",
             kind: "struct",
             trace: [
+              // id field write
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(2, { size: 32 }),
+                  hex: toHex(2, { size: 32 }),
                   decoded: 2n,
                 },
                 modified: true,
@@ -141,13 +162,14 @@ describe("Structs", () => {
                 ],
                 fullExpression: "nestedStruct.id",
               },
+              // nested struct id field write
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(3, { size: 32 }),
+                  hex: toHex(3, { size: 32 }),
                   decoded: 3n,
                 },
                 modified: true,
@@ -164,13 +186,42 @@ describe("Structs", () => {
                 ],
                 fullExpression: "nestedStruct.basic.id",
               },
+              // nested struct name length field write
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
+                  decoded: 0n,
+                },
+                next: {
+                  hex: toHex(6, { size: 1 }),
+                  decoded: 6n,
+                },
+                modified: true,
+                slots: [getSlotHex(6)],
+                path: [
+                  {
+                    kind: PathSegmentKind.StructField,
+                    name: "basic",
+                  },
+                  {
+                    kind: PathSegmentKind.StructField,
+                    name: "name",
+                  },
+                  {
+                    kind: PathSegmentKind.BytesLength,
+                    name: "_length",
+                  },
+                ],
+                fullExpression: "nestedStruct.basic.name._length",
+              },
+              // nested struct name field write
+              {
+                current: {
+                  hex: toHex(0, { size: 1 }),
                   decoded: "",
                 },
                 next: {
-                  hex: getStringHex("Nested"),
+                  hex: toHexFullBytes("Nested"),
                   decoded: "Nested",
                 },
                 modified: true,
@@ -197,13 +248,13 @@ describe("Structs", () => {
       const client = getClient();
 
       // First initialize the struct
-      await traceStorageAccess({
-        client,
-        from: caller.toString(),
+      await client.tevmContract({
+        caller: caller.toString(),
         to: Structs.address,
         abi: Structs.abi,
         functionName: "initializeStructs",
         args: [],
+        addToBlockchain: true,
       });
 
       // Now delete the struct
@@ -224,13 +275,14 @@ describe("Structs", () => {
             type: "struct Structs.BasicStruct",
             kind: "struct",
             trace: [
+              // id field write
               {
                 current: {
-                  hex: toEvenHex(1, { size: 32 }),
+                  hex: toHex(1, { size: 32 }),
                   decoded: 1n,
                 },
                 next: {
-                  hex: toEvenHex(0), // slot data at deleted struct
+                  hex: toHex(0, { size: 1 }), // slot data at deleted struct
                   decoded: 0n,
                 },
                 modified: true,
@@ -243,13 +295,39 @@ describe("Structs", () => {
                 ],
                 fullExpression: "basicStruct.id",
               },
+              // string here doesn't get actually deleted
+              // name length field write
               {
                 current: {
-                  hex: getStringHex("Named Init"),
+                  hex: toHex(10, { size: 1 }),
+                  decoded: 10n,
+                },
+                next: {
+                  hex: toHex(0, { size: 1 }), // slot data at deleted struct
+                  decoded: 0n,
+                },
+                modified: true,
+                slots: [getSlotHex(3)],
+                path: [
+                  {
+                    kind: PathSegmentKind.StructField,
+                    name: "name",
+                  },
+                  {
+                    kind: PathSegmentKind.BytesLength,
+                    name: "_length",
+                  },
+                ],
+                fullExpression: "basicStruct.name._length",
+              },
+              // name field write
+              {
+                current: {
+                  hex: toHexFullBytes("Named Init"),
                   decoded: "Named Init",
                 },
                 next: {
-                  hex: toEvenHex(0), // slot data at deleted struct
+                  hex: toHex(0, { size: 1 }), // slot data at deleted struct
                   decoded: "",
                 },
                 modified: true,
@@ -298,11 +376,11 @@ describe("Structs", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0,
                 },
                 next: {
-                  hex: toEvenHex(preceding),
+                  hex: toHex(preceding),
                   decoded: preceding,
                 },
                 modified: true,
@@ -319,11 +397,11 @@ describe("Structs", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0,
                 },
                 next: {
-                  hex: toEvenHex(a),
+                  hex: toHex(a),
                   decoded: a,
                 },
                 modified: true,
@@ -338,11 +416,11 @@ describe("Structs", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0,
                 },
                 next: {
-                  hex: toEvenHex(b, { size: 2 }),
+                  hex: toHex(b, { size: 2 }),
                   decoded: b,
                 },
                 modified: true,
@@ -357,11 +435,11 @@ describe("Structs", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0,
                 },
                 next: {
-                  hex: toEvenHex(c, { size: 4 }),
+                  hex: toHex(c, { size: 4 }),
                   decoded: c,
                 },
                 modified: true,
@@ -376,11 +454,11 @@ describe("Structs", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: false,
                 },
                 next: {
-                  hex: toEvenHex(d),
+                  hex: toHex(d, { size: 1 }),
                   decoded: d,
                 },
                 modified: true,
@@ -432,7 +510,7 @@ describe("Structs", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(42),
+                  hex: toHex(42),
                   decoded: 42,
                 },
                 modified: false,
@@ -449,7 +527,7 @@ describe("Structs", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(123),
+                  hex: toHex(123),
                   decoded: 123,
                 },
                 modified: false,
@@ -464,7 +542,7 @@ describe("Structs", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(45678, { size: 2 }),
+                  hex: toHex(45678, { size: 2 }),
                   decoded: 45678,
                 },
                 modified: false,
@@ -479,7 +557,7 @@ describe("Structs", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(1000000, { size: 4 }),
+                  hex: toHex(1000000, { size: 4 }),
                   decoded: 1000000,
                 },
                 modified: false,
@@ -494,7 +572,7 @@ describe("Structs", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: true,
                 },
                 modified: false,
@@ -552,11 +630,11 @@ describe("Structs", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: true,
@@ -575,11 +653,11 @@ describe("Structs", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(value, { size: 32 }),
+                  hex: toHex(value, { size: 32 }),
                   decoded: value,
                 },
                 modified: true,
@@ -636,7 +714,7 @@ describe("Structs", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: false,
@@ -684,16 +762,16 @@ describe("Structs", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: false,
                 },
                 next: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: true,
                 },
                 modified: true,
                 // The mapping is at slot 9 in the dynamicStruct
-                slots: [getMappingSlotHex(9, toEvenHex(key, { size: 32 }))],
+                slots: [getMappingSlotHex(9, toHex(key, { size: 32 }))],
                 path: [
                   {
                     kind: PathSegmentKind.StructField,
@@ -732,11 +810,11 @@ describe("Structs", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: true,
                 },
                 modified: false,
-                slots: [getMappingSlotHex(9, toEvenHex(key, { size: 32 }))],
+                slots: [getMappingSlotHex(9, toHex(key, { size: 32 }))],
                 path: [
                   {
                     kind: PathSegmentKind.StructField,

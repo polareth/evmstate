@@ -1,8 +1,8 @@
-import { encodeFunctionData } from "tevm";
+import { encodeFunctionData, toHex } from "tevm";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
-import { expectedStorage, getClient, getSlotHex, toEvenHex } from "@test/utils";
+import { expectedStorage, getClient, getSlotHex } from "@test/utils";
 import { Tracer, traceStorageAccess } from "@/index";
 
 const { StoragePacking } = CONTRACTS;
@@ -48,8 +48,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(42), decoded: 42 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(42, { size: 1 }), decoded: 42 },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -63,8 +63,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(123), decoded: 123 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(123, { size: 1 }), decoded: 123 },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -78,8 +78,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: false },
-                next: { hex: toEvenHex(1), decoded: true },
+                current: { hex: toHex(0, { size: 1 }), decoded: false },
+                next: { hex: toHex(1, { size: 1 }), decoded: true },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -94,8 +94,8 @@ describe("Basic slots access and packing", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
-                  decoded: toEvenHex(0, { size: 20 }),
+                  hex: toHex(0, { size: 1 }),
+                  decoded: toHex(0, { size: 20 }),
                 },
                 next: { hex: caller.toString(), decoded: caller.toString() },
                 modified: true,
@@ -131,8 +131,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(999), decoded: 999 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(999, { size: 2 }), decoded: 999 },
                 modified: true,
                 slots: [getSlotHex(3)],
                 path: [],
@@ -146,7 +146,7 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
                 modified: false,
                 slots: [getSlotHex(3)],
                 path: [],
@@ -160,7 +160,7 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
                 modified: false,
                 slots: [getSlotHex(3)],
                 path: [],
@@ -197,8 +197,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(10), decoded: 10 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(10, { size: 1 }), decoded: 10 },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -212,8 +212,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(20), decoded: 20 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(20, { size: 1 }), decoded: 20 },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -227,7 +227,7 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: false },
+                current: { hex: toHex(0, { size: 1 }), decoded: false },
                 modified: false,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -242,8 +242,8 @@ describe("Basic slots access and packing", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
-                  decoded: toEvenHex(0, { size: 20 }),
+                  hex: toHex(0, { size: 1 }),
+                  decoded: toHex(0, { size: 20 }),
                 },
                 modified: false,
                 slots: [getSlotHex(0)],
@@ -258,8 +258,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(1000), decoded: 1000 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(1000, { size: 2 }), decoded: 1000 },
                 modified: true,
                 slots: [getSlotHex(3)],
                 path: [],
@@ -273,8 +273,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(2000, { size: 4 }), decoded: 2000 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(2000, { size: 4 }), decoded: 2000 },
                 modified: true,
                 slots: [getSlotHex(3)],
                 path: [],
@@ -288,7 +288,7 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
                 modified: false,
                 slots: [getSlotHex(3)],
                 path: [],
@@ -302,8 +302,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
-                next: { hex: toEvenHex(12345n, { size: 32 }), decoded: 12345n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+                next: { hex: toHex(12345n, { size: 32 }), decoded: 12345n },
                 modified: true,
                 slots: [getSlotHex(1)],
                 path: [],
@@ -338,9 +338,9 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
                 next: {
-                  hex: toEvenHex(largeValue, { size: 32 }),
+                  hex: toHex(largeValue, { size: 32 }),
                   decoded: largeValue,
                 },
                 modified: true,
@@ -378,8 +378,8 @@ describe("Basic slots access and packing", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
-                  decoded: toEvenHex(0, { size: 32 }),
+                  hex: toHex(0, { size: 1 }),
+                  decoded: toHex(0, { size: 32 }),
                 },
                 next: { hex: testBytes32, decoded: testBytes32 },
                 modified: true,
@@ -415,7 +415,7 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
                 modified: false,
                 slots: [getSlotHex(1)],
                 path: [],
@@ -475,8 +475,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(1), decoded: 1 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(1, { size: 1 }), decoded: 1 },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -490,8 +490,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(2), decoded: 2 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(2, { size: 1 }), decoded: 2 },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -505,8 +505,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: false },
-                next: { hex: toEvenHex(1), decoded: true },
+                current: { hex: toHex(0, { size: 1 }), decoded: false },
+                next: { hex: toHex(1, { size: 1 }), decoded: true },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -521,8 +521,8 @@ describe("Basic slots access and packing", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
-                  decoded: toEvenHex(0, { size: 20 }),
+                  hex: toHex(0, { size: 1 }),
+                  decoded: toHex(0, { size: 20 }),
                 },
                 next: { hex: caller.toString(), decoded: caller.toString() },
                 modified: true,
@@ -557,8 +557,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(1), decoded: 1 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(1, { size: 1 }), decoded: 1 },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -572,8 +572,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0 },
-                next: { hex: toEvenHex(2), decoded: 2 },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+                next: { hex: toHex(2, { size: 1 }), decoded: 2 },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -587,8 +587,8 @@ describe("Basic slots access and packing", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: false },
-                next: { hex: toEvenHex(1), decoded: true },
+                current: { hex: toHex(0, { size: 1 }), decoded: false },
+                next: { hex: toHex(1, { size: 1 }), decoded: true },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -603,8 +603,8 @@ describe("Basic slots access and packing", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
-                  decoded: toEvenHex(0, { size: 20 }),
+                  hex: toHex(0, { size: 1 }),
+                  decoded: toHex(0, { size: 20 }),
                 },
                 next: { hex: caller.toString(), decoded: caller.toString() },
                 modified: true,

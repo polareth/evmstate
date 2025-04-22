@@ -115,7 +115,7 @@ export type SolidityTypeToTsType<T extends string, Types extends SolcStorageLayo
             : unknown
           : // Handle bytes/string
             T extends "bytes" | "string"
-            ? string
+            ? string | bigint // Add bigint for length
             : // Default case
               unknown;
 
@@ -176,6 +176,7 @@ export enum PathSegmentKind {
   ArrayIndex = "array_index",
   MappingKey = "mapping_key",
   ArrayLength = "array_length",
+  BytesLength = "bytes_length",
 }
 
 /** Create a path segment for a struct field */
@@ -193,6 +194,12 @@ export type ArrayIndexSegment = {
 /** Create a path segment for an array _length */
 export type ArrayLengthSegment = {
   kind: PathSegmentKind.ArrayLength;
+  name: "_length";
+};
+
+/** Create a path segment for bytes/string length */
+export type BytesLengthSegment = {
+  kind: PathSegmentKind.BytesLength;
   name: "_length";
 };
 
@@ -238,8 +245,11 @@ export type PathBuilder<
                 [...BasePath, { kind: PathSegmentKind.StructField; name: Member }]
               >;
             }[ExtractStructMembers<StructName, Types> & string]
-          : // Default case - unknown type, return base path
-            BasePath;
+          : // Handle bytes/string types - add bytes length segment
+            T extends "bytes" | "string"
+            ? BasePath | [...BasePath, BytesLengthSegment]
+            : // Default case - unknown type, return base path
+              BasePath;
 
 /** Get all possible path segments for a variable type */
 export type VariablePathSegments<T extends string, Types extends SolcStorageLayoutTypes> = PathBuilder<T, Types>;
@@ -249,11 +259,13 @@ export type PathSegmentToString<Segment> = Segment extends { kind: PathSegmentKi
   ? `[${Key & (string | number | bigint | boolean)}]`
   : Segment extends { kind: PathSegmentKind.ArrayLength }
     ? `._length`
-    : Segment extends { kind: PathSegmentKind.ArrayIndex; index: infer Index }
-      ? `[${Index & (string | number | bigint)}]`
-      : Segment extends { kind: PathSegmentKind.StructField; name: infer Name }
-        ? `.${Name & string}`
-        : never;
+    : Segment extends { kind: PathSegmentKind.BytesLength }
+      ? `._length`
+      : Segment extends { kind: PathSegmentKind.ArrayIndex; index: infer Index }
+        ? `[${Index & (string | number | bigint)}]`
+        : Segment extends { kind: PathSegmentKind.StructField; name: infer Name }
+          ? `.${Name & string}`
+          : never;
 
 /**
  * Generate a full expression from a variable name and path segments This type correctly handles all path segments in
@@ -281,7 +293,8 @@ export type PathSegment =
       key: SolidityKeyToTsType<string, SolcStorageLayoutTypes>;
       keyType: string;
     }
-  | { kind: PathSegmentKind.ArrayLength; name: "_length" };
+  | { kind: PathSegmentKind.ArrayLength; name: "_length" }
+  | { kind: PathSegmentKind.BytesLength; name: "_length" };
 
 /* -------------------------------------------------------------------------- */
 /*                               INTERNAL TYPES                               */

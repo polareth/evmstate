@@ -6,7 +6,7 @@ import { debug } from "@/debug";
 import { ExploreStorageConfig } from "@/lib/explore/config";
 import { computeMappingSlot, sortCandidateKeys } from "@/lib/explore/mapping";
 import { DecodedResult, PathSegment, PathSegmentKind, SolidityTypeToTsType, TypePriority } from "@/lib/explore/types";
-import { max } from "@/lib/explore/utils";
+import { max, toHexFullBytes } from "@/lib/explore/utils";
 import { StorageDiff } from "@/lib/trace/types";
 
 /**
@@ -125,10 +125,10 @@ export const exploreStorage = (
           ...root,
           path: [...path],
           slots: [lenSlotHex],
-          current: { decoded: lengthCurrent, hex: lenEntry.current },
+          current: { decoded: lengthCurrent, hex: toHexFullBytes(lengthCurrent) },
         };
 
-        if (lengthNext !== undefined) out.next = { decoded: lengthNext, hex: lenEntry.next! };
+        if (lengthNext !== undefined) out.next = { decoded: lengthNext, hex: toHexFullBytes(lengthNext) };
         results.push(out);
         // Restore path
         path.pop();
@@ -156,66 +156,102 @@ export const exploreStorage = (
         path.pop();
       }
     } else if (encoding === "bytes") {
-      // dynamic bytes or string
+      // Dynamic bytes or string
       const slotData = storageDiff[baseSlotHex];
       if (!slotData) return;
 
-      // decode both current & next
-      const { current: currentHex, next: nextHex } = slotData;
-      const currentBigInt = BigInt(currentHex === "0x" ? "0x0" : currentHex);
-      const isLongCurrent = (currentBigInt & 1n) === 1n;
-      // read the current content
-      const {
-        content: currentContent,
-        usedSlots: currentUsedSlots,
-        note: currentNote,
-      } = decodeBytesContent(storageDiff, baseSlotHex, isLongCurrent, currentBigInt, typeInfo.label);
+      // Mark the length slot as explored initially
+      exploredSlots.add(baseSlotHex);
 
-      // decode next if different
-      let nextContent: string | undefined;
-      let nextNote: string | undefined;
-      if (nextHex) {
-        const nextBigInt = BigInt(nextHex === "0x" ? "0x0" : nextHex);
-        if (nextBigInt !== currentBigInt) {
-          const isLongNext = (nextBigInt & 1n) === 1n;
-          const { content: _nextContent, note: _nextNote } = decodeBytesContent(
-            storageDiff,
-            baseSlotHex,
-            isLongNext,
-            nextBigInt,
-            typeInfo.label,
-          );
-          nextContent = _nextContent;
-          nextNote = _nextNote;
+      // Normalize the hex values (handle empty '0x')
+      const lenHex = slotData.current === "0x" ? "0x00" : slotData.current;
+      const nextLenHex = slotData.next === "0x" ? "0x00" : slotData.next;
+
+      // Decode the current value
+      const currentDecoded = decodeBytesContent(
+        storageDiff,
+        baseSlotHex,
+        lenHex,
+        typeInfo.label,
+        false, // isDecodingNext = false
+        exploredSlots,
+      );
+
+      // If we can't even decode the current state, we can't proceed
+      if (!currentDecoded) {
+        debug(`Failed to decode initial bytes/string content for slot ${baseSlotHex}`);
+        return;
+      }
+
+      // Keep track of all slots used by either current or next state's content
+      // Start with the slots used by the current content
+      const allContentSlots = new Set<Hex>(currentDecoded.usedSlots);
+
+      // Attempt to decode the next value if it exists
+      let nextDecoded = null;
+      if (nextLenHex) {
+        nextDecoded = decodeBytesContent(
+          storageDiff,
+          baseSlotHex,
+          nextLenHex,
+          typeInfo.label,
+          true, // isDecodingNext = true
+          exploredSlots,
+        );
+
+        // If next state was decoded, add its content slots to our set
+        if (nextDecoded) {
+          nextDecoded.usedSlots.forEach((slot) => allContentSlots.add(slot));
+        } else {
+          debug(`Failed to decode next bytes/string content for slot ${baseSlotHex}`);
+          // Continue anyway, just won't have 'next' data for content
         }
       }
 
-      // Mark all slots used by this bytes/string as explored
-      if (Array.isArray(currentUsedSlots)) {
-        currentUsedSlots.forEach((slot) => exploredSlots.add(slot));
-      } else {
-        exploredSlots.add(currentUsedSlots);
-      }
-
-      // Create the result
-      const out: DecodedResult = {
+      // --- Create and push the Length Result ---
+      const lengthResult: DecodedResult = {
         ...root,
-        path: [...path],
-        slots: Array.isArray(currentUsedSlots) ? currentUsedSlots : [currentUsedSlots],
-        current: { decoded: currentContent, hex: currentHex === "0x" ? "0x00" : currentHex },
+        path: [...path, { kind: PathSegmentKind.BytesLength, name: "_length" }], // Add length marker to path
+        slots: [baseSlotHex], // Length is only in the base slot
+        current: {
+          decoded: currentDecoded.length,
+          hex: toHexFullBytes(currentDecoded.length),
+        },
+        // Note: No separate 'note' for length needed usually
+      };
+      if (nextLenHex && nextDecoded) {
+        lengthResult.next = {
+          decoded: nextDecoded.length,
+          hex: toHexFullBytes(nextDecoded.length),
+        };
+      }
+      results.push(lengthResult);
+      // --- End Length Result ---
+
+      // --- Create and push the Content Result ---
+      const contentResult: DecodedResult = {
+        ...root, // Use original root info (name, type)
+        path: [...path], // Original path
+        slots: Array.from(allContentSlots), // Use all slots touched by either state's content
+        current: {
+          decoded: currentDecoded.content,
+          hex: currentDecoded.hex,
+        },
+        note: currentDecoded.note,
       };
 
-      // Add note if truncated
-      if (currentNote) out.note = currentNote;
-
-      // Add next value if different
-      if (nextContent !== undefined && nextContent !== currentContent) {
-        out.next = { decoded: nextContent, hex: nextHex! === "0x" ? "0x00" : nextHex! };
-        if (nextNote && !currentNote) out.note = nextNote;
-        if (nextNote && currentNote) out.note = `${currentNote}; ${nextNote}`;
+      // Add the next state if it was successfully decoded
+      if (nextDecoded) {
+        contentResult.next = {
+          decoded: nextDecoded.content,
+          hex: nextDecoded.hex, // Use the assembled hex from the helper
+        };
+        contentResult.note = currentDecoded.note
+          ? [currentDecoded.note, nextDecoded.note].filter(Boolean).join("; ")
+          : nextDecoded.note;
       }
-
-      results.push(out);
+      results.push(contentResult);
+      // --- End Content Result ---
     }
   };
 
@@ -344,90 +380,153 @@ export const exploreStorage = (
     }
   };
 
-  /** Helper for dynamic bytes/string */
+  /**
+   * Helper to decode dynamic bytes/string content from storage, handling both short and long formats. Reads either the
+   * 'current' or 'next' value based on the isDecodingNext flag. Updates the exploredSlots set with all slots read.
+   *
+   * @returns Decoded content, raw hex, used slots, actual byte length, and truncation info, or null on failure.
+   */
   const decodeBytesContent = (
     storageDiff: StorageDiff,
     baseSlotHex: Hex,
-    isLong: boolean,
-    slotVal: bigint,
+    slotValHex: Hex,
     typeLabel: string,
-  ): { content: string; usedSlots: Hex | Array<Hex>; truncated: boolean; note?: string } => {
-    if (!isLong) {
-      // short => length = lowest byte / 2
-      const lenByte = slotVal & 0xffn;
-      const length = lenByte >> 1n;
-      const arr = toBytes(toHex(slotVal, { size: 32 }));
-      // the 'first' 31 bytes can hold data, we take 'length' from the left side
-      const data = arr.slice(0, Number(length));
+    isDecodingNext: boolean,
+    exploredSlots: Set<Hex>,
+  ): { content: string; hex: Hex; usedSlots: Hex[]; length: bigint; truncated: boolean; note?: string } | null => {
+    try {
+      // Normalize hex and parse length/format info
+      const safeHex = slotValHex === "0x" ? "0x00" : slotValHex;
+      const valBigInt = BigInt(safeHex);
+      const isLong = (valBigInt & 1n) === 1n;
 
-      let content: string | undefined;
-      if (typeLabel === "string") {
-        try {
-          content = Buffer.from(data).toString("utf8");
-        } catch {
-          content = "0x" + Buffer.from(data).toString("hex");
+      if (!isLong) {
+        // Short string/bytes: data is stored directly in the slot
+        const lenByte = valBigInt & 0xffn;
+        const length = lenByte >> 1n; // Actual byte length
+        if (length === 0n) {
+          return {
+            content: typeLabel === "string" ? "" : "0x",
+            hex: "0x00",
+            usedSlots: [baseSlotHex],
+            length: 0n,
+            truncated: false,
+          };
         }
-      } else {
-        content = "0x" + Buffer.from(data).toString("hex");
-      }
+        // Data is in the higher-order bytes of the slot value
+        const arr = toBytes(toHex(valBigInt, { size: 32 }));
+        const data = arr.slice(0, Number(length)); // Take 'length' bytes from the left
 
-      return { content, usedSlots: baseSlotHex, truncated: false };
-    } else {
-      // long => length = (slotVal >> 1)
-      const byteLength = slotVal >> 1n;
-      const dataStartHex = keccak256(baseSlotHex);
-      const dataStartIndex = BigInt(dataStartHex);
-
-      const numSlots = byteLength === 0n ? 0n : (byteLength - 1n) / 32n + 1n;
-      const chunks: number[] = [];
-      let truncated = false;
-
-      const used: Hex[] = [baseSlotHex];
-      for (let i = 0n; i < numSlots; i++) {
-        const slotIndex = dataStartIndex + i;
-        const slotHexAddr = toHex(slotIndex, { size: 32 });
-        used.push(slotHexAddr);
-
-        const entry = storageDiff[slotHexAddr];
-        if (!entry) {
-          truncated = true;
-          break;
-        }
-
-        // TODO: next as well
-        const slotValHex = entry.current;
-        const slotArr = toBytes(slotValHex);
-        if (i === numSlots - 1n) {
-          const remaining = Number(byteLength - 32n * (numSlots - 1n));
-          chunks.push(...slotArr.slice(0, remaining));
+        let content: string;
+        const hex = toHexFullBytes(data);
+        if (typeLabel === "string") {
+          try {
+            content = Buffer.from(data).toString("utf8");
+          } catch {
+            content = hex; // Fallback to hex if UTF-8 decoding fails
+          }
         } else {
-          chunks.push(...slotArr);
+          content = hex;
         }
-      }
 
-      const contentBytes = Uint8Array.from(chunks);
-      let note: string | undefined;
-      if (truncated || contentBytes.length < Number(byteLength)) {
-        note = `Content truncated (got ${contentBytes.length} of ${byteLength} bytes)`;
-      }
-
-      let content: string | undefined;
-      if (typeLabel === "string") {
-        try {
-          content = Buffer.from(contentBytes).toString("utf8");
-        } catch {
-          content = "0x" + Buffer.from(contentBytes).toString("hex");
-        }
+        // For short strings, the data is *in* the base slot, but we consider only the base slot
+        // responsible for the *length* conceptually. The hex representation covers the data part.
+        return { content, hex, usedSlots: [baseSlotHex], length, truncated: false }; // Return empty usedSlots for data part
       } else {
-        content = "0x" + Buffer.from(contentBytes).toString("hex");
-      }
+        // Long string/bytes: data is stored across multiple slots
+        const byteLength = valBigInt >> 1n; // Actual byte length
+        if (byteLength === 0n) {
+          return {
+            content: typeLabel === "string" ? "" : "0x",
+            hex: "0x00",
+            usedSlots: [baseSlotHex],
+            length: 0n,
+            truncated: false,
+          };
+        }
 
-      return {
-        content,
-        usedSlots: used,
-        truncated,
-        note,
-      };
+        const dataStartHex = keccak256(baseSlotHex); // Data starts at keccak256(baseSlot)
+        const dataStartIndex = BigInt(dataStartHex);
+        const numSlots = (byteLength - 1n) / 32n + 1n; // Ceiling division
+
+        const dataSlots: Hex[] = [baseSlotHex];
+        const chunks: { bytes: number[]; hex: Hex } = { bytes: [], hex: "0x" };
+        let truncated = false;
+        let note: string | undefined;
+
+        for (let i = 0n; i < numSlots; i++) {
+          const slotIndex = dataStartIndex + i;
+          const slotHexAddr = toHex(slotIndex, { size: 32 });
+          dataSlots.push(slotHexAddr); // Add data slot to its list
+          exploredSlots.add(slotHexAddr); // Mark data slot as explored globally
+
+          const entry = storageDiff[slotHexAddr];
+          const dataHex = isDecodingNext ? entry?.next : entry?.current;
+
+          if (!dataHex) {
+            truncated = true;
+            note = `Content truncated: Missing data slot ${slotHexAddr} for ${isDecodingNext ? "next" : "current"} state.`;
+            // Don't break; assemble what we have, but mark as truncated.
+            // We still need to return the expected length.
+            continue; // Skip assembling data for this missing slot
+          }
+
+          // Ensure consistent padding for assembly, but use original if just '0x'
+          const safeDataHex = dataHex === "0x" ? padHex("0x0", { size: 32 }) : padHex(dataHex, { size: 32 });
+          const slotArr = toBytes(safeDataHex);
+
+          const bytesToTake =
+            i === numSlots - 1n
+              ? Number(byteLength % 32n === 0n ? 32n : byteLength % 32n) // Bytes in the last slot
+              : 32; // Full 32 bytes for intermediate slots
+
+          // Only take up to bytesToTake from the start of the slot data
+          const relevantBytes = slotArr.slice(0, bytesToTake);
+          chunks.bytes.push(...relevantBytes);
+          // Append only the relevant part of the hex string (without '0x' prefix)
+          chunks.hex += safeDataHex.slice(2, 2 + bytesToTake * 2);
+        }
+
+        if (truncated && !note) {
+          note = `Content truncated: Expected ${byteLength} bytes, assembled ${chunks.bytes.length}.`;
+        } else if (chunks.bytes.length !== Number(byteLength)) {
+          // This case might happen if dataHex was present but somehow invalid?
+          truncated = true;
+          note =
+            (note ? note + " " : "") +
+            `Data length mismatch: Expected ${byteLength}, assembled ${chunks.bytes.length}.`;
+        }
+
+        const contentBytes = Uint8Array.from(chunks.bytes);
+        let content: string;
+        if (typeLabel === "string") {
+          try {
+            content = Buffer.from(contentBytes).toString("utf8");
+            // Check if decoding resulted in replacement characters, indicating potential issues
+            if (content.includes("\uFFFD")) {
+              note = (note ? note + " " : "") + "Contains invalid UTF-8 sequences.";
+            }
+          } catch {
+            content = chunks.hex; // Fallback to hex
+            note = (note ? note + " " : "") + "Invalid UTF-8 sequence, showing hex.";
+          }
+        } else {
+          content = chunks.hex;
+        }
+
+        // Return the list of slots *containing the data*
+        return {
+          content,
+          hex: chunks.hex === "0x" ? "0x00" : chunks.hex,
+          usedSlots: dataSlots,
+          length: byteLength,
+          truncated,
+          note,
+        };
+      }
+    } catch (error) {
+      debug(`Error decoding bytes/string content for base slot ${baseSlotHex}:`, error);
+      return null; // Return null on any unexpected error
     }
   };
 
@@ -508,7 +607,8 @@ export const exploreStorage = (
             if (segment.kind === PathSegmentKind.MappingKey) return `[${segment.key}]`;
             if (segment.kind === PathSegmentKind.ArrayIndex) return `[${segment.index?.toString()}]`;
             if (segment.kind === PathSegmentKind.StructField) return `.${segment.name}`;
-            if (segment.kind === PathSegmentKind.ArrayLength) return `._length`;
+            if (segment.kind === PathSegmentKind.ArrayLength || segment.kind === PathSegmentKind.BytesLength)
+              return `._length`;
             return "";
           }) ?? [],
         )
