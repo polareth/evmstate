@@ -17,6 +17,7 @@
 ## TODO
 
 - [ ] add tests for trace with txHash (replicate tx)
+  - -> need tevm rebase mode to be released
 - [ ] provide a react package with a Tracer provider and useTracer hook
 - [ ] upstream utilities (compute mapping slot, array slot at index, etc?) to Ox
 - [ ] provide some state listeners -> listen to a contract's state changes; same api as listening to contract events, you get the typed state change

@@ -1,6 +1,6 @@
 import { Abi, AbiFunction, Address, CallResult, ContractFunctionName, Hex } from "tevm";
 import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
-import { toFunctionSignature, trim } from "viem";
+import { AbiStateMutability, ContractFunctionArgs, toFunctionSignature, trim } from "viem";
 
 import { debug } from "@/debug";
 import { exploreStorage } from "@/lib/explore";
@@ -13,6 +13,9 @@ import {
   StorageAccessTrace,
   TraceStorageAccessOptions,
   TraceStorageAccessTxParams,
+  TraceStorageAccessTxWithAbi,
+  TraceStorageAccessTxWithData,
+  TraceStorageAccessTxWithReplay,
 } from "@/lib/trace/types";
 import { cleanTrace, createClient /* , uniqueAddresses */, getUnifiedParams } from "@/lib/trace/utils";
 
@@ -308,23 +311,39 @@ export class Tracer {
   }
 
   /**
-   * Traces storage access for a transaction.
+   * Traces storage access for a transaction using calldata.
    *
    * Uses the same underlying implementation as the standalone {@link traceStorageAccess} function.
    */
-  async traceStorageAccess(txOptions: {
-    from: Address;
-    to: Address;
-    data: Hex;
-  }): Promise<Record<Address, StorageAccessTrace>> {
-    // TODO: do we need to update the fork here? or is the "latest" blockTag enough?
+  async traceStorageAccess(txOptions: TraceStorageAccessTxWithData): Promise<Record<Address, StorageAccessTrace>>;
+
+  /**
+   * Traces storage access for a transaction using the contract ABI.
+   *
+   * Uses the same underlying implementation as the standalone {@link traceStorageAccess} function.
+   */
+  async traceStorageAccess<
+    TAbi extends Abi | readonly unknown[] = Abi,
+    TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+  >(txOptions: TraceStorageAccessTxWithAbi<TAbi, TFunctionName>): Promise<Record<Address, StorageAccessTrace>>;
+
+  /**
+   * Traces storage access for a transaction using a txHash.
+   *
+   * Uses the same underlying implementation as the standalone {@link traceStorageAccess} function.
+   */
+  async traceStorageAccess(txOptions: TraceStorageAccessTxWithReplay): Promise<Record<Address, StorageAccessTrace>>;
+
+  /**
+   * Traces storage access for a transaction regardless of the parameters.
+   *
+   * Uses the same underlying implementation as the standalone {@link traceStorageAccess} function.
+   */
+  async traceStorageAccess(txOptions: TraceStorageAccessTxParams): Promise<Record<Address, StorageAccessTrace>> {
     return traceStorageAccess({
       ...txOptions,
       client: this.client,
       explorers: this.explorers,
     });
   }
-
-  // TODO: overload traceStorageAccess to accept abi, functionName, args
-  // TODO: overload traceStorageAccess to accept txHash
 }

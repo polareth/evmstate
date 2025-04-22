@@ -24,7 +24,6 @@ const { caller } = ACCOUNTS;
  * 9. Tracer class
  */
 
-// TODO: with replay on both traceStorageAccess and Tracer
 describe("Basic slots access and packing", () => {
   describe("traceStorageAccess with contract call", () => {
     it("should handle packed storage variables correctly", async () => {
@@ -538,8 +537,73 @@ describe("Basic slots access and packing", () => {
   });
 
   describe("Tracer class", () => {
-    // TODO: with ABI
-    it("should work similarily to traceStorageAccess", async () => {
+    const expectedTrace = expectedStorage(LAYOUTS.StoragePacking, {
+      smallValue1: {
+        name: "smallValue1",
+        type: "uint8",
+        kind: "primitive",
+        trace: [
+          {
+            current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+            next: { hex: toHex(1, { size: 1 }), decoded: 1 },
+            modified: true,
+            slots: [getSlotHex(0)],
+            path: [],
+            fullExpression: "smallValue1",
+          },
+        ],
+      },
+      smallValue2: {
+        name: "smallValue2",
+        type: "uint8",
+        kind: "primitive",
+        trace: [
+          {
+            current: { hex: toHex(0, { size: 1 }), decoded: 0 },
+            next: { hex: toHex(2, { size: 1 }), decoded: 2 },
+            modified: true,
+            slots: [getSlotHex(0)],
+            path: [],
+            fullExpression: "smallValue2",
+          },
+        ],
+      },
+      flag: {
+        name: "flag",
+        type: "bool",
+        kind: "primitive",
+        trace: [
+          {
+            current: { hex: toHex(0, { size: 1 }), decoded: false },
+            next: { hex: toHex(1, { size: 1 }), decoded: true },
+            modified: true,
+            slots: [getSlotHex(0)],
+            path: [],
+            fullExpression: "flag",
+          },
+        ],
+      },
+      someAddress: {
+        name: "someAddress",
+        type: "address",
+        kind: "primitive",
+        trace: [
+          {
+            current: {
+              hex: toHex(0, { size: 1 }),
+              decoded: toHex(0, { size: 20 }),
+            },
+            next: { hex: caller.toString(), decoded: caller.toString() },
+            modified: true,
+            slots: [getSlotHex(0)],
+            path: [],
+            fullExpression: "someAddress",
+          },
+        ],
+      },
+    });
+
+    it("should work with transaction calldata", async () => {
       const client = getClient();
       const tracer = new Tracer({ client });
 
@@ -549,73 +613,22 @@ describe("Basic slots access and packing", () => {
         data: encodeFunctionData(StoragePacking.write.setSmallValues(1, 2, true, caller.toString())),
       });
 
-      expect(trace[StoragePacking.address].storage).toEqual(
-        expectedStorage(LAYOUTS.StoragePacking, {
-          smallValue1: {
-            name: "smallValue1",
-            type: "uint8",
-            kind: "primitive",
-            trace: [
-              {
-                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
-                next: { hex: toHex(1, { size: 1 }), decoded: 1 },
-                modified: true,
-                slots: [getSlotHex(0)],
-                path: [],
-                fullExpression: "smallValue1",
-              },
-            ],
-          },
-          smallValue2: {
-            name: "smallValue2",
-            type: "uint8",
-            kind: "primitive",
-            trace: [
-              {
-                current: { hex: toHex(0, { size: 1 }), decoded: 0 },
-                next: { hex: toHex(2, { size: 1 }), decoded: 2 },
-                modified: true,
-                slots: [getSlotHex(0)],
-                path: [],
-                fullExpression: "smallValue2",
-              },
-            ],
-          },
-          flag: {
-            name: "flag",
-            type: "bool",
-            kind: "primitive",
-            trace: [
-              {
-                current: { hex: toHex(0, { size: 1 }), decoded: false },
-                next: { hex: toHex(1, { size: 1 }), decoded: true },
-                modified: true,
-                slots: [getSlotHex(0)],
-                path: [],
-                fullExpression: "flag",
-              },
-            ],
-          },
-          someAddress: {
-            name: "someAddress",
-            type: "address",
-            kind: "primitive",
-            trace: [
-              {
-                current: {
-                  hex: toHex(0, { size: 1 }),
-                  decoded: toHex(0, { size: 20 }),
-                },
-                next: { hex: caller.toString(), decoded: caller.toString() },
-                modified: true,
-                slots: [getSlotHex(0)],
-                path: [],
-                fullExpression: "someAddress",
-              },
-            ],
-          },
-        }),
-      );
+      expect(trace[StoragePacking.address].storage).toEqual(expectedTrace);
+    });
+
+    it("should work with abi", async () => {
+      const client = getClient();
+      const tracer = new Tracer({ client });
+
+      const trace = await tracer.traceStorageAccess({
+        from: caller.toString(),
+        to: StoragePacking.address,
+        abi: StoragePacking.abi,
+        functionName: "setSmallValues",
+        args: [1, 2, true, caller.toString()],
+      });
+
+      expect(trace[StoragePacking.address].storage).toEqual(expectedTrace);
     });
   });
 });
