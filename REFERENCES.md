@@ -17,8 +17,7 @@
 ## TODO
 
 - [ ] add tests for trace with txHash (replicate tx)
-  - -> need tevm rebase mode to be released
-- [ ] provide a react package with a Tracer provider and useTracer hook
+  - -> tests ready but need tevm rebase mode to be released
 - [ ] upstream utilities (compute mapping slot, array slot at index, etc?) to Ox
 - [ ] provide some state listeners -> listen to a contract's state changes; same api as listening to contract events, you get the typed state change
   ```typescript
@@ -57,6 +56,7 @@
   });
   ```
 - [ ] a similar library for zk evm could be useful because no abi for contracts
+- [x] provide a react package with a Tracer provider and useTracer hook
 - [x] new storage adapter works if there is a storage layout but make it work if there is none as well (getData, etc would return hex?) - need more research on storage layout for unverified contracts
 - [x] if a function writes to storage BUT doesn't modify the value(s), it returns a read (because pre-post state is the same)
   - -> this is an _access_ list so it makes sense, we should rather have either a single object instead of read/write, with or without a "next" property

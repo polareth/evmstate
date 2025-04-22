@@ -297,17 +297,22 @@ export const traceStorageAccess = async <
  * Allows for creating a reusable tracer with consistent configuration.
  */
 export class Tracer {
-  private client;
-  private explorers;
+  private options: TraceStorageAccessOptions & { config?: ExploreStorageConfig };
 
   /**
    * Creates a new Tracer instance with configuration for tracing storage access.
    *
    * @param options Configuration options for the tracer
    */
-  constructor(options: TraceStorageAccessOptions) {
-    this.client = options.client ?? createClient(options);
-    this.explorers = options.explorers;
+  constructor(options: TraceStorageAccessOptions & { config?: ExploreStorageConfig }) {
+    this.options = {
+      ...options,
+      client: options.client ?? createClient(options),
+    };
+
+    // Bind 'this' for the traceStorageAccess method to ensure correct context
+    // if it were ever destructured or passed as a callback.
+    this.traceStorageAccess = this.traceStorageAccess.bind(this);
   }
 
   /**
@@ -341,9 +346,8 @@ export class Tracer {
    */
   async traceStorageAccess(txOptions: TraceStorageAccessTxParams): Promise<Record<Address, StorageAccessTrace>> {
     return traceStorageAccess({
+      ...this.options,
       ...txOptions,
-      client: this.client,
-      explorers: this.explorers,
     });
   }
 }
