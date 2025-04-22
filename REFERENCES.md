@@ -16,20 +16,9 @@
 
 ## TODO
 
-- [ ] new storage adapter works if there is a storage layout but make it work if there is none as well (getData, etc would return hex?) - need more research on storage layout for unverified contracts
-- [ ] if a function writes to storage BUT doesn't modify the value(s), it returns a read (because pre-post state is the same)
-  - -> this is an _access_ list so it makes sense, we should rather have either a single object instead of read/write, with or without a "next" property
-  - -> or maybe better we track SSTOREs and SLOADs separately, so we can accurately populate read and write
 - [ ] add tests for trace with txHash (replicate tx)
-- [x] create a Tracer class that takes the args and env and can be user to trace by just providing tx
 - [ ] provide a react package with a Tracer provider and useTracer hook
-- [ ] ? add a "details" property to the returned trace, with the raw tevm call result (gas, errors, etc)
-- [ ] ? pass a "label"/something flag to label or not storage slots (default true, but setting to false would save a lot on compute)
-- [ ] export types and utilities for decoding abi types and mention on readme? or don't bloat the package? maybe would be good as a second package provided lattice authorization
 - [ ] upstream utilities (compute mapping slot, array slot at index, etc?) to Ox
-- [ ] provide same api as viem/tevm with "as const" abi except it's with the storage layout, and you get a fully typed api with decoded types, etc
-- [ ] support custom storage slots: maybe just popular/standardized ones? or parse from source code?
-- [ ] a similar library for zk evm could be useful because no abi for contracts
 - [ ] provide some state listeners -> listen to a contract's state changes; same api as listening to contract events, you get the typed state change
   ```typescript
   const sub = watchState({
@@ -66,62 +55,19 @@
     },
   });
   ```
-
-````
-
-## Listen to steps during call
-
-This might be useful for listening to EVM steps and maybe grab all storage updates accurately
-
-```ts
-import { createMemoryClient } from "tevm";
-import { encodeFunctionData } from "viem";
-
-const client = createMemoryClient();
-
-// Listen for EVM steps and other events during execution
-const result = await client.tevmCall({
-  to: contractAddress,
-  data: encodeFunctionData({
-    abi,
-    functionName: "myFunction",
-    args: [arg1, arg2],
-  }),
-  // Listen for EVM steps
-  onStep: (step, next) => {
-    console.log("EVM Step:", {
-      pc: step.pc, // Program counter
-      opcode: step.opcode, // Current opcode
-      gasLeft: step.gasLeft, // Remaining gas
-      stack: step.stack, // Stack contents
-      depth: step.depth, // Call depth
-    });
-    next?.();
-  },
-  // Listen for contract creation
-  onNewContract: (data, next) => {
-    console.log("New contract deployed:", {
-      address: data.address.toString(),
-      codeSize: data.code.length,
-    });
-    next?.();
-  },
-  // Listen for message execution
-  onBeforeMessage: (message, next) => {
-    console.log("Executing message:", {
-      to: message.to?.toString(),
-      value: message.value.toString(),
-      delegatecall: message.delegatecall,
-    });
-    next?.();
-  },
-  onAfterMessage: (result, next) => {
-    console.log("Message result:", {
-      gasUsed: result.execResult.executionGasUsed.toString(),
-      returnValue: result.execResult.returnValue.toString("hex"),
-      error: result.execResult.exceptionError?.error,
-    });
-    next?.();
-  },
-});
-````
+- [ ] a similar library for zk evm could be useful because no abi for contracts
+- [x] new storage adapter works if there is a storage layout but make it work if there is none as well (getData, etc would return hex?) - need more research on storage layout for unverified contracts
+- [x] if a function writes to storage BUT doesn't modify the value(s), it returns a read (because pre-post state is the same)
+  - -> this is an _access_ list so it makes sense, we should rather have either a single object instead of read/write, with or without a "next" property
+  - -> or maybe better we track SSTOREs and SLOADs separately, so we can accurately populate read and write
+  - -> storage reads have a trace `modified: false` property and no `next` property
+- [x] create a Tracer class that takes the args and env and can be user to trace by just providing tx
+- [x] ~~? add a "details" property to the returned trace, with the raw tevm call result (gas, errors, etc)~~
+  - -> seems out of scope, can directly simulate tx with tevm
+- [x] ~~? pass a "label"/something flag to label or not storage slots (default true, but setting to false would save a lot on compute)~~~
+  - -> whole point of the library is to get labeled slots, otherwise can just use tevm and get the access list
+- [x] ~~export types and utilities for decoding abi types and mention on readme? or don't bloat the package? maybe would be good as a second package provided lattice authorization~~
+  - -> this is already well supported with abitype
+- [x] provide same api as viem/tevm with "as const" abi except it's with the storage layout, and you get a fully typed api with decoded types, etc
+- [x] support custom storage slots: maybe just popular/standardized ones? or parse from source code?
+  - -> supports standard proxy implementation & admin slots
