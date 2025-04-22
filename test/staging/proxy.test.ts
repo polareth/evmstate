@@ -1,11 +1,10 @@
-import { createMemoryClient, encodeFunctionData, Hex, http } from "tevm";
+import { createMemoryClient, Hex, http, toHex } from "tevm";
 import { createAddress } from "tevm/address";
 import { EthjsAddress } from "tevm/utils";
 import { assert, beforeEach, describe, expect, it } from "vitest";
 
 import { FORK, LAYOUTS } from "@test/constants";
-import { solidityDebugger } from "@test/debugger";
-import { expectedStorage, getSlotHex, toEvenHex } from "@test/utils";
+import { expectedStorage, getSlotHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
 
 const { TransparentProxy, CounterImpl, CounterImplV2 } = FORK.mainnet.contracts;
@@ -47,8 +46,8 @@ describe("Proxies", () => {
           kind: "primitive",
           trace: [
             {
-              current: { hex: toEvenHex(0, { size: 32 }), decoded: 0n },
-              next: { hex: toEvenHex(100, { size: 32 }), decoded: 100n },
+              current: { hex: toHex(0, { size: 32 }), decoded: 0n },
+              next: { hex: toHex(100, { size: 32 }), decoded: 100n },
               modified: true,
               slots: [getSlotHex(0)],
               path: [],
@@ -124,26 +123,22 @@ describe("Proxies", () => {
 
   it("should retrieve new storage layout when implementation is upgraded", async () => {
     // Update count
-    await client.tevmCall({
+    await client.tevmContract({
       caller: admin.toString(),
       to: TransparentProxy.address,
-      data: encodeFunctionData({
-        abi: CounterImpl.abi,
-        functionName: "setCount",
-        args: [100n],
-      }),
+      abi: CounterImpl.abi,
+      functionName: "setCount",
+      args: [100n],
       addToBlockchain: true,
     });
 
     // Update implementation
-    await client.tevmCall({
+    await client.tevmContract({
       from: admin.toString(),
       to: TransparentProxy.address,
-      data: encodeFunctionData({
-        abi: TransparentProxy.abi,
-        functionName: "changeImplementation",
-        args: [CounterImplV2.address],
-      }),
+      abi: TransparentProxy.abi,
+      functionName: "changeImplementation",
+      args: [CounterImplV2.address],
       addToBlockchain: true,
     });
 
@@ -165,8 +160,8 @@ describe("Proxies", () => {
           kind: "primitive",
           trace: [
             {
-              current: { hex: toEvenHex(100, { size: 32 }), decoded: 100n },
-              next: { hex: toEvenHex(200, { size: 32 }), decoded: 200n },
+              current: { hex: toHex(100, { size: 32 }), decoded: 100n },
+              next: { hex: toHex(200, { size: 32 }), decoded: 200n },
               modified: true,
               slots: [getSlotHex(0)],
               path: [],
@@ -180,7 +175,7 @@ describe("Proxies", () => {
           kind: "primitive",
           trace: [
             {
-              current: { hex: toEvenHex(0), decoded: false },
+              current: { hex: toHex(0, { size: 1 }), decoded: false },
               modified: false,
               slots: [getSlotHex(1)],
               path: [],

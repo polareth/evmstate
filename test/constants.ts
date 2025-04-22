@@ -15,6 +15,7 @@ export const CONTRACTS = {
   SimpleContract: contracts.SimpleContract.withAddress(`0x${"7".repeat(40)}`),
   NativeTransfer: contracts.NativeTransfer.withAddress(`0x${"8".repeat(40)}`),
   ETHReceiver: contracts.ETHReceiver.withAddress(`0x${"9".repeat(40)}`),
+  Bytes: contracts.Bytes.withAddress(`0x${"a".repeat(40)}`),
 };
 
 export const FORK = {

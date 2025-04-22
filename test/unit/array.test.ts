@@ -1,9 +1,11 @@
+import { toHex } from "tevm";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
-import { expectedStorage, getArraySlotHex, getClient, getSlotHex, getStringHex, toEvenHex } from "@test/utils";
+import { expectedStorage, getArraySlotHex, getClient, getSlotHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
 import { PathSegmentKind } from "@/lib/explore/types";
+import { toHexFullBytes } from "@/lib/explore/utils";
 
 const { Arrays } = CONTRACTS;
 const { caller } = ACCOUNTS;
@@ -45,11 +47,11 @@ describe("Arrays", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(value, { size: 32 }),
+                  hex: toHex(value, { size: 32 }),
                   decoded: value,
                 },
                 modified: true,
@@ -103,7 +105,7 @@ describe("Arrays", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(value, { size: 32 }),
+                  hex: toHex(value, { size: 32 }),
                   decoded: value,
                 },
                 modified: false,
@@ -151,11 +153,11 @@ describe("Arrays", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: true,
@@ -170,11 +172,11 @@ describe("Arrays", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(value, { size: 32 }),
+                  hex: toHex(value, { size: 32 }),
                   decoded: value,
                 },
                 modified: true,
@@ -227,7 +229,7 @@ describe("Arrays", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: false,
@@ -293,7 +295,7 @@ describe("Arrays", () => {
               // Length gets read but doesn't change
               {
                 current: {
-                  hex: toEvenHex(2),
+                  hex: toHex(2, { size: 1 }),
                   decoded: 2n,
                 },
                 modified: false,
@@ -308,11 +310,11 @@ describe("Arrays", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(200n, { size: 32 }),
+                  hex: toHex(200n, { size: 32 }),
                   decoded: 200n,
                 },
                 next: {
-                  hex: toEvenHex(newValue, { size: 32 }),
+                  hex: toHex(newValue, { size: 32 }),
                   decoded: newValue,
                 },
                 modified: true,
@@ -368,7 +370,7 @@ describe("Arrays", () => {
               // Length gets read as well
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: false,
@@ -383,7 +385,7 @@ describe("Arrays", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(value, { size: 32 }),
+                  hex: toHex(value, { size: 32 }),
                   decoded: value,
                 },
                 modified: false,
@@ -433,11 +435,11 @@ describe("Arrays", () => {
               // Array length update
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: true,
@@ -453,11 +455,11 @@ describe("Arrays", () => {
               // id field write
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(id, { size: 32 }),
+                  hex: toHex(id, { size: 32 }),
                   decoded: id,
                 },
                 modified: true,
@@ -474,14 +476,41 @@ describe("Arrays", () => {
                 ],
                 fullExpression: "items[0].id",
               },
-              // name field write
+              // name lengthfield write
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
+                  decoded: 0n,
+                },
+                next: {
+                  hex: toHex(name.length, { size: 1 }),
+                  decoded: BigInt(name.length),
+                },
+                modified: true,
+                slots: [getArraySlotHex(baseSlot, 1)],
+                path: [
+                  {
+                    kind: PathSegmentKind.ArrayIndex,
+                    index: 0n,
+                  },
+                  {
+                    kind: PathSegmentKind.StructField,
+                    name: "name",
+                  },
+                  {
+                    kind: PathSegmentKind.BytesLength,
+                    name: "_length",
+                  },
+                ],
+                fullExpression: "items[0].name._length",
+              },
+              {
+                current: {
+                  hex: toHex(0, { size: 1 }),
                   decoded: "",
                 },
                 next: {
-                  hex: getStringHex(name),
+                  hex: toHexFullBytes(name),
                   decoded: name,
                 },
                 modified: true,
@@ -501,11 +530,11 @@ describe("Arrays", () => {
               // active field write
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: false,
                 },
                 next: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: true,
                 },
                 modified: true,
@@ -564,7 +593,7 @@ describe("Arrays", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: false,
@@ -579,11 +608,11 @@ describe("Arrays", () => {
               },
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: true,
                 },
                 next: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: false,
                 },
                 modified: true,
@@ -642,7 +671,7 @@ describe("Arrays", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: false,
@@ -658,7 +687,7 @@ describe("Arrays", () => {
               // id field read
               {
                 current: {
-                  hex: toEvenHex(id, { size: 32 }),
+                  hex: toHex(id, { size: 32 }),
                   decoded: id,
                 },
                 modified: false,
@@ -675,10 +704,34 @@ describe("Arrays", () => {
                 ],
                 fullExpression: `items[${index}].id`,
               },
+              // name length field read
+              {
+                current: {
+                  hex: toHex(name.length, { size: 1 }),
+                  decoded: BigInt(name.length),
+                },
+                modified: false,
+                slots: [getArraySlotHex(getSlotHex(6), 1)],
+                path: [
+                  {
+                    kind: PathSegmentKind.ArrayIndex,
+                    index: BigInt(index),
+                  },
+                  {
+                    kind: PathSegmentKind.StructField,
+                    name: "name",
+                  },
+                  {
+                    kind: PathSegmentKind.BytesLength,
+                    name: "_length",
+                  },
+                ],
+                fullExpression: `items[${index}].name._length`,
+              },
               // name field read
               {
                 current: {
-                  hex: getStringHex(name),
+                  hex: toHexFullBytes(name),
                   decoded: name,
                 },
                 modified: false,
@@ -698,7 +751,7 @@ describe("Arrays", () => {
               // The active field read
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: true,
                 },
                 modified: false,
@@ -749,11 +802,11 @@ describe("Arrays", () => {
             trace: [
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: true,
@@ -810,7 +863,7 @@ describe("Arrays", () => {
               // The outer array read
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: false,
@@ -826,11 +879,11 @@ describe("Arrays", () => {
               // The inner array length update
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: true,
@@ -850,11 +903,11 @@ describe("Arrays", () => {
               // The element addition
               {
                 current: {
-                  hex: toEvenHex(0),
+                  hex: toHex(0, { size: 1 }),
                   decoded: 0n,
                 },
                 next: {
-                  hex: toEvenHex(value, { size: 32 }),
+                  hex: toHex(value, { size: 32 }),
                   decoded: value,
                 },
                 modified: true,
@@ -925,7 +978,7 @@ describe("Arrays", () => {
               // The outer array lengthread
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: false,
@@ -941,7 +994,7 @@ describe("Arrays", () => {
               // The inner array length update
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: false,
@@ -961,11 +1014,11 @@ describe("Arrays", () => {
               // The element update
               {
                 current: {
-                  hex: toEvenHex(777n, { size: 32 }),
+                  hex: toHex(777n, { size: 32 }),
                   decoded: 777n,
                 },
                 next: {
-                  hex: toEvenHex(newValue, { size: 32 }),
+                  hex: toHex(newValue, { size: 32 }),
                   decoded: newValue,
                 },
                 modified: true,
@@ -1036,7 +1089,7 @@ describe("Arrays", () => {
               // The outer array length read
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: false,
@@ -1052,7 +1105,7 @@ describe("Arrays", () => {
               // The inner array length read
               {
                 current: {
-                  hex: toEvenHex(1),
+                  hex: toHex(1, { size: 1 }),
                   decoded: 1n,
                 },
                 modified: false,
@@ -1072,7 +1125,7 @@ describe("Arrays", () => {
               // The element read
               {
                 current: {
-                  hex: toEvenHex(777n, { size: 32 }),
+                  hex: toHex(777n, { size: 32 }),
                   decoded: 777n,
                 },
                 modified: false,

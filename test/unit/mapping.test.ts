@@ -1,15 +1,8 @@
-import { getAddress } from "tevm";
+import { getAddress, toHex } from "tevm";
 import { assert, describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
-import {
-  expectedStorage,
-  getArraySlotHex,
-  getClient,
-  getMappingSlotHex,
-  getSlotAtOffsetHex,
-  toEvenHex,
-} from "@test/utils";
+import { expectedStorage, getArraySlotHex, getClient, getMappingSlotHex, getSlotAtOffsetHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
 import { PathSegmentKind } from "@/lib/explore/types";
 
@@ -54,8 +47,8 @@ describe("Mappings", () => {
           kind: "mapping",
           trace: [
             {
-              current: { hex: toEvenHex(0), decoded: 0n },
-              next: { hex: toEvenHex(amount, { size: 32 }), decoded: amount },
+              current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+              next: { hex: toHex(amount, { size: 32 }), decoded: amount },
               modified: true,
               slots: [getMappingSlotHex(0, user)],
               path: [
@@ -90,7 +83,7 @@ describe("Mappings", () => {
           kind: "mapping",
           trace: [
             {
-              current: { hex: toEvenHex(amount, { size: 32 }), decoded: amount },
+              current: { hex: toHex(amount, { size: 32 }), decoded: amount },
               modified: false,
               slots: [getMappingSlotHex(0, user)],
               path: [
@@ -133,8 +126,8 @@ describe("Mappings", () => {
           kind: "mapping",
           trace: [
             {
-              current: { hex: toEvenHex(0), decoded: 0n },
-              next: { hex: toEvenHex(amount, { size: 32 }), decoded: amount },
+              current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+              next: { hex: toHex(amount, { size: 32 }), decoded: amount },
               modified: true,
               slots: [getMappingSlotHex(1, owner, spender)],
               path: [
@@ -182,8 +175,8 @@ describe("Mappings", () => {
           kind: "mapping",
           trace: [
             {
-              current: { hex: toEvenHex(0), decoded: 0n },
-              next: { hex: toEvenHex(value, { size: 32 }), decoded: value },
+              current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+              next: { hex: toHex(value, { size: 32 }), decoded: value },
               modified: true,
               slots: [getMappingSlotHex(2, a, b, c, d)],
               path: [
@@ -243,11 +236,11 @@ describe("Mappings", () => {
           trace: [
             {
               current: {
-                hex: toEvenHex(0),
+                hex: toHex(0, { size: 1 }),
                 decoded: 0n,
               },
               next: {
-                hex: toEvenHex(2000, { size: 32 }),
+                hex: toHex(2000, { size: 32 }),
                 decoded: 2000n,
               },
               modified: true,
@@ -267,11 +260,11 @@ describe("Mappings", () => {
             },
             {
               current: {
-                hex: toEvenHex(0),
+                hex: toHex(0, { size: 1 }),
                 decoded: 0n,
               },
               next: {
-                hex: toEvenHex(123456, { size: 32 }),
+                hex: toHex(123456, { size: 32 }),
                 decoded: 123456n,
               },
               modified: true,
@@ -291,11 +284,11 @@ describe("Mappings", () => {
             },
             {
               current: {
-                hex: toEvenHex(0),
+                hex: toHex(0, { size: 1 }),
                 decoded: false,
               },
               next: {
-                hex: toEvenHex(1),
+                hex: toHex(1, { size: 1 }),
                 decoded: true,
               },
               modified: true,
@@ -355,11 +348,11 @@ describe("Mappings", () => {
           trace: [
             {
               current: {
-                hex: toEvenHex(100, { size: 32 }),
+                hex: toHex(100, { size: 32 }),
                 decoded: 100n,
               },
               next: {
-                hex: toEvenHex(300, { size: 32 }),
+                hex: toHex(300, { size: 32 }),
                 decoded: 300n,
               },
               modified: true,
@@ -379,7 +372,7 @@ describe("Mappings", () => {
             },
             {
               current: {
-                hex: toEvenHex(100, { size: 32 }),
+                hex: toHex(100, { size: 32 }),
                 decoded: 100n,
               },
               next: {
@@ -434,10 +427,10 @@ describe("Mappings", () => {
           kind: "mapping",
           trace: [
             {
-              current: { hex: toEvenHex(0), decoded: 0n },
-              next: { hex: toEvenHex(1), decoded: 1n },
+              current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+              next: { hex: toHex(1, { size: 1 }), decoded: 1n },
               modified: true,
-              slots: [getMappingSlotHex(4, toEvenHex(index, { size: 32 }))],
+              slots: [getMappingSlotHex(4, toHex(index, { size: 32 }))],
               path: [
                 {
                   kind: PathSegmentKind.MappingKey,
@@ -452,10 +445,10 @@ describe("Mappings", () => {
               fullExpression: `arrayMapping[${index}]._length`,
             },
             {
-              current: { hex: toEvenHex(0), decoded: 0n },
-              next: { hex: toEvenHex(value, { size: 32 }), decoded: value },
+              current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+              next: { hex: toHex(value, { size: 32 }), decoded: value },
               modified: true,
-              slots: [getArraySlotHex(getMappingSlotHex(4, toEvenHex(index, { size: 32 })), 0)],
+              slots: [getArraySlotHex(getMappingSlotHex(4, toHex(index, { size: 32 })), 0)],
               path: [
                 {
                   kind: PathSegmentKind.MappingKey,

@@ -1,9 +1,9 @@
 import { Hex, keccak256, MemoryClient, toHex } from "tevm";
 import { SolcStorageLayout } from "tevm/bundler/solc";
-import { ByteArray, isHex, padHex, ToHexParameters } from "viem";
+import { isHex, padHex } from "viem";
 
 import { DeepReadonly } from "@/lib/explore/types";
-import { StorageAccessTrace, TraceStorageAccessTxWithAbi } from "@/lib/trace/types";
+import { StorageAccessTrace } from "@/lib/trace/types";
 
 export const getClient = (): MemoryClient => {
   // @ts-expect-error no index signature
@@ -12,23 +12,6 @@ export const getClient = (): MemoryClient => {
 
 export const getSlotHex = (slot: number) => {
   return toHex(slot, { size: 32 });
-};
-
-/**
- * Converts a value to a hex string and ensures it has an even number of bytes
- *
- * @param value The value to convert to hex
- * @param options Optional configuration options passed to tevm's toHex
- * @returns A hex string with an even number of bytes
- */
-export const toEvenHex = (value: string | number | bigint | boolean | ByteArray, opts?: ToHexParameters): Hex => {
-  // Use tevm's toHex function
-  const hex = toHex(value, opts);
-
-  // If the hex string has an odd number of characters after the 0x prefix,
-  // pad it with a leading zero to make it even
-  if ((hex.length - 2) % 2 !== 0) return ("0x0" + hex.slice(2)) as Hex;
-  return hex;
 };
 
 export const getMappingSlotHex = (slot: Hex | number, ...keys: Hex[]) => {
@@ -57,6 +40,8 @@ export const getArraySlotHex = (slot: Hex | number, index: Hex | bigint | number
     return toHex(slotBigInt + indexBigInt, { size: 32 });
   }
 };
+
+export const getDynamicSlotDataHex = (slot: Hex | number, offset: number) => getArraySlotHex(slot, offset, true);
 
 export const getSlotAtOffsetHex = (slot: Hex | number, offset: number) => {
   const slotBigInt = isHex(slot) ? BigInt(slot) : BigInt(slot);

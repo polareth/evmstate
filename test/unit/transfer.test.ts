@@ -1,5 +1,5 @@
 import { createAddress } from "tevm/address";
-import { EthjsAccount, Hex, parseEther } from "tevm/utils";
+import { EthjsAccount, parseEther } from "tevm/utils";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants";

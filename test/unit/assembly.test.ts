@@ -1,7 +1,8 @@
+import { toHex } from "tevm";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
-import { expectedStorage, getClient, getMappingSlotHex, getSlotHex, toEvenHex } from "@test/utils";
+import { expectedStorage, getClient, getMappingSlotHex, getSlotHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
 import { PathSegmentKind } from "@/lib/explore/types";
 
@@ -52,8 +53,8 @@ describe("Assembly-based storage access", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
-                next: { hex: toEvenHex(123, { size: 32 }), decoded: 123n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+                next: { hex: toHex(123, { size: 32 }), decoded: 123n },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -73,7 +74,7 @@ describe("Assembly-based storage access", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(123, { size: 32 }), decoded: 123n },
+                current: { hex: toHex(123, { size: 32 }), decoded: 123n },
                 modified: false,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -116,8 +117,8 @@ describe("Assembly-based storage access", () => {
             kind: "mapping",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
-                next: { hex: toEvenHex(1000, { size: 32 }), decoded: 1000n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+                next: { hex: toHex(1000, { size: 32 }), decoded: 1000n },
                 modified: true,
                 slots: [getMappingSlotHex(1, recipient.toString())],
                 path: [
@@ -143,7 +144,7 @@ describe("Assembly-based storage access", () => {
             kind: "mapping",
             trace: [
               {
-                current: { hex: toEvenHex(1000, { size: 32 }), decoded: 1000n },
+                current: { hex: toHex(1000, { size: 32 }), decoded: 1000n },
                 modified: false,
                 slots: [getMappingSlotHex(1, recipient.toString())],
                 path: [
@@ -182,8 +183,8 @@ describe("Assembly-based storage access", () => {
             kind: "primitive",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
-                next: { hex: toEvenHex(789, { size: 32 }), decoded: 789n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+                next: { hex: toHex(789, { size: 32 }), decoded: 789n },
                 modified: true,
                 slots: [getSlotHex(0)],
                 path: [],
@@ -197,8 +198,8 @@ describe("Assembly-based storage access", () => {
             kind: "mapping",
             trace: [
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
-                next: { hex: toEvenHex(222, { size: 32 }), decoded: 222n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+                next: { hex: toHex(222, { size: 32 }), decoded: 222n },
                 modified: true,
                 slots: [getMappingSlotHex(1, recipient.toString())],
                 path: [
@@ -211,8 +212,8 @@ describe("Assembly-based storage access", () => {
                 fullExpression: `balances[${recipient.toString()}]`,
               },
               {
-                current: { hex: toEvenHex(0), decoded: 0n },
-                next: { hex: toEvenHex(111, { size: 32 }), decoded: 111n },
+                current: { hex: toHex(0, { size: 1 }), decoded: 0n },
+                next: { hex: toHex(111, { size: 32 }), decoded: 111n },
                 modified: true,
                 slots: [getMappingSlotHex(1, caller.toString())],
                 path: [
