@@ -33,32 +33,32 @@ export const sortCandidateKeys = (keys: Hex[]): Hex[] => {
 export const computeMappingSlot = (keyHex: Hex, baseSlot: Hex): Hex =>
   keccak256(`0x${keyHex.slice(2)}${baseSlot.slice(2)}`);
 
-/** Extract values from a transaction trace that might be used as mapping keys */
-// TODO: refactor to navigate the stack trace and identify both potential keys and array indexes
 /**
+ * At some point we might want to improve for smart stack exploration to retrieve likely keys. But this is super tricky due to the fact the stack & memory can be literally anything.
  * Typical access patterns:
- *
- * Mapping
- *
- * - KECCAK256 → SLOAD/SSTORE
- * - -> Slot calculation: keccak256(abi.encode(key, uint256(mappingSlot)))
- * - -> key is the input to the hash so we might even be able to retrieve the slot and compare directly
- * - KECCAK256 → KECCAK256 → SLOAD/SSTORE
- * - -> Slot calculation: keccak256(abi.encode(key2, keccak256(abi.encode(key1, uint256(mappingSlot)))))
- * - -> same here we get each key from each keccak input
- *
- * Array
- *
- * - KECCAK256 → ADD → SLOAD/SSTORE
- * - -> Slot calculation: keccak256(uint256(arraySlot)) + index
- *
- * As reference:
- *
- * - Struct in array: KECCAK256 → ADD → ADD → SLOAD/SSTORE Slot calculation: (keccak256(uint256(arraySlot)) + index) +
- *   memberOffset
- * - Mapping to Struct with Mapping: KECCAK256 → ADD → KECCAK256 → SLOAD/SSTORE Slot calculation:
- *   keccak256(abi.encode(key2, (keccak256(abi.encode(key1, uint256(mappingSlot))) + memberOffset)))
- */
+*
+* Mapping
+*
+* - KECCAK256 → SLOAD/SSTORE
+* - -> Slot calculation: keccak256(abi.encode(key, uint256(mappingSlot)))
+* - -> key is the input to the hash so we might even be able to retrieve the slot and compare directly
+* - KECCAK256 → KECCAK256 → SLOAD/SSTORE
+* - -> Slot calculation: keccak256(abi.encode(key2, keccak256(abi.encode(key1, uint256(mappingSlot)))))
+* - -> same here we get each key from each keccak input
+*
+* Array
+*
+* - KECCAK256 → ADD → SLOAD/SSTORE
+* - -> Slot calculation: keccak256(uint256(arraySlot)) + index
+*
+* As reference:
+*
+* - Struct in array: KECCAK256 → ADD → ADD → SLOAD/SSTORE Slot calculation: (keccak256(uint256(arraySlot)) + index) +
+*   memberOffset
+* - Mapping to Struct with Mapping: KECCAK256 → ADD → KECCAK256 → SLOAD/SSTORE Slot calculation:
+*   keccak256(abi.encode(key2, (keccak256(abi.encode(key1, uint256(mappingSlot))) + memberOffset)))
+*/
+/** Extract values from a transaction trace that might be used as mapping keys */
 export const extractPotentialKeys = (
   trace: {
     uniqueStackValues?: Array<string>;

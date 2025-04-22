@@ -10,7 +10,7 @@ export const getClient = (): MemoryClient => {
   return globalThis.client;
 };
 
-export const getSlotHex = (slot: number) => {
+export const getSlotHex = (slot: number | bigint) => {
   return toHex(slot, { size: 32 });
 };
 
@@ -25,23 +25,37 @@ export const getMappingSlotHex = (slot: Hex | number, ...keys: Hex[]) => {
   return currentSlot;
 };
 
-export const getArraySlotHex = (slot: Hex | number, index: Hex | bigint | number, isDynamic = true) => {
+export const getArraySlotHex = ({
+  slot,
+  index,
+  size = 32,
+  isDynamic = true,
+}: {
+  slot: Hex | bigint | number;
+  index: bigint | number;
+  size?: number;
+  isDynamic?: boolean;
+}) => {
   const slotBigInt = BigInt(slot);
   const indexBigInt = BigInt(index);
 
   if (isDynamic) {
-    // keccak256(slot) + index
-    const baseSlotHex = toHex(slotBigInt, { size: 32 });
-    const dataStartSlot = keccak256(baseSlotHex);
-    return toHex(BigInt(dataStartSlot) + indexBigInt, { size: 32 });
+    return getDynamicSlotDataHex(slot, index);
   } else {
+    if (size <= 0 || size > 32) throw new Error(`Invalid size ${size}`);
     // slot + index
-    // TODO: packed elements, need to account for size & offset
-    return toHex(slotBigInt + indexBigInt, { size: 32 });
+    const elementsPerSlot = 32n / BigInt(size); // Integer division
+    const slotOffset = indexBigInt / elementsPerSlot; // Integer division
+    return toHex(slotBigInt + slotOffset, { size: 32 });
   }
 };
 
-export const getDynamicSlotDataHex = (slot: Hex | number, offset: number) => getArraySlotHex(slot, offset, true);
+export const getDynamicSlotDataHex = (slot: Hex | number | bigint, offset: number | bigint) => {
+  // keccak256(slot) + index
+  const baseSlotHex = isHex(slot) ? slot : toHex(slot, { size: 32 });
+  const dataStartSlot = keccak256(baseSlotHex);
+  return toHex(BigInt(dataStartSlot) + BigInt(offset), { size: 32 });
+};
 
 export const getSlotAtOffsetHex = (slot: Hex | number, offset: number) => {
   const slotBigInt = isHex(slot) ? BigInt(slot) : BigInt(slot);

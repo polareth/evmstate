@@ -1,8 +1,8 @@
-import { toHex } from "tevm";
+import { keccak256, toHex } from "tevm";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
-import { expectedStorage, getArraySlotHex, getClient, getSlotHex } from "@test/utils";
+import { expectedStorage, getArraySlotHex, getClient, getDynamicSlotDataHex, getSlotHex } from "@test/utils";
 import { traceStorageAccess } from "@/index";
 import { PathSegmentKind } from "@/lib/explore/types";
 import { toHexFullBytes } from "@/lib/explore/utils";
@@ -19,6 +19,8 @@ const { caller } = ACCOUNTS;
  * 2. Dynamic array operations (push, update, length)
  * 3. Struct array operations with complex data
  * 4. Nested array operations and storage patterns
+ * 5. Static arrays of packed types
+ * 6. Dynamic array of dynamic types
  */
 describe("Arrays", () => {
   describe("Fixed-size arrays", () => {
@@ -55,7 +57,7 @@ describe("Arrays", () => {
                   decoded: value,
                 },
                 modified: true,
-                slots: [getArraySlotHex(0, index, false)],
+                slots: [getArraySlotHex({ slot: 0, index: index, isDynamic: false })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -109,7 +111,7 @@ describe("Arrays", () => {
                   decoded: value,
                 },
                 modified: false,
-                slots: [getArraySlotHex(0, index, false)],
+                slots: [getArraySlotHex({ slot: 0, index: index, isDynamic: false })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -180,7 +182,7 @@ describe("Arrays", () => {
                   decoded: value,
                 },
                 modified: true,
-                slots: [getArraySlotHex(lengthSlot, 0)],
+                slots: [getArraySlotHex({ slot: lengthSlot, index: 0 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -318,7 +320,7 @@ describe("Arrays", () => {
                   decoded: newValue,
                 },
                 modified: true,
-                slots: [getArraySlotHex(lengthSlot, updateIndex)],
+                slots: [getArraySlotHex({ slot: lengthSlot, index: updateIndex })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -389,7 +391,7 @@ describe("Arrays", () => {
                   decoded: value,
                 },
                 modified: false,
-                slots: [getArraySlotHex(lengthSlot, index)],
+                slots: [getArraySlotHex({ slot: lengthSlot, index: index })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -463,7 +465,7 @@ describe("Arrays", () => {
                   decoded: id,
                 },
                 modified: true,
-                slots: [getArraySlotHex(baseSlot, 0)],
+                slots: [getArraySlotHex({ slot: baseSlot, index: 0 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -487,7 +489,7 @@ describe("Arrays", () => {
                   decoded: BigInt(name.length),
                 },
                 modified: true,
-                slots: [getArraySlotHex(baseSlot, 1)],
+                slots: [getArraySlotHex({ slot: baseSlot, index: 1 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -514,7 +516,7 @@ describe("Arrays", () => {
                   decoded: name,
                 },
                 modified: true,
-                slots: [getArraySlotHex(baseSlot, 1)],
+                slots: [getArraySlotHex({ slot: baseSlot, index: 1 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -538,7 +540,7 @@ describe("Arrays", () => {
                   decoded: true,
                 },
                 modified: true,
-                slots: [getArraySlotHex(baseSlot, 2)],
+                slots: [getArraySlotHex({ slot: baseSlot, index: 2 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -616,7 +618,7 @@ describe("Arrays", () => {
                   decoded: false,
                 },
                 modified: true,
-                slots: [getArraySlotHex(getSlotHex(6), 2)],
+                slots: [getArraySlotHex({ slot: getSlotHex(6), index: 2 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -691,7 +693,7 @@ describe("Arrays", () => {
                   decoded: id,
                 },
                 modified: false,
-                slots: [getArraySlotHex(getSlotHex(6), 0)],
+                slots: [getArraySlotHex({ slot: getSlotHex(6), index: 0 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -711,7 +713,7 @@ describe("Arrays", () => {
                   decoded: BigInt(name.length),
                 },
                 modified: false,
-                slots: [getArraySlotHex(getSlotHex(6), 1)],
+                slots: [getArraySlotHex({ slot: getSlotHex(6), index: 1 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -735,7 +737,7 @@ describe("Arrays", () => {
                   decoded: name,
                 },
                 modified: false,
-                slots: [getArraySlotHex(getSlotHex(6), 1)],
+                slots: [getArraySlotHex({ slot: getSlotHex(6), index: 1 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -755,7 +757,7 @@ describe("Arrays", () => {
                   decoded: true,
                 },
                 modified: false,
-                slots: [getArraySlotHex(getSlotHex(6), 2)],
+                slots: [getArraySlotHex({ slot: getSlotHex(6), index: 2 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -887,7 +889,7 @@ describe("Arrays", () => {
                   decoded: 1n,
                 },
                 modified: true,
-                slots: [getArraySlotHex(baseSlot, outerIndex)],
+                slots: [getArraySlotHex({ slot: baseSlot, index: outerIndex })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -911,7 +913,7 @@ describe("Arrays", () => {
                   decoded: value,
                 },
                 modified: true,
-                slots: [getArraySlotHex(getArraySlotHex(baseSlot, outerIndex), 0)],
+                slots: [getArraySlotHex({ slot: getArraySlotHex({ slot: baseSlot, index: outerIndex }), index: 0 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -998,7 +1000,7 @@ describe("Arrays", () => {
                   decoded: 1n,
                 },
                 modified: false,
-                slots: [getArraySlotHex(baseSlot, outerIndex)],
+                slots: [getArraySlotHex({ slot: baseSlot, index: outerIndex })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -1022,7 +1024,9 @@ describe("Arrays", () => {
                   decoded: newValue,
                 },
                 modified: true,
-                slots: [getArraySlotHex(getArraySlotHex(baseSlot, outerIndex), innerIndex)],
+                slots: [
+                  getArraySlotHex({ slot: getArraySlotHex({ slot: baseSlot, index: outerIndex }), index: innerIndex }),
+                ],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -1109,7 +1113,7 @@ describe("Arrays", () => {
                   decoded: 1n,
                 },
                 modified: false,
-                slots: [getArraySlotHex(baseSlot, outerIndex)],
+                slots: [getArraySlotHex({ slot: baseSlot, index: outerIndex })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -1129,7 +1133,9 @@ describe("Arrays", () => {
                   decoded: 777n,
                 },
                 modified: false,
-                slots: [getArraySlotHex(getArraySlotHex(baseSlot, outerIndex), innerIndex)],
+                slots: [
+                  getArraySlotHex({ slot: getArraySlotHex({ slot: baseSlot, index: outerIndex }), index: innerIndex }),
+                ],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,
@@ -1141,6 +1147,167 @@ describe("Arrays", () => {
                   },
                 ],
                 fullExpression: `nestedArrays[${outerIndex}][${innerIndex}]`,
+              },
+            ],
+          },
+        }),
+      );
+    });
+  });
+
+  describe("Non 32-byte arrays", () => {
+    it("should trace packed fixed-size arrays", async () => {
+      const client = getClient();
+      const valueA = 0xabcdn;
+      const valueB = 0xcdabn;
+
+      const trace = await traceStorageAccess({
+        client,
+        from: caller.toString(),
+        to: Arrays.address,
+        abi: Arrays.abi,
+        functionName: "setPackedFixed",
+        args: [
+          [1n, 2n],
+          [valueA, valueB],
+        ],
+      });
+
+      expect(trace[Arrays.address].storage).toEqual(
+        expectedStorage(LAYOUTS.Arrays, {
+          packedFixedArray: {
+            name: "packedFixedArray",
+            type: "uint128[4]",
+            kind: "static_array",
+            trace: [
+              // item at index 0 is included as it was read in the same storage slot
+              {
+                current: {
+                  hex: toHex(0n, { size: 1 }),
+                  decoded: 0n,
+                },
+                modified: false,
+                slots: [getArraySlotHex({ slot: 8, index: 0, isDynamic: false, size: 16 })],
+                path: [{ kind: PathSegmentKind.ArrayIndex, index: 0n }],
+                fullExpression: `packedFixedArray[0]`,
+              },
+              // only item at index 1 is modified in the first slot
+              {
+                current: {
+                  hex: toHex(0n, { size: 1 }),
+                  decoded: 0n,
+                },
+                next: {
+                  hex: toHex(valueA, { size: 16 }),
+                  decoded: valueA,
+                },
+                modified: true,
+                slots: [getArraySlotHex({ slot: 8, index: 1, isDynamic: false, size: 16 })],
+                path: [{ kind: PathSegmentKind.ArrayIndex, index: 1n }],
+                fullExpression: `packedFixedArray[1]`,
+              },
+              // item at index 2 is modified in the second slot
+              {
+                current: {
+                  hex: toHex(0n, { size: 1 }),
+                  decoded: 0n,
+                },
+                next: {
+                  hex: toHex(valueB, { size: 16 }),
+                  decoded: valueB,
+                },
+                modified: true,
+                slots: [getArraySlotHex({ slot: 8, index: 2, isDynamic: false, size: 16 })],
+                path: [{ kind: PathSegmentKind.ArrayIndex, index: 2n }],
+                fullExpression: `packedFixedArray[2]`,
+              },
+              // item at index 3 is read at the same time as item at index 2
+              {
+                current: {
+                  hex: toHex(0n, { size: 1 }),
+                  decoded: 0n,
+                },
+                modified: false,
+                slots: [getArraySlotHex({ slot: 8, index: 3, isDynamic: false, size: 16 })],
+                path: [{ kind: PathSegmentKind.ArrayIndex, index: 3n }],
+                fullExpression: `packedFixedArray[3]`,
+              },
+            ],
+          },
+        }),
+      );
+    });
+
+    it("should trace dynamic bytes (> 32 bytes) arrays", async () => {
+      const client = getClient();
+      const valueA = "0x1234567890";
+      const lengthA = (valueA.length - 2) / 2;
+      const valueB =
+        "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"; // 64 bytes
+      const lengthB = (valueB.length - 2) / 2;
+
+      // Set a first short value
+      await client.tevmContract({
+        caller: caller.toString(),
+        to: Arrays.address,
+        abi: Arrays.abi,
+        functionName: "setBytesDynamic",
+        args: [0n, valueA],
+        addToBlockchain: true,
+      });
+
+      // Trace pushing a longer value
+      const trace = await traceStorageAccess({
+        client,
+        from: caller.toString(),
+        to: Arrays.address,
+        abi: Arrays.abi,
+        functionName: "setBytesDynamic",
+        args: [0n, valueB],
+      });
+
+      expect(trace[Arrays.address].storage).toEqual(
+        expectedStorage(LAYOUTS.Arrays, {
+          bytesDynamicArray: {
+            name: "bytesDynamicArray",
+            type: "bytes[]",
+            kind: "dynamic_array",
+            trace: [
+              // Length update
+              {
+                current: { hex: toHex(1n, { size: 1 }), decoded: 1n },
+                modified: false,
+                slots: [getSlotHex(10)],
+                path: [{ kind: PathSegmentKind.ArrayLength, name: "_length" }],
+                fullExpression: "bytesDynamicArray._length",
+              },
+              // Bytes length update
+              {
+                current: { hex: toHex(lengthA, { size: 1 }), decoded: BigInt(lengthA) },
+                next: { hex: toHex(lengthB, { size: 1 }), decoded: BigInt(lengthB) },
+                modified: true,
+                slots: [getArraySlotHex({ slot: 10, index: 0 })],
+                path: [
+                  { kind: PathSegmentKind.ArrayIndex, index: 0n },
+                  { kind: PathSegmentKind.BytesLength, name: "_length" },
+                ],
+                fullExpression: "bytesDynamicArray[0]._length",
+              },
+              // Bytes update
+              {
+                current: { hex: valueA, decoded: valueA },
+                next: {
+                  hex: valueB,
+                  decoded: valueB,
+                },
+                modified: true,
+                slots: [
+                  getArraySlotHex({ slot: 10, index: 0 }), // length
+                  getDynamicSlotDataHex(getArraySlotHex({ slot: 10, index: 0 }), 0), // bytes data
+                  getDynamicSlotDataHex(getArraySlotHex({ slot: 10, index: 0 }), 1), // bytes data continued
+                ],
+                path: [{ kind: PathSegmentKind.ArrayIndex, index: 0n }],
+                fullExpression: "bytesDynamicArray[0]",
               },
             ],
           },

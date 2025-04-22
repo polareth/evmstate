@@ -448,7 +448,7 @@ describe("Mappings", () => {
               current: { hex: toHex(0, { size: 1 }), decoded: 0n },
               next: { hex: toHex(value, { size: 32 }), decoded: value },
               modified: true,
-              slots: [getArraySlotHex(getMappingSlotHex(4, toHex(index, { size: 32 })), 0)],
+              slots: [getArraySlotHex({ slot: getMappingSlotHex(4, toHex(index, { size: 32 })), index: 0 })],
               path: [
                 {
                   kind: PathSegmentKind.MappingKey,

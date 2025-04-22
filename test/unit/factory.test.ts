@@ -63,7 +63,7 @@ describe("Contract creation", () => {
                 current: { hex: toHex(0, { size: 1 }), decoded: "0x0000000000000000000000000000000000000000" },
                 next: { hex: expect.any(String), decoded: expect.any(String) },
                 modified: true,
-                slots: [getArraySlotHex(getSlotHex(0), 0)],
+                slots: [getArraySlotHex({ slot: 0, index: 0 })],
                 path: [
                   {
                     kind: PathSegmentKind.ArrayIndex,

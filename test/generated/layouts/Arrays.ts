@@ -32,6 +32,22 @@ export default {
       "offset": 0,
       "slot": "7",
       "type": "t_array(t_array(t_uint256)dyn_storage)dyn_storage"
+    },
+    {
+      "astId": 27,
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Arrays.s.sol:Arrays",
+      "label": "packedFixedArray",
+      "offset": 0,
+      "slot": "8",
+      "type": "t_array(t_uint128)4_storage"
+    },
+    {
+      "astId": 30,
+      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Arrays.s.sol:Arrays",
+      "label": "bytesDynamicArray",
+      "offset": 0,
+      "slot": "10",
+      "type": "t_array(t_bytes_storage)dyn_storage"
     }
   ],
   "types": {
@@ -41,11 +57,23 @@ export default {
       "label": "uint256[][]",
       "numberOfBytes": "32"
     },
+    "t_array(t_bytes_storage)dyn_storage": {
+      "base": "t_bytes_storage",
+      "encoding": "dynamic_array",
+      "label": "bytes[]",
+      "numberOfBytes": "32"
+    },
     "t_array(t_struct(Item)15_storage)dyn_storage": {
       "base": "t_struct(Item)15_storage",
       "encoding": "dynamic_array",
       "label": "struct Arrays.Item[]",
       "numberOfBytes": "32"
+    },
+    "t_array(t_uint128)4_storage": {
+      "base": "t_uint128",
+      "encoding": "inplace",
+      "label": "uint128[4]",
+      "numberOfBytes": "64"
     },
     "t_array(t_uint256)5_storage": {
       "base": "t_uint256",
@@ -63,6 +91,11 @@ export default {
       "encoding": "inplace",
       "label": "bool",
       "numberOfBytes": "1"
+    },
+    "t_bytes_storage": {
+      "encoding": "bytes",
+      "label": "bytes",
+      "numberOfBytes": "32"
     },
     "t_string_storage": {
       "encoding": "bytes",
@@ -99,6 +132,11 @@ export default {
         }
       ],
       "numberOfBytes": "96"
+    },
+    "t_uint128": {
+      "encoding": "inplace",
+      "label": "uint128",
+      "numberOfBytes": "16"
     },
     "t_uint256": {
       "encoding": "inplace",

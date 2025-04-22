@@ -661,7 +661,7 @@ describe("Structs", () => {
                   decoded: value,
                 },
                 modified: true,
-                slots: [getArraySlotHex(lengthSlot, 0)],
+                slots: [getArraySlotHex({ slot: lengthSlot, index: 0 })],
                 path: [
                   {
                     kind: PathSegmentKind.StructField,
