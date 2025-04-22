@@ -1,4 +1,4 @@
-import { keccak256, toHex } from "tevm";
+import { toHex } from "tevm";
 import { describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";

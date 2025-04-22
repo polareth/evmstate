@@ -17,6 +17,7 @@ import {
 /*                                    TRACE                                   */
 /* -------------------------------------------------------------------------- */
 
+/* --------------------------------- OPTIONS -------------------------------- */
 /**
  * Base options for analyzing storage access patterns during transaction simulation.
  *
@@ -130,6 +131,7 @@ export type TraceStorageAccessTxWithAbi<
  */
 export type TraceStorageAccessTxWithReplay = { txHash: Hex };
 
+/* ---------------------------------- TRACE --------------------------------- */
 /**
  * Storage access trace for a transaction
  *

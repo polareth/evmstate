@@ -18,7 +18,6 @@
 
 - [ ] add tests for trace with txHash (replicate tx)
   - -> tests ready but need tevm rebase mode to be released
-- [ ] upstream utilities (compute mapping slot, array slot at index, etc?) to Ox
 - [ ] provide some state listeners -> listen to a contract's state changes; same api as listening to contract events, you get the typed state change
   ```typescript
   const sub = watchState({
@@ -69,6 +68,8 @@
   - -> whole point of the library is to get labeled slots, otherwise can just use tevm and get the access list
 - [x] ~~export types and utilities for decoding abi types and mention on readme? or don't bloat the package? maybe would be good as a second package provided lattice authorization~~
   - -> this is already well supported with abitype
+- [x] ~~upstream utilities (compute mapping slot, array slot at index, etc?) to Ox~~
+  - -> seems too opinionated
 - [x] provide same api as viem/tevm with "as const" abi except it's with the storage layout, and you get a fully typed api with decoded types, etc
 - [x] support custom storage slots: maybe just popular/standardized ones? or parse from source code?
   - -> supports standard proxy implementation & admin slots

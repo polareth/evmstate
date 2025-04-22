@@ -15,7 +15,7 @@ export type DeepReadonly<T> = T extends (infer R)[]
       ? { readonly [K in keyof T]: DeepReadonly<T[K]> }
       : T;
 
-/** Extract the final value type from a Solidity type ID */
+/** Extract the final value ABI type from a solc type ID */
 export type ParseSolidityType<TypeId extends string, Types extends SolcStorageLayoutTypes> = TypeId extends keyof Types
   ? Types[TypeId] extends { label: infer Label extends string }
     ? Label
@@ -77,15 +77,6 @@ export type ExtractStructMemberType<
     : never;
 }[keyof Types];
 
-/** Get the Solidity key type and convert to appropriate TS type */
-export type SolidityKeyToTsType<KeyType extends string, Types extends SolcStorageLayoutTypes> = KeyType extends AbiType
-  ? AbiTypeToPrimitiveType<KeyType>
-  : KeyType extends `t_${infer SolidityType}`
-    ? SolidityType extends AbiType
-      ? AbiTypeToPrimitiveType<SolidityType>
-      : any
-    : any;
-
 /* -------------------------------------------------------------------------- */
 /*                           STORAGE DATA TYPE MAPPING                        */
 /* -------------------------------------------------------------------------- */
@@ -121,8 +112,8 @@ export type SolidityTypeToTsType<T extends string, Types extends SolcStorageLayo
 
 /* -------------------------------------------------------------------------- */
 /*                            MAPPING TYPE HELPERS                            */
-/** @deprecated */
 /* -------------------------------------------------------------------------- */
+/** The following types are not used in the library, but can be useful as utility types */
 
 /** Extract mapping key types with their corresponding TypeScript types */
 export type GetMappingKeyTypePairs<
@@ -131,8 +122,12 @@ export type GetMappingKeyTypePairs<
   Result extends readonly [string, any][] = [],
 > = T extends `mapping(${infer KeyType} => ${infer ValueType})`
   ? ValueType extends `mapping(${string} => ${string})`
-    ? GetMappingKeyTypePairs<ValueType, Types, [...Result, [KeyType, SolidityKeyToTsType<KeyType, Types>]]>
-    : [...Result, [KeyType, SolidityKeyToTsType<KeyType, Types>]]
+    ? GetMappingKeyTypePairs<
+        ValueType,
+        Types,
+        [...Result, [KeyType, KeyType extends AbiType ? AbiTypeToPrimitiveType<KeyType> : never]]
+      >
+    : [...Result, [KeyType, KeyType extends AbiType ? AbiTypeToPrimitiveType<KeyType> : never]]
   : Result;
 
 /** Get just the Solidity type strings for mapping keys as a tuple */
@@ -230,7 +225,11 @@ export type PathBuilder<
           Types,
           [
             ...BasePath,
-            { kind: PathSegmentKind.MappingKey; key: SolidityKeyToTsType<KeyType, Types>; keyType: KeyType },
+            {
+              kind: PathSegmentKind.MappingKey;
+              key: KeyType extends AbiTypeInplace ? AbiTypeToPrimitiveType<KeyType> : never;
+              keyType: KeyType;
+            },
           ]
         >
       : // Handle array types - add array index segment and recurse with base type
@@ -290,7 +289,7 @@ export type PathSegment =
   | { kind: PathSegmentKind.ArrayIndex; index: bigint }
   | {
       kind: PathSegmentKind.MappingKey;
-      key: SolidityKeyToTsType<string, SolcStorageLayoutTypes>;
+      key: AbiTypeToPrimitiveType<AbiTypeInplace>;
       keyType: string;
     }
   | { kind: PathSegmentKind.ArrayLength; name: "_length" }

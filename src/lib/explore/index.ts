@@ -1,11 +1,19 @@
 import { Buffer } from "buffer"; // TODO: we'll probably have issues in the browser with this
 import { SolcStorageLayout, SolcStorageLayoutMappingType, SolcStorageLayoutTypes } from "tevm/bundler/solc";
+import { AbiTypeToPrimitiveType } from "abitype";
 import { decodeAbiParameters, Hex, keccak256, padHex, toBytes, toHex } from "viem";
 
 import { debug } from "@/debug";
 import { ExploreStorageConfig } from "@/lib/explore/config";
 import { computeMappingSlot, sortCandidateKeys } from "@/lib/explore/mapping";
-import { DecodedResult, PathSegment, PathSegmentKind, SolidityTypeToTsType, TypePriority } from "@/lib/explore/types";
+import {
+  AbiTypeInplace,
+  DecodedResult,
+  PathSegment,
+  PathSegmentKind,
+  SolidityTypeToTsType,
+  TypePriority,
+} from "@/lib/explore/types";
 import { max, toHexFullBytes } from "@/lib/explore/utils";
 import { StorageDiff } from "@/lib/trace/types";
 
@@ -367,7 +375,7 @@ export const exploreStorage = (
             for (const { hex, type } of currentPathKeys) {
               fullPath.push({
                 kind: PathSegmentKind.MappingKey,
-                key: decodeAbiParameters([{ type }], hex)[0],
+                key: decodeAbiParameters([{ type }], hex)[0] as AbiTypeToPrimitiveType<AbiTypeInplace>,
                 keyType: type,
               });
             }
