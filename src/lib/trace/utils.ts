@@ -30,16 +30,6 @@ export const createClient = (options: { rpcUrl?: string; common?: Common; blockT
   });
 };
 
-export const uniqueAddresses = (addresses: Array<Address | undefined>): Array<Address> => {
-  let existingAddresses = new Set<string>();
-
-  return addresses.filter((address) => {
-    if (!address || existingAddresses.has(address.toLowerCase())) return false;
-    existingAddresses.add(address.toLowerCase());
-    return true;
-  }) as Address[];
-};
-
 export const getUnifiedParams = async <
   TAbi extends Abi | readonly unknown[] = Abi,
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
@@ -77,7 +67,7 @@ export const getUnifiedParams = async <
   try {
     const tx = await client.getTransaction({ hash: args.txHash });
 
-    // TODO: can't run tx at past block so we need to recreate the client; this won't work on the default chain so to-test in staging
+    // TODO: can't run tx at past block so we need to recreate the client and dump the previous state
     // Also it's ugly to recreate the client here
     const clientBeforeTx = createClient({
       rpcUrl: rpcUrl ?? client.chain?.rpcUrls.default.http[0],

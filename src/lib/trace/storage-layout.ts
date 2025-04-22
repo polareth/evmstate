@@ -151,9 +151,6 @@ export const getStorageLayout = async ({
  * Finds the most relevant storage layout for a contract.
  *
  * Prioritizes exact name matches, then falls back to the most complete layout
- *
- * TODO: something specific for proxies (we need the implementation layout + add some special custom variables for
- * implementation address, etc?)
  */
 export const findMostRelevantLayout = (output: any, contractName?: string): SolcStorageLayout | undefined => {
   if (!output?.contracts) return undefined;

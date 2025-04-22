@@ -138,12 +138,12 @@ export type TraceStorageAccessTxWithReplay = { txHash: Hex };
  * @param storage - Storage slots that were accessed during transaction (only applicable for contracts)
  * @param intrinsic - Account field changes during transaction
  */
-export type StorageAccessTrace<T extends DeepReadonly<SolcStorageLayout> = SolcStorageLayout> = {
+export type StorageAccessTrace<TStorageLayout extends DeepReadonly<SolcStorageLayout> = SolcStorageLayout> = {
   storage: {
-    [Variable in T["storage"][number] as Variable["label"]]: LabeledStorageAccess<
+    [Variable in TStorageLayout["storage"][number] as Variable["label"]]: LabeledStorageAccess<
       Variable["label"],
-      ParseSolidityType<Variable["type"], T["types"]>,
-      T["types"]
+      ParseSolidityType<Variable["type"], TStorageLayout["types"]>,
+      TStorageLayout["types"]
     >;
   };
   intrinsic: IntrinsicsDiff;
@@ -151,49 +151,49 @@ export type StorageAccessTrace<T extends DeepReadonly<SolcStorageLayout> = SolcS
 
 export type LabeledStorageAccess<
   TName extends string = string,
-  T extends string | undefined = string | undefined,
-  Types extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
+  TTypeId extends string | undefined = string | undefined,
+  TTypes extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
 > = {
   /** The name of the variable in the layout */
   name: TName;
   /** The entire Solidity definition of the variable (e.g. "mapping(uint256 => mapping(address => bool))" or "uint256[]") */
-  type?: T; // TODO: rename to definition (also everywhere we call it "T", e.g. TDef & definition/typeDef)
+  type?: TTypeId;
   /** The more global kind of variable for easier parsing of the trace (e.g. "mapping", "array", "struct", "primitive") */
-  kind?: T extends `mapping(${string} => ${string})`
+  kind?: TTypeId extends `mapping(${string} => ${string})`
     ? "mapping"
-    : T extends `${string}[]`
+    : TTypeId extends `${string}[]`
       ? "dynamic_array"
-      : T extends `${string}[${string}]`
+      : TTypeId extends `${string}[${string}]`
         ? "static_array"
-        : T extends `struct ${string}`
+        : TTypeId extends `struct ${string}`
           ? "struct"
-          : T extends "bytes" | "string"
+          : TTypeId extends "bytes" | "string"
             ? "bytes"
-            : T extends `${string}`
+            : TTypeId extends `${string}`
               ? "primitive"
-              : T extends undefined
+              : TTypeId extends undefined
                 ? undefined
                 : never;
   /** The trace of the variable's access */
-  trace: Array<LabeledStorageAccessTrace<TName, T, Types>>;
+  trace: Array<LabeledStorageAccessTrace<TName, TTypeId, TTypes>>;
 };
 
 export type LabeledStorageAccessTrace<
   TName extends string = string,
-  T extends string | undefined = string | undefined,
-  Types extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
+  TTypeId extends string | undefined = string | undefined,
+  TTypes extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
 > = {
   /** The decoded value of the variable */
   current: {
-    decoded?: T extends string ? SolidityTypeToTsType<T, Types> : unknown;
+    decoded?: TTypeId extends string ? SolidityTypeToTsType<TTypeId, TTypes> : unknown;
     hex: Hex;
   };
   /** The slots storing some of the variable's data that were accessed */
   slots: Array<Hex>;
   /** The path to the variable */
-  path: T extends string ? VariablePathSegments<T, Types> : Array<PathSegment>;
+  path: TTypeId extends string ? VariablePathSegments<TTypeId, TTypes> : Array<PathSegment>;
   /** The full expression of the variable */
-  fullExpression: T extends string ? VariableExpression<TName, T, Types> : string;
+  fullExpression: TTypeId extends string ? VariableExpression<TName, TTypeId, TTypes> : string;
   /** Any note during decoding */
   note?: string;
 } & (
@@ -201,7 +201,7 @@ export type LabeledStorageAccessTrace<
       modified: true;
       /** The next value after the transaction (if it was modified) */
       next: {
-        decoded?: T extends string ? SolidityTypeToTsType<T, Types> : unknown;
+        decoded?: TTypeId extends string ? SolidityTypeToTsType<TTypeId, TTypes> : unknown;
         hex: Hex;
       };
     }

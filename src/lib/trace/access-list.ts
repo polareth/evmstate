@@ -44,7 +44,7 @@ export const storageSnapshot = async (
 export const storageDiff = (preTx: StorageSnapshot, postTx: StorageSnapshot): StorageDiff => {
   return Object.entries(postTx).reduce((accesses, [slot, { value: post }]) => {
     const pre = preTx[slot as Hex].value;
-    if (!pre) throw new Error("Storage pre tx not found"); // TODO: we're unforgiving here, will tweak during testing
+    if (!pre) throw new Error("Storage pre tx not found");
 
     // If values are different, it's a write (with both current and next)
     // Otherwise, it's a read (with only current)
@@ -115,7 +115,6 @@ export const intrinsicDiff = (preTx: IntrinsicsSnapshot, postTx: IntrinsicsSnaps
     const next = postTx[field].value;
 
     // If values are different, include the next value
-    // TODO: hate using any here but now sure how to do otherwise for these nested properties
     (result[field] as any) = current !== next ? { current, next } : { current };
 
     return result;

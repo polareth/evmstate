@@ -75,15 +75,6 @@ export const traceStorageAccess = async <
     `Trace contains ${callResult.trace?.structLogs.length} steps and ${[...new Set(callResult.trace?.structLogs.flatMap((log) => log.stack))].length} unique stack values`,
   );
 
-  // Get all relevant addresses (contract addresses + sender + target + any created contracts)
-  // const addresses = uniqueAddresses([
-  //   ...(Object.keys(callResult.accessList ?? {}) as Address[]),
-  //   from,
-  //   to,
-  //   ...((callResult.createdAddresses ?? []) as Address[]),
-  // ]);
-  // TODO: research to make sure this really includes all relevant addresses but it should (all accounts touched by the tx)
-  // currently enabled with createAccessList: true
   const addresses = Object.values(callResult.preimages ?? {}).filter(
     (address) => address !== "0x0000000000000000000000000000000000000000",
   );
@@ -145,7 +136,6 @@ export const traceStorageAccess = async <
   };
 
   // Aggregate functions from all abis to be able to figure out types of args
-  // TODO: maybe grab the function def before aggregating abis to no overwrite anything
   let abis = Object.values(contractsInfo)
     .flatMap((contract) => contract.abi)
     .filter((abi) => abi.type === "function");
