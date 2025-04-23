@@ -1,0 +1,30 @@
+name: npm build and publish
+
+on: [push]
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Build
+        uses: ./.github/actions/build
+
+      - name: Release Server Package
+        if: github.ref == 'refs/heads/main'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx --package semantic-release semantic-release --branches main

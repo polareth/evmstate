@@ -16,7 +16,11 @@ import { ExploreStorageConfig } from "@/lib/explore/config";
 import { TraceStorageAccessOptions, TraceStorageAccessTxParams, TraceStorageAccessTxWithData } from "@/lib/trace/types";
 
 /** Creates a Tevm client from the provided options */
-export const createClient = (options: { rpcUrl?: string; common?: Common; blockTag?: BlockTag | bigint }) => {
+export const createClient = (options: {
+  rpcUrl?: string;
+  common?: Common;
+  blockTag?: BlockTag | bigint;
+}): MemoryClient => {
   const { rpcUrl, common, blockTag } = options;
   if (!rpcUrl) throw new Error("You need to provide a rpcUrl if you don't provide a client directly");
 

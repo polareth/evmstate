@@ -1,8 +1,18 @@
 {
-  "name": "transaction-access-list",
+  "name": "@polareth/trace",
   "version": "0.0.0-semantically-released",
-  "description": "",
-  "keywords": [],
+  "description": "A comprehensive library for EVM transaction analysis that provides detailed storage slot access tracking with semantic labeling.",
+  "keywords": [
+    "evm",
+    "transaction",
+    "analysis",
+    "storage",
+    "layout",
+    "slot",
+    "semantic",
+    "labeling",
+    "trace"
+  ],
   "author": "0xpolarzero",
   "license": "MIT",
   "main": "./dist/index.js",
