@@ -1,6 +1,5 @@
 import {
   Abi,
-  Address,
   BlockTag,
   ContractFunctionName,
   createMemoryClient,
@@ -71,12 +70,14 @@ export const getUnifiedParams = async <
   try {
     const tx = await client.getTransaction({ hash: args.txHash });
 
-    // TODO: can't run tx at past block so we need to recreate the client and dump the previous state
-    // Also it's ugly to recreate the client here
-    const clientBeforeTx = createClient({
-      rpcUrl: rpcUrl ?? client.chain?.rpcUrls.default.http[0],
-      common,
-      blockTag: tx.blockNumber > 0 ? tx.blockNumber - BigInt(1) : BigInt(0),
+    // Duplicate the client but fork before the transaction's block
+    const clientBeforeTx = createMemoryClient({
+      ...client,
+      fork: {
+        transport: client.transport,
+        // Ideally we'd want to fork just right before that tx as some same-block txs can impact the state
+        blockTag: tx.blockNumber > 0 ? tx.blockNumber - BigInt(1) : BigInt(0),
+      },
     });
 
     return {

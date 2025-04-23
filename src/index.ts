@@ -44,3 +44,6 @@ export type {
   LabeledStorageAccessTrace,
   IntrinsicsDiff,
 } from "@/lib/trace/types";
+
+export { watchState } from "@/lib/watch";
+export type { WatchStateOptions, StateChange } from "@/lib/watch/types";

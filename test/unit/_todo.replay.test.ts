@@ -1,4 +1,4 @@
-import { encodeFunctionData, Hex, toHex } from "tevm";
+import { Hex, toHex } from "tevm";
 import { assert, beforeEach, describe, expect, it } from "vitest";
 
 import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
@@ -17,6 +17,7 @@ const { caller } = ACCOUNTS;
  * - Transaction replay with Tracer class
  */
 
+// TODO: need eth_getProof to be implemented or debug_traceBlock
 describe("Transaction replay", () => {
   const expectedTrace = expectedStorage(LAYOUTS.StoragePacking, {
     smallValue1: {
@@ -88,7 +89,7 @@ describe("Transaction replay", () => {
   beforeEach(async () => {
     const client = getClient();
     const tx = await client.tevmContract({
-      caller: caller.toString(),
+      from: caller.toString(),
       to: StoragePacking.address,
       abi: StoragePacking.abi,
       functionName: "setSmallValues",

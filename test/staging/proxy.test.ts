@@ -124,7 +124,7 @@ describe("Proxies", () => {
   it("should retrieve new storage layout when implementation is upgraded", async () => {
     // Update count
     await client.tevmContract({
-      caller: admin.toString(),
+      from: admin.toString(),
       to: TransparentProxy.address,
       abi: CounterImpl.abi,
       functionName: "setCount",

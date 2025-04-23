@@ -22,14 +22,11 @@ describe("Native Transfers", () => {
   it("should track native token transfers between contracts", async () => {
     const client = getClient();
     // Fund the sender contract
-    const vm = await client.transport.tevm.getVm();
-    await vm.stateManager.putAccount(
-      createAddress(NativeTransfer.address),
-      EthjsAccount.fromAccountData({
-        balance: parseEther("10"),
-        nonce: 0n,
-      }),
-    );
+    await client.tevmDeal({
+      account: NativeTransfer.address,
+      amount: parseEther("10"),
+    });
+
     const transferAmount = parseEther("1");
 
     // Get initial balances
@@ -62,6 +59,7 @@ describe("Native Transfers", () => {
       codeHash: { current: expect.any(String) },
       deployedBytecode: { current: expect.any(String) },
       storageRoot: { current: expect.any(String) },
+      isContract: { current: true },
     } as const satisfies IntrinsicsDiff);
 
     // Same for the receiver
@@ -75,6 +73,7 @@ describe("Native Transfers", () => {
       codeHash: { current: expect.any(String) },
       deployedBytecode: { current: expect.any(String) },
       storageRoot: { current: expect.any(String) },
+      isContract: { current: true },
     } as const satisfies IntrinsicsDiff);
   });
 
@@ -119,6 +118,7 @@ describe("Native Transfers", () => {
       codeHash: { current: expect.any(String) },
       deployedBytecode: { current: expect.any(String) },
       storageRoot: { current: expect.any(String) },
+      isContract: { current: false },
     } as const satisfies IntrinsicsDiff);
 
     // Same for the recipient
@@ -132,6 +132,7 @@ describe("Native Transfers", () => {
       codeHash: { current: expect.any(String) },
       deployedBytecode: { current: expect.any(String) },
       storageRoot: { current: expect.any(String) },
+      isContract: { current: false },
     } as const satisfies IntrinsicsDiff);
   });
 });

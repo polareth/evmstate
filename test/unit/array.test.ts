@@ -1248,7 +1248,7 @@ describe("Arrays", () => {
 
       // Set a first short value
       await client.tevmContract({
-        caller: caller.toString(),
+        from: caller.toString(),
         to: Arrays.address,
         abi: Arrays.abi,
         functionName: "setBytesDynamic",

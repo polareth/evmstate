@@ -249,7 +249,7 @@ describe("Structs", () => {
 
       // First initialize the struct
       await client.tevmContract({
-        caller: caller.toString(),
+        from: caller.toString(),
         to: Structs.address,
         abi: Structs.abi,
         functionName: "initializeStructs",

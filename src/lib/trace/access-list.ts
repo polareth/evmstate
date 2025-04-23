@@ -3,8 +3,8 @@ import { Address, Hex, keccak256, MemoryClient } from "tevm";
 import { debug } from "@/debug";
 import { AccessList, IntrinsicsDiff, IntrinsicsSnapshot, StorageDiff, StorageSnapshot } from "@/lib/trace/types";
 
-const EMPTY_CODE_HASH = keccak256(new Uint8Array(0));
-const EMPTY_STORAGE_ROOT = "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421";
+export const EMPTY_CODE_HASH = keccak256(new Uint8Array(0));
+export const EMPTY_STORAGE_ROOT = "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421";
 
 /**
  * Fetches storage values for all slots in an access list.
@@ -68,7 +68,7 @@ export const intrinsicSnapshot = async (
   const results = await Promise.all(
     accounts.map(async (address) => {
       try {
-        const state = await client.tevmGetAccount({ address, returnStorage: true });
+        const state = await client.tevmGetAccount({ address });
 
         return [
           address,
@@ -78,6 +78,7 @@ export const intrinsicSnapshot = async (
             deployedBytecode: { value: state.deployedBytecode },
             codeHash: { value: state.codeHash },
             storageRoot: { value: state.storageRoot },
+            isContract: { value: state.codeHash !== EMPTY_CODE_HASH },
           },
         ] as [Address, IntrinsicsSnapshot];
       } catch (err) {
@@ -90,6 +91,7 @@ export const intrinsicSnapshot = async (
             deployedBytecode: { value: "0x" },
             codeHash: { value: EMPTY_CODE_HASH },
             storageRoot: { value: EMPTY_STORAGE_ROOT },
+            isContract: { value: false },
           },
         ] as [Address, IntrinsicsSnapshot];
       }

@@ -245,7 +245,9 @@ export type StorageDiff = {
  *
  * @internal
  */
-type Intrinsics = Pick<GetAccountResult, "balance" | "codeHash" | "deployedBytecode" | "nonce" | "storageRoot">;
+type Intrinsics = Pick<GetAccountResult, "balance" | "codeHash" | "deployedBytecode" | "nonce" | "storageRoot"> & {
+  isContract: boolean;
+};
 
 /** Type representing the intrinsic state of an account at a specific point in time. */
 export type IntrinsicsSnapshot = {

@@ -1,6 +1,6 @@
 import { Abi, AbiFunction, Address, CallResult, ContractFunctionName, Hex } from "tevm";
 import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
-import { AbiStateMutability, ContractFunctionArgs, toFunctionSignature, trim } from "viem";
+import { AbiStateMutability, toFunctionSignature, trim } from "viem";
 
 import { debug } from "@/debug";
 import { exploreStorage } from "@/lib/explore";
@@ -17,7 +17,7 @@ import {
   TraceStorageAccessTxWithData,
   TraceStorageAccessTxWithReplay,
 } from "@/lib/trace/types";
-import { cleanTrace, createClient /* , uniqueAddresses */, getUnifiedParams } from "@/lib/trace/utils";
+import { cleanTrace, createClient, getUnifiedParams } from "@/lib/trace/utils";
 
 /**
  * Analyzes storage access patterns during transaction execution.
@@ -43,9 +43,10 @@ export const traceStorageAccess = async <
   TAbi extends Abi | readonly unknown[] = Abi,
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
 >(
-  args: TraceStorageAccessOptions & TraceStorageAccessTxParams<TAbi, TFunctionName> & { config?: ExploreStorageConfig },
+  options: TraceStorageAccessOptions &
+    TraceStorageAccessTxParams<TAbi, TFunctionName> & { config?: ExploreStorageConfig },
 ): Promise<Record<Address, StorageAccessTrace>> => {
-  const { client, from, to, data, value } = await getUnifiedParams(args);
+  const { client, from, to, data, value } = await getUnifiedParams(options);
 
   // Execute call on local vm with access list generation and trace
   let callResult: CallResult | undefined;
@@ -110,12 +111,11 @@ export const traceStorageAccess = async <
   const contractsInfo = await getContracts({
     client,
     addresses: addresses.filter((address) => storagePreTx[address] && storagePostTx[address]),
-    explorers: args.explorers,
+    explorers: options.explorers,
   });
 
   // Map to store storage layouts adapter per contract
   const layouts: Record<Address, SolcStorageLayout> = {};
-
   // Get layout adapters for each contract
   await Promise.all(
     Object.entries(contractsInfo).map(async ([address, contract]) => {
@@ -124,9 +124,9 @@ export const traceStorageAccess = async <
       if (layout) layouts[address as Address] = layout;
     }),
   );
+
   // Extract potential key/index values from the execution trace
   const traceLog = callResult.trace?.structLogs || [];
-
   // Create a slim version of the trace with deduplicated stack values for efficiency
   const dedupedTraceLog = {
     // Deduplicate stack values across all operations
@@ -136,36 +136,39 @@ export const traceStorageAccess = async <
   };
 
   // Aggregate functions from all abis to be able to figure out types of args
-  let abis = Object.values(contractsInfo)
+  let abiFunctions = Object.values(contractsInfo)
     .flatMap((contract) => contract.abi)
     .filter((abi) => abi.type === "function");
 
   // In case the tx was a contract call with the abi and it could not be fetch, add it so we can decode potential mapping keys
-  if (args.abi && args.functionName) {
-    const functionDef = (args.abi as Abi).find(
-      (func) => func.type === "function" && func.name === args.functionName,
+  if (options.abi && options.functionName) {
+    const functionDef = (options.abi as Abi).find(
+      (func) => func.type === "function" && func.name === options.functionName,
     ) as AbiFunction | undefined;
     // @ts-expect-error readonly/mutable types
-    if (functionDef) abis.push({ ...functionDef, selector: toFunctionSignature(functionDef) });
+    if (functionDef) abiFunctions.push({ ...functionDef, selector: toFunctionSignature(functionDef) });
   }
 
-  const potentialKeys = extractPotentialKeys(dedupedTraceLog, addresses, abis, data);
+  const potentialKeys = extractPotentialKeys(dedupedTraceLog, addresses, abiFunctions, data);
   debug(`Extracted ${potentialKeys.length} unique potential values from the trace`);
 
   // Process each address and create enhanced trace with labels
-  const LabeledStorageAccessTrace = addresses.reduce(
+  const labeledStorageAccessTrace = addresses.reduce(
     (acc, address) => {
       const storage = { pre: storagePreTx[address], post: storagePostTx[address] };
       const intrinsics = { pre: intrinsicsPreTx[address], post: intrinsicsPostTx[address] };
 
+      // For EOAs (accounts without code) we won't have storage data
+      const storageTrace = storage.pre && storage.post ? storageDiff(storage.pre, storage.post) : {};
       // Skip if this address has no relevant data
-      if (!intrinsics.pre || !intrinsics.post) {
+      if (
+        !Object.keys(intrinsics.pre).length &&
+        !Object.keys(intrinsics.post).length &&
+        !Object.keys(storageTrace).length
+      ) {
         debug(`Missing account state information for address ${address}`);
         return acc;
       }
-
-      // For EOAs (accounts without code) we won't have storage data
-      const storageTrace = storage.pre && storage.post ? storageDiff(storage.pre, storage.post) : {};
 
       const layout = layouts[address];
       if (!layout) {
@@ -200,10 +203,10 @@ export const traceStorageAccess = async <
         layout,
         storageTrace,
         potentialKeys.map((k) => k.hex),
-        parseConfig(args.config),
+        parseConfig(options.config),
       );
 
-      // 1. Process results into named variables - convert all results to LabeledStorageAccess format
+      // 2. Process results into named variables - convert all results to LabeledStorageAccess format
       const decoded = withLabels.reduce(
         (acc, result) => {
           // Retrieve existing entry or create a new one
@@ -241,7 +244,7 @@ export const traceStorageAccess = async <
         {} as Record<string, LabeledStorageAccess<string, string, SolcStorageLayoutTypes>>,
       );
 
-      // 2. Create unknown variables access traces for remaining slots
+      // 3. Create unknown variables access traces for remaining slots
       const unknownAccess = Object.fromEntries(
         [...unexploredSlots].map((slot) => {
           const current = storageTrace[slot].current;
@@ -278,7 +281,7 @@ export const traceStorageAccess = async <
     {} as Record<Address, StorageAccessTrace>,
   );
 
-  return LabeledStorageAccessTrace;
+  return labeledStorageAccessTrace;
 };
 
 /**
