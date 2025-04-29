@@ -6,14 +6,7 @@ import { decodeAbiParameters, Hex, keccak256, padHex, toBytes, toHex } from "vie
 import { debug } from "@/debug";
 import { ExploreStorageConfig } from "@/lib/explore/config";
 import { computeMappingSlot, sortCandidateKeys } from "@/lib/explore/mapping";
-import {
-  AbiTypeInplace,
-  DecodedResult,
-  PathSegment,
-  PathSegmentKind,
-  SolidityTypeToTsType,
-  TypePriority,
-} from "@/lib/explore/types";
+import { AbiTypeInplace, DecodedResult, PathSegment, PathSegmentKind, TypePriority } from "@/lib/explore/types";
 import { decodeSlotDiffForPrimitive, max, toHexFullBytes } from "@/lib/explore/utils";
 
 /**

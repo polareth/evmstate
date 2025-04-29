@@ -85,7 +85,7 @@ export const extractPotentialKeys = <
   },
   addresses: Array<Address>,
   abiFunctions: Array<abi.ABIFunction>,
-  { data, abi, functionName, args, txHash }: TraceStateOptions<TAbi, TFunctionName>,
+  { data, abi, functionName, args }: TraceStateOptions<TAbi, TFunctionName>,
 ): MappingKey[] => {
   const keys: MappingKey[] = [];
 
@@ -155,8 +155,6 @@ export const extractPotentialKeys = <
         }
       });
     }
-  } else if (txHash) {
-    // TODO: with tx hash, get from chain get input, and get back to previous state
   }
 
   // Process stack values from the trace

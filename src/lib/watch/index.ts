@@ -57,8 +57,7 @@ export const watchState = async <TStorageLayout extends DeepReadonly<SolcStorage
         const uniqueAddresses = [...new Set([...addresses, ...newAddresses])].map((addr) => addr.toLowerCase());
         if (!uniqueAddresses.includes(address.toLowerCase())) return;
 
-        // TODO: we might want to get the tx params (input) from the transactions to extract potential function args
-        // this would avoid including transactions in the block which is solely for this
+        // TODO: we might want to return the tx params (input) for each tx in debug_traceBlock to extract potential function args; this would avoid including transactions in the block which is solely for this
         const tx = block.transactions.find((tx) => tx.hash === txHash);
         const diff = labelStateDiff({
           stateDiff,

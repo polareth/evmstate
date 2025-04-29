@@ -16,9 +16,11 @@
 
 ## TODO
 
-- [ ] add tests for trace with txHash (replicate tx)
+- [ ] rewrite to effect.ts
+- [ ] a similar library for zk evm could be useful because no abi for contracts
+- [x] add tests for trace with txHash (replicate tx)
   - -> tests ready but need tevm rebase mode to be released
-- [ ] provide some state listeners -> listen to a contract's state changes; same api as listening to contract events, you get the typed state change
+- [x] provide some state listeners -> listen to a contract's state changes; same api as listening to contract events, you get the typed state change
   ```typescript
   const sub = watchState({
     address: "0xabc...",
@@ -54,7 +56,6 @@
     },
   });
   ```
-- [ ] a similar library for zk evm could be useful because no abi for contracts
 - [x] provide a react package with a Tracer provider and useTracer hook
 - [x] new storage adapter works if there is a storage layout but make it work if there is none as well (getData, etc would return hex?) - need more research on storage layout for unverified contracts
 - [x] if a function writes to storage BUT doesn't modify the value(s), it returns a read (because pre-post state is the same)
