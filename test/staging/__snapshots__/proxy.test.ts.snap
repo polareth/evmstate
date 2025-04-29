@@ -1,0 +1,331 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Proxies > should trace storage changes through a proxy 1`] = `
+{
+  "0x0000000000000000000000000000000000000000": {
+    "balance": {
+      "current": 1000000000000000000000n,
+      "modified": false,
+    },
+    "code": {
+      "current": "0x",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "modified": false,
+    },
+    "codeSize": {
+      "modified": false,
+    },
+    "isContract": {
+      "current": true,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": false,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+  "0x6f64746625f57a146a8f2168852d73dfec6771e8": {
+    "balance": {
+      "current": 0n,
+      "modified": false,
+    },
+    "code": {
+      "current": "0x608060405260043610610037575f3560e01c806317a68dd8146100d75780636e9960c3146100ff578063aaf10f42146101295761003e565b3661003e57005b5f610047610153565b90505f73ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff16036100b7576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016100ae90610343565b60405180910390fd5b365f80375f80365f845af43d805f803e815f81146100d357815ff35b815ffd5b3480156100e2575f80fd5b506100fd60048036038101906100f891906103bf565b610182565b005b34801561010a575f80fd5b50610113610203565b60405161012091906103f9565b60405180910390f35b348015610134575f80fd5b5061013d610211565b60405161014a91906103f9565b60405180910390f35b5f807f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc5f1b9050805491505090565b61018a61021f565b73ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16146101f7576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016101ee90610482565b60405180910390fd5b6102008161024e565b50565b5f61020c61021f565b905090565b5f61021a610153565b905090565b5f807fb53127684a568b3173ae13b9f8a6016e019b2c8e8cbb2a6e0a23387fdaa123455f1b9050805491505090565b5f73ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff16036102bc576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016102b3906104ea565b60405180910390fd5b5f7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc5f1b90508181555050565b5f82825260208201905092915050565b7f496d706c656d656e746174696f6e206e6f7420736574000000000000000000005f82015250565b5f61032d6016836102e9565b9150610338826102f9565b602082019050919050565b5f6020820190508181035f83015261035a81610321565b9050919050565b5f80fd5b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f61038e82610365565b9050919050565b61039e81610384565b81146103a8575f80fd5b50565b5f813590506103b981610395565b92915050565b5f602082840312156103d4576103d3610361565b5b5f6103e1848285016103ab565b91505092915050565b6103f381610384565b82525050565b5f60208201905061040c5f8301846103ea565b92915050565b7f4f6e6c792061646d696e2063616e206368616e676520696d706c656d656e74615f8201527f74696f6e00000000000000000000000000000000000000000000000000000000602082015250565b5f61046c6024836102e9565b915061047782610412565b604082019050919050565b5f6020820190508181035f83015261049981610460565b9050919050565b7f496e76616c696420696d706c656d656e746174696f6e000000000000000000005f82015250565b5f6104d46016836102e9565b91506104df826104a0565b602082019050919050565b5f6020820190508181035f830152610501816104c8565b905091905056fea2646970667358221220ee487cb9c74cf1226102f2d821f8d835876ae0008226f5dcaaeac35493322bbf64736f6c63430008170033",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0x65b8398bf8672b13fd9fd0e96bc5c56b67b4343380c01c859c437164e0de6a51",
+      "modified": false,
+    },
+    "codeSize": {
+      "modified": false,
+    },
+    "isContract": {
+      "current": true,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 1n,
+      "modified": false,
+    },
+    "storage": {
+      "__implementation": {
+        "kind": "primitive",
+        "name": "__implementation",
+        "trace": [
+          {
+            "current": {
+              "decoded": "0x47676f15E78BfFE13225eFF46C6A2BDd3199ed95",
+              "hex": "0x47676f15e78bffe13225eff46c6a2bdd3199ed95",
+            },
+            "fullExpression": "__implementation",
+            "modified": false,
+            "path": [],
+            "slots": [
+              "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
+            ],
+          },
+        ],
+        "type": "address",
+      },
+      "_count": {
+        "kind": "primitive",
+        "name": "_count",
+        "trace": [
+          {
+            "current": {
+              "decoded": 0n,
+              "hex": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            },
+            "fullExpression": "_count",
+            "modified": true,
+            "next": {
+              "decoded": 100n,
+              "hex": "0x0000000000000000000000000000000000000000000000000000000000000064",
+            },
+            "path": [],
+            "slots": [
+              "0x0000000000000000000000000000000000000000000000000000000000000000",
+            ],
+          },
+        ],
+        "type": "uint256",
+      },
+    },
+    "storageRoot": {
+      "current": "0xf614f5411e75f4f4f39efb1c2fc6420bee0deebd26b7c4cb6aa3c07792f97a02",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+  "0xc22b2d4f82b599f64f93c0185a044245a64b8c42": {
+    "balance": {
+      "current": 1000000000000000000n,
+      "modified": true,
+      "next": 999999999999658848n,
+    },
+    "code": {
+      "current": "0x",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "modified": false,
+    },
+    "codeSize": {
+      "current": 0,
+      "modified": false,
+    },
+    "isContract": {
+      "current": false,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 202n,
+      "modified": true,
+      "next": 203n,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+}
+`;
+
+exports[`Proxies > should track proxy-specific storage slots 1`] = `
+{
+  "0x0000000000000000000000000000000000000000": {
+    "balance": {
+      "current": 1000000000000000000000n,
+      "modified": false,
+    },
+    "code": {
+      "current": "0x",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "modified": false,
+    },
+    "codeSize": {
+      "modified": false,
+    },
+    "isContract": {
+      "current": true,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": false,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+  "0x6f64746625f57a146a8f2168852d73dfec6771e8": {
+    "balance": {
+      "current": 0n,
+      "modified": false,
+    },
+    "code": {
+      "current": "0x608060405260043610610037575f3560e01c806317a68dd8146100d75780636e9960c3146100ff578063aaf10f42146101295761003e565b3661003e57005b5f610047610153565b90505f73ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff16036100b7576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016100ae90610343565b60405180910390fd5b365f80375f80365f845af43d805f803e815f81146100d357815ff35b815ffd5b3480156100e2575f80fd5b506100fd60048036038101906100f891906103bf565b610182565b005b34801561010a575f80fd5b50610113610203565b60405161012091906103f9565b60405180910390f35b348015610134575f80fd5b5061013d610211565b60405161014a91906103f9565b60405180910390f35b5f807f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc5f1b9050805491505090565b61018a61021f565b73ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff16146101f7576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016101ee90610482565b60405180910390fd5b6102008161024e565b50565b5f61020c61021f565b905090565b5f61021a610153565b905090565b5f807fb53127684a568b3173ae13b9f8a6016e019b2c8e8cbb2a6e0a23387fdaa123455f1b9050805491505090565b5f73ffffffffffffffffffffffffffffffffffffffff168173ffffffffffffffffffffffffffffffffffffffff16036102bc576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016102b3906104ea565b60405180910390fd5b5f7f360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc5f1b90508181555050565b5f82825260208201905092915050565b7f496d706c656d656e746174696f6e206e6f7420736574000000000000000000005f82015250565b5f61032d6016836102e9565b9150610338826102f9565b602082019050919050565b5f6020820190508181035f83015261035a81610321565b9050919050565b5f80fd5b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f61038e82610365565b9050919050565b61039e81610384565b81146103a8575f80fd5b50565b5f813590506103b981610395565b92915050565b5f602082840312156103d4576103d3610361565b5b5f6103e1848285016103ab565b91505092915050565b6103f381610384565b82525050565b5f60208201905061040c5f8301846103ea565b92915050565b7f4f6e6c792061646d696e2063616e206368616e676520696d706c656d656e74615f8201527f74696f6e00000000000000000000000000000000000000000000000000000000602082015250565b5f61046c6024836102e9565b915061047782610412565b604082019050919050565b5f6020820190508181035f83015261049981610460565b9050919050565b7f496e76616c696420696d706c656d656e746174696f6e000000000000000000005f82015250565b5f6104d46016836102e9565b91506104df826104a0565b602082019050919050565b5f6020820190508181035f830152610501816104c8565b905091905056fea2646970667358221220ee487cb9c74cf1226102f2d821f8d835876ae0008226f5dcaaeac35493322bbf64736f6c63430008170033",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0x65b8398bf8672b13fd9fd0e96bc5c56b67b4343380c01c859c437164e0de6a51",
+      "modified": false,
+    },
+    "codeSize": {
+      "modified": false,
+    },
+    "isContract": {
+      "current": true,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 1n,
+      "modified": false,
+    },
+    "storage": {
+      "__admin": {
+        "kind": "primitive",
+        "name": "__admin",
+        "trace": [
+          {
+            "current": {
+              "decoded": "0xc22B2d4F82b599f64F93c0185A044245A64b8C42",
+              "hex": "0xc22b2d4f82b599f64f93c0185a044245a64b8c42",
+            },
+            "fullExpression": "__admin",
+            "modified": false,
+            "path": [],
+            "slots": [
+              "0xb53127684a568b3173ae13b9f8a6016e019b2c8e8cbb2a6e0a23387fdaa12345",
+            ],
+          },
+        ],
+        "type": "address",
+      },
+      "__implementation": {
+        "kind": "primitive",
+        "name": "__implementation",
+        "trace": [
+          {
+            "current": {
+              "decoded": "0x47676f15E78BfFE13225eFF46C6A2BDd3199ed95",
+              "hex": "0x47676f15e78bffe13225eff46c6a2bdd3199ed95",
+            },
+            "fullExpression": "__implementation",
+            "modified": true,
+            "next": {
+              "decoded": "0xCC0eAE411714557Ac10A0b3F310d17AA1C72A360",
+              "hex": "0xcc0eae411714557ac10a0b3f310d17aa1c72a360",
+            },
+            "path": [],
+            "slots": [
+              "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc",
+            ],
+          },
+        ],
+        "type": "address",
+      },
+    },
+    "storageRoot": {
+      "current": "0xf614f5411e75f4f4f39efb1c2fc6420bee0deebd26b7c4cb6aa3c07792f97a02",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+  "0xc22b2d4f82b599f64f93c0185a044245a64b8c42": {
+    "balance": {
+      "current": 1000000000000000000n,
+      "modified": true,
+      "next": 999999999999796083n,
+    },
+    "code": {
+      "current": "0x",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "modified": false,
+    },
+    "codeSize": {
+      "current": 0,
+      "modified": false,
+    },
+    "isContract": {
+      "current": false,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 202n,
+      "modified": true,
+      "next": 203n,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+}
+`;

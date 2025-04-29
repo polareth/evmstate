@@ -1,9 +1,22 @@
-import { Address, decodeAbiParameters, encodeAbiParameters, Hex, isAddress, isHex, keccak256, toHex } from "tevm";
+import {
+  Abi,
+  Address,
+  ContractFunctionName,
+  decodeAbiParameters,
+  encodeAbiParameters,
+  Hex,
+  isAddress,
+  isHex,
+  keccak256,
+  toHex,
+} from "tevm";
 import { abi } from "@shazow/whatsabi";
 import { AbiType, AbiTypeToPrimitiveType } from "abitype";
 import { padHex } from "viem";
 
+import { debug } from "@/debug";
 import { MappingKey } from "@/lib/explore/types";
+import { TraceStateOptions } from "@/lib/trace/types";
 
 /**
  * Sort candidate keys to prioritize addresses first. Passed keys here are padded to 32 bytes.
@@ -34,32 +47,35 @@ export const computeMappingSlot = (keyHex: Hex, baseSlot: Hex): Hex =>
   keccak256(`0x${keyHex.slice(2)}${baseSlot.slice(2)}`);
 
 /**
- * At some point we might want to improve for smart stack exploration to retrieve likely keys. But this is super tricky due to the fact the stack & memory can be literally anything.
- * Typical access patterns:
-*
-* Mapping
-*
-* - KECCAK256 → SLOAD/SSTORE
-* - -> Slot calculation: keccak256(abi.encode(key, uint256(mappingSlot)))
-* - -> key is the input to the hash so we might even be able to retrieve the slot and compare directly
-* - KECCAK256 → KECCAK256 → SLOAD/SSTORE
-* - -> Slot calculation: keccak256(abi.encode(key2, keccak256(abi.encode(key1, uint256(mappingSlot)))))
-* - -> same here we get each key from each keccak input
-*
-* Array
-*
-* - KECCAK256 → ADD → SLOAD/SSTORE
-* - -> Slot calculation: keccak256(uint256(arraySlot)) + index
-*
-* As reference:
-*
-* - Struct in array: KECCAK256 → ADD → ADD → SLOAD/SSTORE Slot calculation: (keccak256(uint256(arraySlot)) + index) +
-*   memberOffset
-* - Mapping to Struct with Mapping: KECCAK256 → ADD → KECCAK256 → SLOAD/SSTORE Slot calculation:
-*   keccak256(abi.encode(key2, (keccak256(abi.encode(key1, uint256(mappingSlot))) + memberOffset)))
-*/
+ * At some point we might want to improve for smart stack exploration to retrieve likely keys. But this is super tricky
+ * due to the fact the stack & memory can be literally anything. Typical access patterns:
+ *
+ * Mapping
+ *
+ * - KECCAK256 → SLOAD/SSTORE
+ * - -> Slot calculation: keccak256(abi.encode(key, uint256(mappingSlot)))
+ * - -> key is the input to the hash so we might even be able to retrieve the slot and compare directly
+ * - KECCAK256 → KECCAK256 → SLOAD/SSTORE
+ * - -> Slot calculation: keccak256(abi.encode(key2, keccak256(abi.encode(key1, uint256(mappingSlot)))))
+ * - -> same here we get each key from each keccak input
+ *
+ * Array
+ *
+ * - KECCAK256 → ADD → SLOAD/SSTORE
+ * - -> Slot calculation: keccak256(uint256(arraySlot)) + index
+ *
+ * As reference:
+ *
+ * - Struct in array: KECCAK256 → ADD → ADD → SLOAD/SSTORE Slot calculation: (keccak256(uint256(arraySlot)) + index) +
+ *   memberOffset
+ * - Mapping to Struct with Mapping: KECCAK256 → ADD → KECCAK256 → SLOAD/SSTORE Slot calculation:
+ *   keccak256(abi.encode(key2, (keccak256(abi.encode(key1, uint256(mappingSlot))) + memberOffset)))
+ */
 /** Extract values from a transaction trace that might be used as mapping keys */
-export const extractPotentialKeys = (
+export const extractPotentialKeys = <
+  TAbi extends Abi | readonly unknown[] = Abi,
+  TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+>(
   trace: {
     uniqueStackValues?: Array<string>;
     relevantOps?: Array<{
@@ -69,7 +85,7 @@ export const extractPotentialKeys = (
   },
   addresses: Array<Address>,
   abiFunctions: Array<abi.ABIFunction>,
-  txData?: Hex,
+  { data, abi, functionName, args, txHash }: TraceStateOptions<TAbi, TFunctionName>,
 ): MappingKey[] => {
   const keys: MappingKey[] = [];
 
@@ -83,13 +99,33 @@ export const extractPotentialKeys = (
   });
 
   // Extract parameters from transaction data
-  if (txData && txData.length > 10) {
-    const selector = txData.slice(0, 10);
+  if (abi && functionName && args) {
+    try {
+      const abiFunction = abiFunctions.find((fn) => fn.name === functionName);
+      (args as unknown[]).forEach((arg, index) => {
+        const type = abiFunction?.inputs?.[index]?.type as AbiType | undefined;
+        const hex = type ? padHex(encodeAbiParameters([{ type }], [arg]), { size: 32 }) : undefined;
+        if (!hex) {
+          debug(`Failed to extract arg ${index} from ${functionName}: ${arg}`);
+          return;
+        }
+
+        keys.push({
+          hex,
+          decoded: arg as AbiTypeToPrimitiveType<AbiType>,
+          type,
+        });
+      });
+    } catch (error) {
+      debug(`Failed to extract args from ${functionName}: ${error}`);
+    }
+  } else if (data) {
+    const selector = data.slice(0, 10);
     const inputs = abiFunctions.find((fn) => fn.selector === selector)?.inputs;
 
     if (inputs) {
       // Decode function inputs
-      const params = decodeAbiParameters(inputs, `0x${txData.slice(10)}`);
+      const params = decodeAbiParameters(inputs, `0x${data.slice(10)}`);
 
       params.forEach((param, index) => {
         // If it's an array, add each element as a key
@@ -119,6 +155,8 @@ export const extractPotentialKeys = (
         }
       });
     }
+  } else if (txHash) {
+    // TODO: with tx hash, get from chain get input, and get back to previous state
   }
 
   // Process stack values from the trace

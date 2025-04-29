@@ -1,0 +1,287 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Native Transfers > should track native token transfers between EOAs 1`] = `
+{
+  "0x0000000000000000000000000000000000000000": {
+    "balance": {
+      "current": 1000000000000000000000n,
+      "modified": false,
+    },
+    "code": {
+      "current": "0x",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "modified": false,
+    },
+    "codeSize": {
+      "modified": false,
+    },
+    "isContract": {
+      "current": true,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": false,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+  "0x0000000000000000000000000000000000000001": {
+    "balance": {
+      "current": 2000000000000000000n,
+      "modified": true,
+      "next": 999999999999852580n,
+    },
+    "code": {
+      "current": "0x",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "modified": false,
+    },
+    "codeSize": {
+      "current": 0,
+      "modified": false,
+    },
+    "isContract": {
+      "current": false,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": true,
+      "next": 1n,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+  "0x0000000000000000000000000000000000000002": {
+    "balance": {
+      "current": 10000000000000000000n,
+      "modified": true,
+      "next": 11000000000000000000n,
+    },
+    "code": {
+      "current": "0x",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "modified": false,
+    },
+    "codeSize": {
+      "current": 0,
+      "modified": false,
+    },
+    "isContract": {
+      "current": false,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": false,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+}
+`;
+
+exports[`Native Transfers > should track native token transfers between contracts 1`] = `
+{
+  "0x0000000000000000000000000000000000000000": {
+    "balance": {
+      "current": 1000000000000000000000n,
+      "modified": false,
+    },
+    "code": {
+      "current": "0x",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "modified": false,
+    },
+    "codeSize": {
+      "modified": false,
+    },
+    "isContract": {
+      "current": true,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": false,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x0000000000000000000000000000000000000000000000000000000000000000",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+  "0x0000000000000000000000000000000000000001": {
+    "balance": {
+      "current": 10000000000000000000n,
+      "modified": true,
+      "next": 9999999999999778597n,
+    },
+    "code": {
+      "current": "0x",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "modified": false,
+    },
+    "codeSize": {
+      "current": 0,
+      "modified": false,
+    },
+    "isContract": {
+      "current": false,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": true,
+      "next": 1n,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+  "0x4554485265636569766572000000000000000000": {
+    "balance": {
+      "current": 0n,
+      "modified": true,
+      "next": 1000000000000000000n,
+    },
+    "code": {
+      "current": "0x608060405260043610601e575f3560e01c806312065fe0146028576024565b36602457005b5f5ffd5b3480156032575f5ffd5b506039604d565b60405160449190606a565b60405180910390f35b5f47905090565b5f819050919050565b6064816054565b82525050565b5f602082019050607b5f830184605d565b9291505056fea2646970667358221220e62373650e1aaaced1008b6b1d4de5154d971dfef687784428fed4938bfd28f264736f6c634300081c0033",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0x94b5e08dcdf750835895516ff6c101eee728e73f17b9e211fb04ec8879ef459f",
+      "modified": false,
+    },
+    "codeSize": {
+      "modified": false,
+    },
+    "isContract": {
+      "current": true,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": false,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+  "0x4e61746976655472616e73666572000000000000": {
+    "balance": {
+      "current": 1000000000000000000n,
+      "modified": true,
+      "next": 0n,
+    },
+    "code": {
+      "current": "0x60806040526004361061002c575f3560e01c806312065fe014610037578063e9bb84c21461006157610033565b3661003357005b5f5ffd5b348015610042575f5ffd5b5061004b610089565b6040516100589190610133565b60405180910390f35b34801561006c575f5ffd5b50610087600480360381019061008291906101d4565b610090565b005b5f47905090565b804710156100d3576040517f08c379a00000000000000000000000000000000000000000000000000000000081526004016100ca9061026c565b60405180910390fd5b8173ffffffffffffffffffffffffffffffffffffffff166108fc8290811502906040515f60405180830381858888f19350505050158015610116573d5f5f3e3d5ffd5b505050565b5f819050919050565b61012d8161011b565b82525050565b5f6020820190506101465f830184610124565b92915050565b5f5ffd5b5f73ffffffffffffffffffffffffffffffffffffffff82169050919050565b5f61017982610150565b9050919050565b6101898161016f565b8114610193575f5ffd5b50565b5f813590506101a481610180565b92915050565b6101b38161011b565b81146101bd575f5ffd5b50565b5f813590506101ce816101aa565b92915050565b5f5f604083850312156101ea576101e961014c565b5b5f6101f785828601610196565b9250506020610208858286016101c0565b9150509250929050565b5f82825260208201905092915050565b7f496e73756666696369656e742062616c616e63650000000000000000000000005f82015250565b5f610256601483610212565b915061026182610222565b602082019050919050565b5f6020820190508181035f8301526102838161024a565b905091905056fea26469706673582212200bbdbc65d68d9d07f5c27d0e2e4f8321df5978838848fba6b7e2e47cca08858b64736f6c634300081c0033",
+      "modified": false,
+    },
+    "codeHash": {
+      "current": "0xea964ce79531a423b82e7d64e4e7f30453daef030f4cac10597025cf1fc4e650",
+      "modified": false,
+    },
+    "codeSize": {
+      "modified": false,
+    },
+    "isContract": {
+      "current": true,
+      "modified": false,
+    },
+    "isEmpty": {
+      "current": false,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": false,
+    },
+    "storage": {},
+    "storageRoot": {
+      "current": "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421",
+      "modified": false,
+    },
+    "version": {
+      "current": 0,
+      "modified": false,
+    },
+  },
+}
+`;

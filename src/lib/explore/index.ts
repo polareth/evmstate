@@ -14,8 +14,7 @@ import {
   SolidityTypeToTsType,
   TypePriority,
 } from "@/lib/explore/types";
-import { max, toHexFullBytes } from "@/lib/explore/utils";
-import { StorageDiff } from "@/lib/trace/types";
+import { decodeSlotDiffForPrimitive, max, toHexFullBytes } from "@/lib/explore/utils";
 
 /**
  * Memory-efficient implementation of storage exploration.
@@ -24,7 +23,7 @@ import { StorageDiff } from "@/lib/trace/types";
  */
 export const exploreStorage = (
   layout: SolcStorageLayout,
-  storageDiff: StorageDiff,
+  storageDiff: Record<Hex, { current?: Hex; next?: Hex }>,
   candidateKeys: Hex[],
   config: Required<ExploreStorageConfig>,
 ): { withLabels: Array<DecodedResult & { fullExpression: string }>; unexploredSlots: Array<Hex> } => {
@@ -120,11 +119,13 @@ export const exploreStorage = (
       let length = 0n;
 
       if (lenEntry) {
-        const lengthCurrent = decodeAbiParameters([{ type: "uint256" }], padHex(lenEntry.current, { size: 32 }))[0];
+        const lengthCurrent = lenEntry.current
+          ? decodeAbiParameters([{ type: "uint256" }], padHex(lenEntry.current, { size: 32 }))[0]
+          : undefined;
         const lengthNext = lenEntry.next
           ? decodeAbiParameters([{ type: "uint256" }], padHex(lenEntry.next, { size: 32 }))[0]
           : undefined;
-        length = max(lengthCurrent, lengthNext ?? 0n);
+        length = max(lengthCurrent ?? 0n, lengthNext ?? 0n);
 
         path.push({ kind: PathSegmentKind.ArrayLength, name: "_length" });
 
@@ -133,7 +134,7 @@ export const exploreStorage = (
           ...root,
           path: [...path],
           slots: [lenSlotHex],
-          current: { decoded: lengthCurrent, hex: toHexFullBytes(lengthCurrent) },
+          current: { decoded: lengthCurrent, hex: toHexFullBytes(lengthCurrent ?? "0x") },
         };
 
         if (lengthNext !== undefined) out.next = { decoded: lengthNext, hex: toHexFullBytes(lengthNext) };
@@ -172,7 +173,7 @@ export const exploreStorage = (
       exploredSlots.add(baseSlotHex);
 
       // Normalize the hex values (handle empty '0x')
-      const lenHex = slotData.current === "0x" ? "0x00" : slotData.current;
+      const lenHex = slotData.current === "0x" || slotData.current === undefined ? "0x00" : slotData.current;
       const nextLenHex = slotData.next === "0x" ? "0x00" : slotData.next;
 
       // Decode the current value
@@ -216,7 +217,6 @@ export const exploreStorage = (
         }
       }
 
-      // --- Create and push the Length Result ---
       const lengthResult: DecodedResult = {
         ...root,
         path: [...path, { kind: PathSegmentKind.BytesLength, name: "_length" }], // Add length marker to path
@@ -234,9 +234,7 @@ export const exploreStorage = (
         };
       }
       results.push(lengthResult);
-      // --- End Length Result ---
 
-      // --- Create and push the Content Result ---
       const contentResult: DecodedResult = {
         ...root, // Use original root info (name, type)
         path: [...path], // Original path
@@ -259,7 +257,6 @@ export const exploreStorage = (
           : nextDecoded.note;
       }
       results.push(contentResult);
-      // --- End Content Result ---
     }
   };
 
@@ -395,7 +392,7 @@ export const exploreStorage = (
    * @returns Decoded content, raw hex, used slots, actual byte length, and truncation info, or null on failure.
    */
   const decodeBytesContent = (
-    storageDiff: StorageDiff,
+    storageDiff: Record<Hex, { current?: Hex; next?: Hex }>,
     baseSlotHex: Hex,
     slotValHex: Hex,
     typeLabel: string,
@@ -624,108 +621,4 @@ export const exploreStorage = (
     })),
     unexploredSlots: Object.keys(storageDiff).filter((slot) => !exploredSlots.has(slot as Hex)) as Hex[],
   };
-};
-
-/* -------------------------------------------------------------------------- */
-/*                              DECODE UTILITIES                              */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Extract relevant hex from a hex string based on its offset and length, especially useful for packed variables
- *
- * @param {Hex} data - The hex string
- * @param {number} offset - The offset in bytes from the right where the value starts
- * @param {number} length - The length in bytes of the value to extract
- * @returns {Hex} - The extracted hex substring padded to 32 bytes
- */
-const extractRelevantHex = (data: Hex, offset: number, length: number): { extracted: Hex; padded: Hex } => {
-  try {
-    if (!data.startsWith("0x")) data = `0x${data}`;
-    if (data === "0x" || data === "0x00") return { extracted: "0x00", padded: padHex(data, { size: 32 }) };
-
-    // Fill up to 32 bytes
-    data = padHex(data, { size: 32, dir: "left" });
-
-    // Calculate start and end positions (in hex characters)
-    // Each byte is 2 hex characters, and we need to account for '0x' prefix
-    const totalLength = (data.length - 2) / 2; // Length in bytes (excluding 0x prefix)
-
-    // Calculate offset from left
-    const offsetFromLeft = totalLength - offset - length;
-
-    // Calculate character positions
-    const startPos = offsetFromLeft * 2 + 2; // +2 for '0x' prefix
-    const endPos = startPos + length * 2;
-
-    // Extract the substring and add 0x prefix
-    const extracted = `0x${data.slice(startPos, endPos)}` as Hex;
-
-    return { extracted, padded: padHex(extracted, { size: 32 }) };
-  } catch {
-    debug(`Failed to extract relevant hex from ${data} at offset ${offset} with length ${length}`);
-    return { extracted: data, padded: padHex(data, { size: 32 }) };
-  }
-};
-
-/** Decodes a primitive field in a single slot portion, including offset. */
-const decodePrimitiveField = <T extends string, Types extends SolcStorageLayoutTypes>(
-  typeInfo: { label: T; numberOfBytes: string },
-  slotHexData: Hex,
-  offsetBytes: bigint,
-): { decoded?: SolidityTypeToTsType<T, Types>; hex: Hex } => {
-  const valType = typeInfo.label;
-  const sizeBytes = Number(typeInfo.numberOfBytes);
-  const isSigned = /^int\d*$/.test(valType);
-
-  const { extracted, padded } = extractRelevantHex(slotHexData, Number(offsetBytes), sizeBytes);
-
-  try {
-    // Use the correct decoding approach based on whether the type is signed
-    if (isSigned) {
-      // For signed integers, we need to handle the sign bit properly
-      const value = BigInt(padded);
-      const size = sizeBytes;
-      const max = (1n << (BigInt(size) * 8n - 1n)) - 1n;
-
-      // If the value is greater than the max positive value, it's negative
-      const decodedValue = value <= max ? value : value - BigInt(`0x${"f".padStart(size * 2, "f")}`) - 1n;
-
-      return { decoded: decodedValue as SolidityTypeToTsType<T, Types>, hex: extracted };
-    } else {
-      // For unsigned types, use the standard decoding
-      return {
-        decoded: decodeAbiParameters([{ type: valType }], padded)[0] as SolidityTypeToTsType<T, Types>,
-        hex: extracted,
-      };
-    }
-  } catch {
-    return { hex: padded };
-  }
-};
-
-/**
- * Decodes the 'current'/'next' for a single slot as a primitive field. Returns { currentValue, nextValue? } if data is
- * found, else null.
- */
-const decodeSlotDiffForPrimitive = (
-  storageDiff: StorageDiff,
-  slotHex: Hex,
-  typeInfo: { label: string; numberOfBytes: string },
-  offsetBytes: bigint,
-): { current: DecodedResult["current"]; next?: DecodedResult["next"] } | undefined => {
-  if (!storageDiff[slotHex]) return undefined;
-  const { current: currentHex, next: nextHex } = storageDiff[slotHex];
-
-  const current = decodePrimitiveField(typeInfo, currentHex, offsetBytes);
-  if (current.decoded === undefined) {
-    debug(`Failed to decode primitive field ${typeInfo.label} at slot ${slotHex}`);
-    return undefined;
-  }
-
-  const next = nextHex ? decodePrimitiveField(typeInfo, nextHex, offsetBytes) : undefined;
-  if (!next || next.decoded === undefined) {
-    return { current };
-  } else {
-    return { current, next };
-  }
 };

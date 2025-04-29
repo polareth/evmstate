@@ -1,4 +1,4 @@
-export { traceStorageAccess, Tracer } from "@/lib/trace";
+export { traceState, Tracer } from "@/lib/trace";
 export type {
   // Solidity type extraction (mapping, array, struct)
   ExtractMappingKeyType,
@@ -30,19 +30,21 @@ export type {
   DeepReadonly,
   AbiTypeInplace,
 } from "@/lib/explore/types";
+export type { ExploreStorageConfig } from "@/lib/explore/config";
 
 export type {
   // Options
-  TraceStorageAccessOptions,
-  TraceStorageAccessTxParams,
-  TraceStorageAccessTxWithAbi,
-  TraceStorageAccessTxWithData,
-  TraceStorageAccessTxWithReplay,
+  TraceStateOptions,
+  TraceStateBaseOptions,
+  TraceStateTxParams,
+  TraceStateTxWithAbi,
+  TraceStateTxWithData,
+  TraceStateTxWithReplay,
   // Trace
-  StorageAccessTrace,
-  LabeledStorageAccess,
-  LabeledStorageAccessTrace,
-  IntrinsicsDiff,
+  LabeledStateDiff,
+  LabeledStorageDiff,
+  LabeledStorageDiffTrace,
+  LabeledIntrinsicsDiff,
 } from "@/lib/trace/types";
 
 export { watchState } from "@/lib/watch";

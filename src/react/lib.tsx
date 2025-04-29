@@ -2,7 +2,7 @@ import React, { createContext, ReactNode, useContext, useMemo } from "react";
 
 import { ExploreStorageConfig } from "@/lib/explore/config";
 import { Tracer } from "@/lib/trace";
-import { TraceStorageAccessOptions } from "@/lib/trace/types";
+import { TraceStateBaseOptions } from "@/lib/trace/types";
 
 // Define the context type
 type TracerContextType = Tracer | null;
@@ -10,7 +10,7 @@ type TracerContextType = Tracer | null;
 // Create the context with a default null value
 const TracerContext = createContext<TracerContextType>(null);
 
-interface TracerProviderProps extends TraceStorageAccessOptions {
+interface TracerProviderProps extends TraceStateBaseOptions {
   config?: ExploreStorageConfig;
   children: ReactNode;
 }

@@ -1,9 +1,11 @@
-import { Abi, Address, ContractFunctionName, GetAccountResult, Hex, MemoryClient } from "tevm";
+import { Abi, Address, ContractFunctionName, Hex, MemoryClient } from "tevm";
 import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
 import { Common } from "tevm/common";
+import { AccountState } from "tevm/index";
 import { abi } from "@shazow/whatsabi";
 import { AbiStateMutability, ContractFunctionArgs } from "viem";
 
+import { ExploreStorageConfig } from "@/lib/explore/config";
 import {
   DeepReadonly,
   ParseSolidityType,
@@ -18,6 +20,12 @@ import {
 /* -------------------------------------------------------------------------- */
 
 /* --------------------------------- OPTIONS -------------------------------- */
+/** Aggregated options for analyzing storage access patterns during transaction simulation. */
+export type TraceStateOptions<
+  TAbi extends Abi | readonly unknown[] = Abi,
+  TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+> = TraceStateBaseOptions & TraceStateTxParams<TAbi, TFunctionName> & { config?: ExploreStorageConfig };
+
 /**
  * Base options for analyzing storage access patterns during transaction simulation.
  *
@@ -28,7 +36,7 @@ import {
  * @param common - EVM chain configuration (improves performance by avoiding fetching chain info)
  * @param explorers - Explorers urls and keys to use for fetching contract sources and ABI
  */
-export type TraceStorageAccessOptions = {
+export type TraceStateBaseOptions = {
   client?: MemoryClient;
   rpcUrl?: string;
   common?: Common;
@@ -48,19 +56,19 @@ export type TraceStorageAccessOptions = {
 /**
  * Transaction parameters for analyzing storage access patterns during transaction simulation.
  *
- * - Option 1: simulate a new transaction with the encoded calldata {@link TraceStorageAccessTxWithData}
- * - Option 2: simulate a new transaction with the ABI and function name/args {@link TraceStorageAccessTxWithAbi}
- * - Option 3: replay a transaction with its hash {@link TraceStorageAccessTxWithReplay}
+ * - Option 1: simulate a new transaction with the encoded calldata {@link TraceStateTxWithData}
+ * - Option 2: simulate a new transaction with the ABI and function name/args {@link TraceStateTxWithAbi}
+ * - Option 3: replay a transaction with its hash {@link TraceStateTxWithReplay}
  *
  * @example
- *   const simulateParams: TraceStorageAccessTxParams = {
+ *   const simulateParams: TraceStateTxParams = {
  *     from: "0x123...",
  *     to: "0x456...", // optional
  *     data: "0x789...",
  *   };
  *
  * @example
- *   const simulateParams: TraceStorageAccessTxParams = {
+ *   const simulateParams: TraceStateTxParams = {
  *   from: "0x123...",
  *   to: "0x456...", // optional
  *   abi: [...],
@@ -69,30 +77,19 @@ export type TraceStorageAccessOptions = {
  *   };
  *
  * @example
- *   const replayParams: TraceStorageAccessTxParams = {
+ *   const replayParams: TraceStateTxParams = {
  *     txHash: "0x123...",
  *   };
  */
-export type TraceStorageAccessTxParams<
+export type TraceStateTxParams<
   TAbi extends Abi | readonly unknown[] = Abi,
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
 > =
-  | (Partial<
-      Record<
-        keyof TraceStorageAccessTxWithReplay | keyof Omit<TraceStorageAccessTxWithAbi, "from" | "to" | "value">,
-        never
-      >
-    > &
-      TraceStorageAccessTxWithData)
-  | (Partial<
-      Record<
-        keyof TraceStorageAccessTxWithReplay | keyof Omit<TraceStorageAccessTxWithData, "from" | "to" | "value">,
-        never
-      >
-    > &
-      TraceStorageAccessTxWithAbi<TAbi, TFunctionName>)
-  | (Partial<Record<keyof TraceStorageAccessTxWithData | keyof TraceStorageAccessTxWithAbi, never>> &
-      TraceStorageAccessTxWithReplay);
+  | (Partial<Record<keyof TraceStateTxWithReplay | keyof Omit<TraceStateTxWithAbi, "from" | "to" | "value">, never>> &
+      TraceStateTxWithData)
+  | (Partial<Record<keyof TraceStateTxWithReplay | keyof Omit<TraceStateTxWithData, "from" | "to" | "value">, never>> &
+      TraceStateTxWithAbi<TAbi, TFunctionName>)
+  | (Partial<Record<keyof TraceStateTxWithData | keyof TraceStateTxWithAbi, never>> & TraceStateTxWithReplay);
 
 /**
  * Transaction parameters with encoded calldata.
@@ -101,7 +98,7 @@ export type TraceStorageAccessTxParams<
  * @param data - Transaction calldata
  * @param to - Target contract address (optional for contract creation)
  */
-export type TraceStorageAccessTxWithData = { from: Address; data?: Hex; to?: Address; value?: bigint };
+export type TraceStateTxWithData = { from: Address; data?: Hex; to?: Address; value?: bigint };
 
 /**
  * Contract transaction parameters with ABI typed function name and arguments.
@@ -112,7 +109,7 @@ export type TraceStorageAccessTxWithData = { from: Address; data?: Hex; to?: Add
  * @param functionName - Function name
  * @param args - Function arguments
  */
-export type TraceStorageAccessTxWithAbi<
+export type TraceStateTxWithAbi<
   TAbi extends Abi | readonly unknown[] = Abi,
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
 > = {
@@ -129,27 +126,47 @@ export type TraceStorageAccessTxWithAbi<
  *
  * @param txHash - Transaction hash
  */
-export type TraceStorageAccessTxWithReplay = { txHash: Hex };
+export type TraceStateTxWithReplay = { txHash: Hex };
 
 /* ---------------------------------- TRACE --------------------------------- */
 /**
- * Storage access trace for a transaction
+ * Account state access trace for a transaction
  *
- * @param storage - Storage slots that were accessed during transaction (only applicable for contracts)
- * @param intrinsic - Account field changes during transaction
+ * @param storage - Storage slots that were accessed during transaction (only applicable for contracts) with a labeled
+ *   diff
+ * @param ... {@link AccountState} fields that were accessed during transaction (e.g. balance, nonce, code, etc.) with a
+ *   labeled diff
  */
-export type StorageAccessTrace<TStorageLayout extends DeepReadonly<SolcStorageLayout> = SolcStorageLayout> = {
+export type LabeledStateDiff<
+  TStorageLayout extends DeepReadonly<SolcStorageLayout> | SolcStorageLayout = SolcStorageLayout,
+> = LabeledIntrinsicsDiff & {
   storage: {
-    [Variable in TStorageLayout["storage"][number] as Variable["label"]]: LabeledStorageAccess<
+    [Variable in TStorageLayout["storage"][number] as Variable["label"]]: LabeledStorageDiff<
       Variable["label"],
       ParseSolidityType<Variable["type"], TStorageLayout["types"]>,
       TStorageLayout["types"]
     >;
   };
-  intrinsic: IntrinsicsDiff;
 };
 
-export type LabeledStorageAccess<
+export type LabeledIntrinsicsDiff = {
+  [K in keyof Omit<AccountState, "storage">]:
+    | {
+        modified: true;
+        /** The value before the transaction */
+        current?: AccountState[K];
+        /** The next value after the transaction (if it was modified) */
+        next?: AccountState[K];
+      }
+    | {
+        modified: false;
+        next?: never;
+        /** The value before the transaction */
+        current?: AccountState[K];
+      };
+};
+
+export type LabeledStorageDiff<
   TName extends string = string,
   TTypeId extends string | undefined = string | undefined,
   TTypes extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
@@ -175,19 +192,20 @@ export type LabeledStorageAccess<
                 ? undefined
                 : never;
   /** The trace of the variable's access */
-  trace: Array<LabeledStorageAccessTrace<TName, TTypeId, TTypes>>;
+  trace: Array<LabeledStorageDiffTrace<TName, TTypeId, TTypes>>;
 };
 
-export type LabeledStorageAccessTrace<
+/**
+ * The trace of a variable's access
+ *
+ * `current` and `next` can always be undefined regardless of the `modified` flag, as it might be a new contract, or a
+ * selfdestruct if the hardfork supports it.
+ */
+export type LabeledStorageDiffTrace<
   TName extends string = string,
   TTypeId extends string | undefined = string | undefined,
   TTypes extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
 > = {
-  /** The decoded value of the variable */
-  current: {
-    decoded?: TTypeId extends string ? SolidityTypeToTsType<TTypeId, TTypes> : unknown;
-    hex: Hex;
-  };
   /** The slots storing some of the variable's data that were accessed */
   slots: Array<Hex>;
   /** The path to the variable */
@@ -199,8 +217,13 @@ export type LabeledStorageAccessTrace<
 } & (
   | {
       modified: true;
+      /** The value before the transaction */
+      current?: {
+        decoded?: TTypeId extends string ? SolidityTypeToTsType<TTypeId, TTypes> : unknown;
+        hex: Hex;
+      };
       /** The next value after the transaction (if it was modified) */
-      next: {
+      next?: {
         decoded?: TTypeId extends string ? SolidityTypeToTsType<TTypeId, TTypes> : unknown;
         hex: Hex;
       };
@@ -208,66 +231,13 @@ export type LabeledStorageAccessTrace<
   | {
       modified: false;
       next?: never;
+      /** The value before the transaction */
+      current?: {
+        decoded?: TTypeId extends string ? SolidityTypeToTsType<TTypeId, TTypes> : unknown;
+        hex: Hex;
+      };
     }
 );
-
-/* -------------------------------------------------------------------------- */
-/*                                 ACCESS LIST                                */
-/* -------------------------------------------------------------------------- */
-
-/** Internal type representing the access list format from tevm. */
-export type AccessList = Record<Address, Set<Hex>>;
-
-/* --------------------------- STORAGE SLOT TYPES --------------------------- */
-/** Type representing the storage at a defined slot at a specific point in time. */
-export type StorageSnapshot = {
-  /** Storage slot location */
-  [slot: Hex]: {
-    /** Current storage value (may be undefined) */
-    value: Hex | undefined;
-  };
-};
-
-/** Type representing a list of storage writes with modification. */
-export type StorageDiff = {
-  /** Storage slot location */
-  [slot: Hex]: {
-    /** Current storage value */
-    current: Hex;
-    /** New storage value after transaction */
-    next?: Hex;
-  };
-};
-
-/* -------------------------- ACCOUNT STORAGE TYPES ------------------------- */
-/**
- * State fields at the intrinsic level of an account.
- *
- * @internal
- */
-type Intrinsics = Pick<GetAccountResult, "balance" | "codeHash" | "deployedBytecode" | "nonce" | "storageRoot"> & {
-  isContract: boolean;
-};
-
-/** Type representing the intrinsic state of an account at a specific point in time. */
-export type IntrinsicsSnapshot = {
-  /** Account field identifier */
-  [K in keyof Intrinsics]: {
-    /** Current value of the field */
-    value: Intrinsics[K];
-  };
-};
-
-/** Type representing the difference in intrinsic account state during transaction. */
-export type IntrinsicsDiff = {
-  /** Account field identifier */
-  [K in keyof Intrinsics]: {
-    /** Value before transaction */
-    current: Intrinsics[K];
-    /** Value after transaction (undefined if not modified) */
-    next?: Intrinsics[K];
-  };
-};
 
 /* -------------------------------------------------------------------------- */
 /*                                 STORAGE LAYOUT                             */
@@ -277,7 +247,7 @@ export type IntrinsicsDiff = {
 export type GetContractsOptions = {
   client: MemoryClient;
   addresses: Array<Address>;
-  explorers?: TraceStorageAccessOptions["explorers"];
+  explorers?: TraceStateBaseOptions["explorers"];
 };
 
 export type GetContractsResult = Record<

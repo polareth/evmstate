@@ -1,4 +1,3 @@
-export { AssemblyStorage } from "./AssemblyStorage.s.sol";
 export { StoragePacking } from "./StoragePacking.s.sol";
 export { Arrays } from "./Arrays.s.sol";
 export { Mappings } from "./Mappings.s.sol";

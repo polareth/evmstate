@@ -8,14 +8,5 @@ export default defineConfig({
     testTimeout: 600_000,
     hookTimeout: 60_000,
     setupFiles: ["./test/setup.ts"],
-    deps: {
-      inline: ["tevm", "@shazow/whatsabi", "viem"],
-    },
-  },
-  resolve: {
-    alias: {
-      tevm: "tevm",
-      viem: "viem",
-    },
   },
 });

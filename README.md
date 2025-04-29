@@ -47,10 +47,10 @@ yarn add @polareth/trace
 ## Quickstart
 
 ```typescript
-import { traceStorageAccess } from "@polareth/trace";
+import { traceState } from "@polareth/trace";
 
 // Trace a transaction with raw parameters
-const trace = await traceStorageAccess({
+const trace = await traceState({
   rpcUrl: "https://1.rpc.thirdweb.com",
   from: "0x...", // sender address
   to: "0x...", // contract or recipient address (empty for contract creation)
@@ -58,7 +58,7 @@ const trace = await traceStorageAccess({
 });
 
 // Trace with a typed contract call (similar usage to viem)
-const traceWithAbi = await traceStorageAccess({
+const traceWithAbi = await traceState({
   rpcUrl: "https://1.rpc.thirdweb.com",
   from: "0x...", // sender address
   to: "0x...", // contract address
@@ -68,7 +68,7 @@ const traceWithAbi = await traceStorageAccess({
 });
 
 // Trace existing transaction by hash
-const traceByHash = await traceStorageAccess({
+const traceByHash = await traceState({
   rpcUrl: "https://1.rpc.thirdweb.com",
   txHash: "0x...", // past transaction hash
 });
@@ -86,9 +86,9 @@ The library offers multiple ways to trace transactions, from simple to advanced 
 The simplest way to use the library is by providing an RPC URL and transaction parameters:
 
 ```typescript
-import { traceStorageAccess } from "@polareth/trace";
+import { traceState } from "@polareth/trace";
 
-const trace = await traceStorageAccess({
+const trace = await traceState({
   rpcUrl: "https://1.rpc.thirdweb.com",
   from: "0x...", // sender address
   to: "0x...", // contract or recipient address (empty for contract creation)
@@ -101,9 +101,9 @@ const trace = await traceStorageAccess({
 For a more developer-friendly approach, use a contract ABI instead of raw transaction data:
 
 ```typescript
-import { traceStorageAccess } from "@polareth/trace";
+import { traceState } from "@polareth/trace";
 
-const trace = await traceStorageAccess({
+const trace = await traceState({
   rpcUrl: "https://1.rpc.thirdweb.com",
   from: "0x...", // sender address
   to: "0x...", // contract address
@@ -118,9 +118,9 @@ const trace = await traceStorageAccess({
 You can trace an already executed transaction by its hash:
 
 ```typescript
-import { traceStorageAccess } from "@polareth/trace";
+import { traceState } from "@polareth/trace";
 
-const trace = await traceStorageAccess({
+const trace = await traceState({
   rpcUrl: "https://1.rpc.thirdweb.com",
   hash: "0x...", // past transaction hash
 });
@@ -197,7 +197,7 @@ For a more fine-grained control, you can provide your own Tevm client:
 ```typescript
 import { createMemoryClient, http } from "tevm";
 import { mainnet } from "tevm/common";
-import { Tracer, traceStorageAccess } from "@polareth/trace";
+import { Tracer, traceState } from "@polareth/trace";
 
 // Initialize client
 const client = createMemoryClient({
@@ -208,8 +208,8 @@ const client = createMemoryClient({
   },
 });
 
-// Option 1: Pass it directly to the traceStorageAccess function
-const trace = await traceStorageAccess({
+// Option 1: Pass it directly to the traceState function
+const trace = await traceState({
   client,
   from: "0x...",
   to: "0x...",
@@ -218,7 +218,7 @@ const trace = await traceStorageAccess({
 
 // Option 2: Create a reusable tracer instance
 const tracer = new Tracer({ client });
-const trace2 = await tracer.traceStorageAccess({
+const trace2 = await tracer.traceState({
   from: "0x...",
   to: "0x...",
   data: "0x...",

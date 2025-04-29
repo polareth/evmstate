@@ -1,3 +1,4 @@
+import { toHex } from "tevm";
 import { createAddress } from "tevm/address";
 import { mainnet } from "tevm/common";
 
@@ -6,16 +7,15 @@ import * as contracts from "./contracts";
 export * as LAYOUTS from "./generated/layouts";
 
 export const CONTRACTS = {
-  AssemblyStorage: contracts.AssemblyStorage.withAddress(`0x${"1".repeat(40)}`),
-  StoragePacking: contracts.StoragePacking.withAddress(`0x${"2".repeat(40)}`),
-  Arrays: contracts.Arrays.withAddress(`0x${"3".repeat(40)}`),
-  Mappings: contracts.Mappings.withAddress(`0x${"4".repeat(40)}`),
-  Structs: contracts.Structs.withAddress(`0x${"5".repeat(40)}`),
-  Factory: contracts.Factory.withAddress(`0x${"6".repeat(40)}`),
-  SimpleContract: contracts.SimpleContract.withAddress(`0x${"7".repeat(40)}`),
-  NativeTransfer: contracts.NativeTransfer.withAddress(`0x${"8".repeat(40)}`),
-  ETHReceiver: contracts.ETHReceiver.withAddress(`0x${"9".repeat(40)}`),
-  Bytes: contracts.Bytes.withAddress(`0x${"a".repeat(40)}`),
+  StoragePacking: contracts.StoragePacking.withAddress(toHex("StoragePacking", { size: 20 })),
+  Arrays: contracts.Arrays.withAddress(toHex("Arrays", { size: 20 })),
+  Mappings: contracts.Mappings.withAddress(toHex("Mappings", { size: 20 })),
+  Structs: contracts.Structs.withAddress(toHex("Structs", { size: 20 })),
+  Factory: contracts.Factory.withAddress(toHex("Factory", { size: 20 })),
+  SimpleContract: contracts.SimpleContract.withAddress(toHex("SimpleContract", { size: 20 })),
+  NativeTransfer: contracts.NativeTransfer.withAddress(toHex("NativeTransfer", { size: 20 })),
+  ETHReceiver: contracts.ETHReceiver.withAddress(toHex("ETHReceiver", { size: 20 })),
+  Bytes: contracts.Bytes.withAddress(toHex("Bytes", { size: 20 })),
 };
 
 export const FORK = {
