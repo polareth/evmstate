@@ -1,342 +1,420 @@
-# @polareth/trace
+# @polareth/evmstate
 
-A comprehensive library for EVM transaction analysis that provides detailed storage slot access tracking with semantic labeling.
+A TypeScript library for tracing, and visualizing EVM state changes with detailed human-readable labeling.
 
-## Table of Contents
+## Overview
 
-- [Features](#features)
-- [Installation](#installation)
-- [Quickstart](#quickstart)
-- [Usage](#usage)
-  - [Basic usage with RPC URL](#basic-usage-with-rpc-url)
-  - [Using contract ABI](#using-contract-abi)
-  - [Tracing an existing transaction](#tracing-an-existing-transaction)
-  - [Understanding the output](#understanding-the-output)
-- [Advanced Usage](#advanced-usage)
-  - [Using with Tevm](#using-with-tevm)
-  - [Complex data structures](#complex-data-structures)
-- [Details](#details)
-  - [Contract patterns supported](#contract-patterns-supported)
-  - [How it works](#how-it-works)
-  - [Key architecture components](#key-architecture-components)
-- [Development](#development)
-- [Contributing](#contributing)
-- [License](#license)
+The library traces all state changes after a transaction has been executed in a local VM, or by watching transactions in incoming blocks. It then labels them with semantic insights and a detailed diff of all the changes.
+
+It can be seen as an alternative to using event logs for evm interfaces, as it captures and labels every state change with precise semantic information, including variable names, mapping keys, array indices, decoded values and path tracing.
+
+Powered by [Tevm](https://github.com/evmts/tevm-monorepo) and [whatsabi](https://github.com/shazow/whatsabi).
 
 ## Features
 
-- 🔍 **Complete storage access tracing**: Identify all storage slots accessed during transaction execution with read/write classification
-- 🏷️ **Semantic storage labeling**: Label storage slots with human-readable variable names, types, and mapping keys/array indices
-- 🧠 **Intelligent key detection**: Automatically extract and match mapping keys and array indices from transaction data
-- 🔢 **Type-aware value decoding**: Convert hex storage values to appropriate JavaScript types based on variable type definitions
-- 📦 **Storage packing support**: Handle packed storage variables within a single 32-byte slot
-- 🔄 **Proxy support**: Detect and resolve proxy contracts for complete implementation analysis
-- 🔌 **Framework compatibility**: Works with popular EVM-compatible frameworks and providers
-- 🧪 **Comprehensive test coverage**: Tested against diverse contract patterns and edge cases
+- **Complete state change tracing**: Track the state of every account touched during the transaction
+- **Human-readable labeling**: Retrieve the storage layout of each account if it's available for contracts, to label storage slots with variable names, decode values and provide a detailed path of access from the base slot to the final value
+- **Intelligent key detection**: Extract and match mapping keys from transaction data
+- **Type-aware decoding**: Convert raw storage values to appropriate JavaScript types; the state trace is fully typed if a storage layout is provided
 
 ## Installation
 
 ```bash
-pnpm add @polareth/trace
+npm install @polareth/evmstate
 # or
-npm install @polareth/trace
+pnpm add @polareth/evmstate
 # or
-yarn add @polareth/trace
+yarn add @polareth/evmstate
 ```
 
 ## Quickstart
 
 ```typescript
-import { traceState } from "@polareth/trace";
+import { traceState } from "@polareth/evmstate";
 
-// Trace a transaction with raw parameters
+// Trace a transaction
 const trace = await traceState({
   rpcUrl: "https://1.rpc.thirdweb.com",
-  from: "0x...", // sender address
-  to: "0x...", // contract or recipient address (empty for contract creation)
-  data: "0x...", // calldata
+  from: "0xYourAddress",
+  to: "0xContractAddress",
+  data: "0xEncodedCalldata",
+  value: 0n,
 });
 
-// Trace with a typed contract call (similar usage to viem)
-const traceWithAbi = await traceState({
+// Watch an account's state
+const unsubscribe = await watchState({
   rpcUrl: "https://1.rpc.thirdweb.com",
-  from: "0x...", // sender address
-  to: "0x...", // contract address
-  abi: erc20Abi, // ERC20 standard ABI
+  address: "0xContractAddress",
+  storageLayout: contractStorageLayout as const,
+  abi: contractAbi,
+  onStateChange: (stateChange) => {
+    console.log(stateChange);
+  },
+  onError: (error) => {
+    console.error(error);
+  },
+});
+```
+
+## Core functionality
+
+### 1. `traceState` - Analyze transaction state
+
+The `traceState` function is the primary way to analyze how a transaction affects state. It can be used in several ways:
+
+#### Basic usage with RPC URL and transaction parameters
+
+```typescript
+import { traceState } from "@polareth/evmstate";
+
+// Trace a simulated transaction
+const trace = await traceState({
+  rpcUrl: "https://1.rpc.thirdweb.com",
+  from: "0xYourAddress",
+  to: "0xContractAddress",
+  data: "0xEncodedCalldata",
+  value: 0n,
+});
+```
+
+#### Using contract ABI for better readability
+
+```typescript
+import { traceState } from "@polareth/evmstate";
+
+// Trace with typed contract call (similar to viem)
+const trace = await traceState({
+  rpcUrl: "https://1.rpc.thirdweb.com",
+  from: "0xYourAddress",
+  to: "0xContractAddress",
+  abi: contractAbi,
   functionName: "transfer",
-  args: ["0x...", "100000000000000000000"], // address, amount
+  args: ["0xRecipient", "1000000000000000000"], // address, amount
 });
-
-// Trace existing transaction by hash
-const traceByHash = await traceState({
-  rpcUrl: "https://1.rpc.thirdweb.com",
-  txHash: "0x...", // past transaction hash
-});
-
-console.log(trace);
-// Output shows exactly which storage slots were accessed, with semantic labeling whenever possible
 ```
 
-## Usage
-
-The library offers multiple ways to trace transactions, from simple to advanced scenarios.
-
-### Basic usage with RPC URL
-
-The simplest way to use the library is by providing an RPC URL and transaction parameters:
+#### Tracing an existing transaction
 
 ```typescript
-import { traceState } from "@polareth/trace";
+import { traceState } from "@polareth/evmstate";
 
+// Trace an existing transaction by hash
 const trace = await traceState({
   rpcUrl: "https://1.rpc.thirdweb.com",
-  from: "0x...", // sender address
-  to: "0x...", // contract or recipient address (empty for contract creation)
-  data: "0x...", // calldata
+  txHash: "0xTransactionHash",
 });
 ```
 
-### Using contract ABI
-
-For a more developer-friendly approach, use a contract ABI instead of raw transaction data:
-
-```typescript
-import { traceState } from "@polareth/trace";
-
-const trace = await traceState({
-  rpcUrl: "https://1.rpc.thirdweb.com",
-  from: "0x...", // sender address
-  to: "0x...", // contract address
-  abi: erc20Abi, // contract ABI
-  functionName: "transfer",
-  args: ["0x...", "1000000000000000000"], // recipient, amount
-});
-```
-
-### Tracing an existing transaction
-
-You can trace an already executed transaction by its hash:
-
-```typescript
-import { traceState } from "@polareth/trace";
-
-const trace = await traceState({
-  rpcUrl: "https://1.rpc.thirdweb.com",
-  hash: "0x...", // past transaction hash
-});
-```
-
-### Understanding the output
-
-The trace results are structured to clearly show which storage slots were read and written:
-
-```typescript
-// Example output format:
-{
-  "0xAbcd...": {  // Contract address
-    "reads": {  // Storage slots that were read
-      "0x0000...": [
-        {
-          "label": "totalSupply",
-          "type": "uint256",
-          "current": {
-            "hex": "0x0de0b6b3a7640000",
-            "decoded": 1000000000000000000n
-          }
-        }
-      ],
-      "0x1234...": [
-        {
-          "label": "balances",
-          "type": "mapping(address => uint256)",
-          "current": {
-            "hex": "0x056bc75e2d63100000",
-            "decoded": 100000000000000000000n
-          },
-          "keys": ["0x1234..."]  // Detected mapping key (sender address)
-        }
-      ]
-    },
-    "writes": {  // Storage slots that were written
-      "0x5678...": [
-        {
-          "label": "balances",
-          "type": "mapping(address => uint256)",
-          "current": {
-            "hex": "0x00",
-            "decoded": 0n
-          },
-          "next": {
-            "hex": "0x056bc75e2d63100000",
-            "decoded": 100000000000000000000n
-          },
-          "keys": ["0x5678..."]  // Detected mapping key (recipient address)
-        }
-      ]
-    },
-    "intrinsic": {  // Account state changes
-      "balance": {
-        "current": "0x1234...",
-        "next": "0x1230..."
-      },
-      "nonce": {
-        "current": "0x01",
-        "next": "0x02"
-      }
-    }
-  }
-}
-```
-
-## Advanced usage
-
-### Using with Tevm
-
-For a more fine-grained control, you can provide your own Tevm client:
+#### Using a custom Tevm client for more control
 
 ```typescript
 import { createMemoryClient, http } from "tevm";
 import { mainnet } from "tevm/common";
-import { Tracer, traceState } from "@polareth/trace";
+import { traceState } from "@polareth/evmstate";
 
 // Initialize client
 const client = createMemoryClient({
-  common: mainnet, // pass the common to avoid an unnecessary fetch for the chain config
+  common: mainnet,
   fork: {
     transport: http("https://1.rpc.thirdweb.com"),
     blockTag: "latest",
   },
 });
 
-// Option 1: Pass it directly to the traceState function
+// Trace with custom client
 const trace = await traceState({
   client,
-  from: "0x...",
-  to: "0x...",
-  data: "0x...",
-});
-
-// Option 2: Create a reusable tracer instance
-const tracer = new Tracer({ client });
-const trace2 = await tracer.traceState({
-  from: "0x...",
-  to: "0x...",
-  data: "0x...",
+  from: "0xYourAddress",
+  to: "0xContractAddress",
+  data: "0xEncodedCalldata",
 });
 ```
 
-### Complex data structures
+### 2. `Tracer` - Create reusable tracing instances
 
-TODO: review that and update when implemented
-
-The library handles complex data structures with accurate labeling:
+The `Tracer` class provides an object-oriented interface for reusing client instances and configuration:
 
 ```typescript
-// Example output for complex structures:
+import { createMemoryClient, http } from "tevm";
+import { mainnet } from "tevm/common";
+import { Tracer } from "@polareth/evmstate";
 
-// Nested mappings
-"0xabcd...": [
-  {
-    "label": "userTokenApprovals",
-    "type": "mapping(address => mapping(uint256 => bool))",
-    "current": { "hex": "0x01", "decoded": true },
-    "keys": ["0x1234...", "42"]  // [userAddress, tokenId]
-  }
-]
-
-// Arrays with indices
-"0xefgh...": [
-  {
-    "label": "tokenOwners",
-    "type": "address[]",
-    "current": {
-      "hex": "0x0000000000000000000000001234567890123456789012345678901234567890",
-      "decoded": "0x1234567890123456789012345678901234567890"
-    },
-    "index": 5  // Array index
-  }
-]
-
-// Packed storage variables
-"0x0000...": [
-  {
-    "label": "smallValue1",
-    "type": "uint8",
-    "current": { "hex": "0x00", "decoded": 0 },
-    "next": { "hex": "0x2a", "decoded": 42 }
+// Initialize client
+const client = createMemoryClient({
+  common: mainnet,
+  fork: {
+    transport: http("https://1.rpc.thirdweb.com"),
+    blockTag: "latest",
   },
-  {
-    "label": "smallValue2",
-    "type": "uint8",
-    "current": { "hex": "0x00", "decoded": 0 },
-    "next": { "hex": "0x7b", "decoded": 123 },
-    "offset": 1
-  },
-  {
-    "label": "flag",
-    "type": "bool",
-    "current": { "hex": "0x00", "decoded": false },
-    "next": { "hex": "0x01", "decoded": true },
-    "offset": 2
-  }
-]
+});
+
+// Create a reusable tracer
+const tracer = new Tracer({ client });
+
+// Trace multiple transactions with the same client
+const trace1 = await tracer.traceState({
+  from: "0xYourAddress",
+  to: "0xContractAddress",
+  data: "0xEncodedCalldata1",
+});
+
+const trace2 = await tracer.traceState({
+  from: "0xYourAddress",
+  to: "0xContractAddress",
+  data: "0xEncodedCalldata2",
+});
 ```
 
-## Details
+### 3. `watchState` - Monitor account state
 
-### Contract patterns supported
+The `watchState` function allows continuous monitoring of state access for a specific contract or EOA:
 
-The library is tested against a comprehensive set of contract patterns:
+```typescript
+import { watchState } from "@polareth/evmstate";
 
-- ✅ **Basic Value Types**: Integers, booleans, addresses, bytes
-- ✅ **Storage Packing**: Multiple variables packed in a single slot
-- ✅ **Complex Data Structures**:
-  - Mappings with various key/value types
-  - Nested mappings (arbitrary depth)
-  - Fixed and dynamic arrays
-  - Structs and nested structs
-- ✅ **Contract Interactions**: Calls between multiple contracts
-- ✅ **Delegate Calls**: Storage access through delegate calls
-- ✅ **Library Patterns**: Internal and external libraries
-- ✅ **Proxy Patterns**: Transparent and minimal proxies
-- ✅ **Assembly Storage Access**: Low-level SSTORE/SLOAD operations
-- ✅ **Token Standards**: ERC-20, ERC-721, etc.
+// Start watching state
+const unsubscribe = await watchState({
+  rpcUrl: "https://1.rpc.thirdweb.com",
+  address: "0xContractAddress",
+  // Optional storage layout (improves labeling) - needs to be imported 'as const' similar to the ABI
+  storageLayout: contractStorageLayout,
+  // Optional ABI (improves decoding)
+  abi: contractAbi,
+  // Callback for state change/access
+  onStateChange: (stateChange) => {
+    console.log("State change detected:", stateChange);
+    // Use the state
+  },
+  // Callback on error
+  onError: (error) => {
+    console.error("Watch error:", error);
+  },
+  // Optional polling interval (default: 1000ms)
+  pollingInterval: 2000,
+});
 
-### How it works
+// Later, stop watching
+unsubscribe();
+```
 
-The library combines transaction simulation with intelligent storage slot analysis:
+## Understanding the output
 
-1. **Transaction Simulation**: Uses TEVM to simulate the transaction and capture all storage access
-2. **Trace Analysis**: Analyzes the EVM execution trace to extract potential mapping keys and array indices
-3. **Type Detection**: Identifies variable types from contract metadata or ABI
-4. **Slot Computation**: Applies Solidity's storage layout rules to match accessed slots with variable names
-5. **Value Decoding**: Converts raw storage values to appropriate JavaScript types
-6. **Result Labeling**: Produces a comprehensive report of all storage accesses with semantic labels
+The `traceState` and `watchState` functions return detailed information about state changes. The output follows this structure (`watchState` directly emits the object for the account address):
 
-#### Key architecture components
+```typescript
+{
+  "0xContractAddress": {
+    // Intrinsic state (balance, nonce, etc.)
+    "balance": {
+      "current": 1000000000000000000n, // Current value (bigint)
+      "modified": true, // Whether it was modified
+      "next": 2000000000000000000n // New value after the transaction
+    },
+    "nonce": {
+      "current": 5n,
+      "modified": true,
+      "next": 6n
+    },
+    // Other account properties
+    "code": { "current": "0x...", "modified": false },
+    "codeHash": { "current": "0x...", "modified": false },
+    "isContract": { "current": true, "modified": false },
+    "isEmpty": { "current": false, "modified": false },
+    "storageRoot": { "current": "0x...", "modified": false },
+    "version": { "current": 0, "modified": false },
 
-- **Slot Engine**: Computes storage slots for various data structures
-- **Trace Analyzer**: Extracts potential keys/indices from EVM execution traces
-- **Storage Layout Parser**: Extracts contract storage information from metadata
-- **Value Decoder**: Converts hex values to appropriate JavaScript types
+    // Storage changes, labeled by variable name
+    "storage": {
+      // Primitive types
+      "counter": {
+        "kind": "primitive",
+        "name": "counter",
+        "type": "uint256",
+        "trace": [
+          {
+            "current": { "hex": "0x05", "decoded": 5n },
+            "modified": true,
+            "next": { "hex": "0x06", "decoded": 6n },
+            "path": [],
+            "fullExpression": "counter",
+            "slots": ["0x0000000000000000000000000000000000000000000000000000000000000000"]
+          }
+        ]
+      },
 
-## Development
+      // Mappings with keys
+      "balances": {
+        "kind": "mapping",
+        "name": "balances",
+        "type": "mapping(address => uint256)",
+        "trace": [
+          {
+            "current": { "hex": "0x2386f26fc10000", "decoded": 10000000000000000n },
+            "modified": true,
+            "next": { "hex": "0x2386f26fc10001", "decoded": 20000000000000000n },
+            "path": [
+              {
+                "kind": "mapping_key",
+                "key": "0x1234567890123456789012345678901234567890",
+                "keyType": "address"
+              }
+            ],
+            "fullExpression": "balances[0x1234567890123456789012345678901234567890]",
+            "slots": ["0x8e9c0c9f9fb928592f2fb0a9314450706c27839d034893b88d8ed2f54cf1bd5e"]
+          }
+        ]
+      },
 
-- `pnpm test:unit` - Run unit tests
-- `pnpm test:staging` - Run staging environment
+      // Arrays with indices
+      "numbers": {
+        "kind": "dynamic_array",
+        "name": "numbers",
+        "type": "uint256[]",
+        "trace": [
+          {
+            "current": { "hex": "0x03", "decoded": 3n },
+            "modified": false,
+            "path": [
+              { "kind": "array_length", "name": "_length" }
+            ],
+            "fullExpression": "numbers._length",
+            "slots": ["0x0000000000000000000000000000000000000000000000000000000000000003"]
+          },
+          {
+            "current": { "hex": "0x64", "decoded": 100n },
+            "modified": true,
+            "next": { "hex": "0xc8", "decoded": 200n },
+            "path": [
+              { "kind": "array_index", "index": 2n }
+            ],
+            "fullExpression": "numbers[2]",
+            "slots": ["0x5de13444fe158c7b5525d0d208535a5f84ca2f75ce5219b9c55fb55643beb57c"]
+          }
+        ]
+      },
 
-## Contributing
+      // Structs with fields
+      "user": {
+        "kind": "struct",
+        "name": "user",
+        "type": "struct Contract.User",
+        "trace": [
+          {
+            "current": { "hex": "0x00", "decoded": 0n },
+            "modified": true,
+            "next": { "hex": "0x01", "decoded": 1n },
+            "path": [
+              { "kind": "struct_field", "name": "id" }
+            ],
+            "fullExpression": "user.id",
+            "slots": ["0x0000000000000000000000000000000000000000000000000000000000000004"]
+          }
+        ]
+      }
+    }
+  }
+}
+```
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+### Key properties in the output
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+For each storage variable, the output includes:
 
-Please make sure your code follows the existing style and passes all tests, including any new tests for verifying the new feature, if applicable.
+- **`name`**: The human-readable variable name from the contract
+- **`type?`**: The Solidity type of the variable
+- **`kind?`**: The kind of storage variable (`"primitive"`, `"mapping"`, `"dynamic_array"`, `"static_array"`, `"struct"`, `"bytes"`, `"string"`)
+- **`trace`**: An array of trace entries for this variable
+
+Each trace entry contains:
+
+- **`current?`**: The current value before the transaction (both hex and decoded)
+- **`next?`**: The new value after the transaction (if modified)
+- **`modified`**: Boolean indicating if the value was changed
+- **`path`**: Array of path components (mapping keys, array indices, struct fields, length fields for bytes or arrays)
+- **`fullExpression`**: A human-readable representation of the full variable access (e.g., `balances[0x1234][5]`)
+- **`slots`**: The actual storage slots accessed
+
+## Advanced usage
+
+### Fully typed state changes
+
+When providing a storage layout with `as const`, TypeScript will infer the correct types for all state changes:
+
+```typescript
+import { watchState } from "@polareth/evmstate";
+
+import { erc20Layout } from "./layouts";
+
+// Get fully typed state changes
+const unsubscribe = await watchState({
+  rpcUrl: "https://1.rpc.thirdweb.com",
+  address: "0xContractAddress",
+  storageLayout: erc20Layout as const,
+  onStateChange: (stateChange) => {
+    if (stateChange.storage.balances) {
+      const balances = stateChange.storage.balances;
+      // balances[`0x${string}`]
+      const userBalance = balances.trace[0].fullExpression;
+      // bigint | undefined
+      const amount = balances.trace[0].next.decoded;
+    }
+  },
+});
+```
+
+### Using a custom Tevm client
+
+For more control over the environment, you can provide your own Tevm client:
+
+```typescript
+import { createMemoryClient, http } from "tevm";
+import { mainnet } from "tevm/common";
+import { watchState } from "@polareth/evmstate";
+
+// Create custom client with specific configuration
+const client = createMemoryClient({
+  common: mainnet,
+  fork: {
+    transport: http("https://1.rpc.thirdweb.com"),
+    blockTag: "latest",
+  },
+  // Add custom tevm options here
+});
+
+// Use the custom client
+const unsubscribe = await watchState({
+  client,
+  address: "0xContractAddress",
+  onStateChange: (stateChange) => {
+    // Process state changes...
+  },
+});
+```
+
+## Supported contract patterns
+
+The library has been extensively tested with diverse contract patterns:
+
+- ✅ **Basic value types**: Integers, booleans, addresses, bytes
+- ✅ **Storage packing**: Multiple variables packed in a single slot
+- ✅ **Arrays**: Fixed and dynamic arrays with index access
+- ✅ **Mappings**: Simple and nested mappings with various key types
+- ✅ **Structs**: Simple and nested struct types
+- ✅ **Dynamic types**: Bytes and string types
+- ✅ **Proxies**: Transparent proxy patterns with implementation analysis
+- ✅ **Native transfers**: ETH transfers between accounts
+- ✅ **Contract creation**: Tracking new contract deployments
+
+## How it works
+
+The library combines several techniques to provide comprehensive state analysis:
+
+1. **Transaction simulation**: Uses TEVM to simulate transactions in a local EVM environment
+2. **Debug tracing**: Leverages `debug_traceTransaction` and `debug_traceBlock` for detailed state access
+3. **Storage layout analysis**: Parses contract storage layouts to map slots to variable names
+4. **Key detection**: Analyzes transaction input and execution traces to identify mapping keys and array indices
+5. **Type-aware decoding**: Converts raw storage values to appropriate JavaScript types based on variable definitions
 
 ## License
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+MIT
