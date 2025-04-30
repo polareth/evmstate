@@ -1,7 +1,6 @@
 import { Abi, Address, ContractFunctionName, Hex, MemoryClient } from "tevm";
 import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
 import { Common } from "tevm/common";
-import { AccountState } from "tevm/index";
 import { abi } from "@shazow/whatsabi";
 import { AbiStateMutability, ContractFunctionArgs } from "viem";
 
@@ -134,8 +133,8 @@ export type TraceStateTxWithReplay = { txHash: Hex };
  *
  * @param storage - Storage slots that were accessed during transaction (only applicable for contracts) with a labeled
  *   diff
- * @param ... {@link AccountState} fields that were accessed during transaction (e.g. balance, nonce, code, etc.) with a
- *   labeled diff
+ * @param ... {@link AccountIntrinsicState} fields that were accessed during transaction (e.g. balance, nonce, code,
+ *   etc.) with a labeled diff
  */
 export type LabeledStateDiff<
   TStorageLayout extends DeepReadonly<SolcStorageLayout> | SolcStorageLayout = SolcStorageLayout,
@@ -149,20 +148,21 @@ export type LabeledStateDiff<
   };
 };
 
+export type AccountIntrinsicState = { balance: bigint; nonce: number; code: Hex };
 export type LabeledIntrinsicsDiff = {
-  [K in keyof Omit<AccountState, "storage">]:
+  [K in keyof AccountIntrinsicState]:
     | {
         modified: true;
         /** The value before the transaction */
-        current?: AccountState[K];
+        current?: AccountIntrinsicState[K];
         /** The next value after the transaction (if it was modified) */
-        next?: AccountState[K];
+        next?: AccountIntrinsicState[K];
       }
     | {
         modified: false;
         next?: never;
         /** The value before the transaction */
-        current?: AccountState[K];
+        current?: AccountIntrinsicState[K];
       };
 };
 

@@ -1,5 +1,5 @@
 import { Abi, Address, ContractFunctionName, encodeFunctionData, Hex, MemoryClient } from "tevm";
-import { AccountState, DebugTraceBlockResult, EvmTraceResult, PrestateTraceDiffResult } from "tevm/actions";
+import { AccountState, DebugTraceBlockResult, PrestateTraceResult, TraceResult } from "tevm/actions";
 
 import { LabeledIntrinsicsDiff, TraceStateOptions } from "@/lib/trace/types";
 
@@ -14,7 +14,7 @@ export const debugTraceTransaction = async <
     Address,
     LabeledIntrinsicsDiff & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
   >;
-  structLogs: EvmTraceResult["structLogs"];
+  structLogs: TraceResult["structLogs"];
   addresses: Array<Address>;
   newAddresses: Array<Address>;
 }> => {
@@ -27,8 +27,8 @@ export const debugTraceTransaction = async <
 
   // Trace a call with params
   try {
-    let stateTraceResult: PrestateTraceDiffResult;
-    let callTraceResult: EvmTraceResult;
+    let stateTraceResult: PrestateTraceResult<true>;
+    let callTraceResult: TraceResult;
 
     if (txHash) {
       stateTraceResult = await client.transport.tevm.request({
@@ -37,7 +37,7 @@ export const debugTraceTransaction = async <
       });
       callTraceResult = await client.transport.tevm.request({
         method: "debug_traceTransaction",
-        params: [{ transactionHash: txHash, tracer: "callTracer" }],
+        params: [{ transactionHash: txHash }],
       });
     } else {
       stateTraceResult = await client.transport.tevm.request({
@@ -46,7 +46,7 @@ export const debugTraceTransaction = async <
       });
       callTraceResult = await client.transport.tevm.request({
         method: "debug_traceCall",
-        params: [{ from, to, data, value, tracer: "callTracer" }],
+        params: [{ from, to, data, value }],
       });
     }
 
@@ -75,7 +75,7 @@ export const debugTraceBlock = async (
       Address,
       LabeledIntrinsicsDiff & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
     >;
-    structLogs: EvmTraceResult["structLogs"];
+    structLogs: TraceResult["structLogs"];
     addresses: Array<Address>;
     newAddresses: Array<Address>;
   }>
@@ -87,8 +87,8 @@ export const debugTraceBlock = async (
     })) as DebugTraceBlockResult<"prestateTracer", true>;
     const blockCallTraceResult = (await client.transport.tevm.request({
       method: "debug_traceBlock",
-      params: [{ blockHash, tracer: "callTracer" }],
-    })) as DebugTraceBlockResult<"callTracer", false>;
+      params: [{ blockHash }],
+    })) as DebugTraceBlockResult<undefined, false>;
 
     return blockStateTraceResult.map((stateTraceResult, index) => {
       const callTraceResult = blockCallTraceResult.find((result) => result.txHash === stateTraceResult.txHash);
@@ -115,7 +115,7 @@ export const debugTraceBlock = async (
   }
 };
 
-const stateDiff = ({ pre, post, addresses }: PrestateTraceDiffResult & { addresses: Array<Address> }) => {
+const stateDiff = ({ pre, post, addresses }: PrestateTraceResult<true> & { addresses: Array<Address> }) => {
   return addresses.reduce(
     (acc, address) => {
       const { storage: preStorage, ...preIntrinsics }: AccountState | undefined = pre[address] ?? {};
@@ -126,13 +126,14 @@ const stateDiff = ({ pre, post, addresses }: PrestateTraceDiffResult & { address
       // Otherwise, it's a read (with only current)
       acc[address as Hex] = {
         ...(Object.fromEntries(
-          Object.entries(preIntrinsics).map(([key, preValue]) => {
-            const postValue = postIntrinsics?.[key as keyof typeof postIntrinsics];
+          Object.entries(preIntrinsics).map(([_key, preValue]) => {
+            const key = _key as keyof typeof preIntrinsics;
+            const postValue = postIntrinsics?.[key];
             return [
               key,
               {
-                ...(preValue !== undefined ? { current: preValue } : {}),
-                ...(postValue !== undefined ? { next: postValue } : {}),
+                ...(preValue !== undefined ? { current: key === "balance" ? BigInt(preValue) : preValue } : {}),
+                ...(postValue !== undefined ? { next: key === "balance" ? BigInt(postValue) : postValue } : {}),
                 modified: postValue !== undefined && preValue !== undefined && postValue !== preValue,
               },
             ];

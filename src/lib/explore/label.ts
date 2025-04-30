@@ -1,5 +1,5 @@
 import { Abi } from "tevm";
-import { EvmTraceResult } from "tevm/actions";
+import { TraceResult } from "tevm/actions";
 import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
 import { Address, ContractFunctionName, Hex } from "tevm/utils";
 import { abi } from "@shazow/whatsabi";
@@ -29,7 +29,7 @@ export const labelStateDiff = <
   >;
   layouts: Record<Address, SolcStorageLayout>;
   uniqueAddresses: Array<Address>;
-  structLogs: EvmTraceResult["structLogs"];
+  structLogs: TraceResult["structLogs"];
   abiFunctions: Array<abi.ABIFunction>;
   options: TraceStateOptions<TAbi, TFunctionName>;
 }): Record<Address, LabeledStateDiff> => {
