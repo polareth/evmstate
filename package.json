@@ -1,9 +1,10 @@
 {
-  "name": "@polareth/trace",
+  "name": "@polareth/evmstate",
   "version": "0.0.0-semantically-released",
-  "description": "A comprehensive library for EVM transaction analysis that provides detailed storage slot access tracking with semantic labeling.",
+  "description": "A TypeScript library for tracing, and visualizing EVM state changes with detailed human-readable labeling.",
   "keywords": [
     "evm",
+    "state",
     "transaction",
     "analysis",
     "storage",
@@ -31,17 +32,22 @@
   },
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsup",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "build:clean": "rm -rf dist && rm -rf tsconfig.build.tsbuildinfo",
+    "prepare": "tsx scripts/prepare.ts",
+    "docs:dev": "pnpm build && vocs dev",
+    "docs:build": "pnpm build && vocs build",
+    "docs:preview": "pnpm build && vocs preview",
     "generate:layouts": "DEBUG=trace tsx test/generate.ts",
-    "test": "pnpm run test:unit && pnpm run test:staging",
-    "test:unit": "DEBUG=trace dotenvx run -f .env.test --quiet -- vitest run test/unit",
-    "test:staging": "DEBUG=trace TEST_ENV=staging dotenvx run -f .env.test --quiet -- vitest run test/staging"
+    "test": "pnpm test:unit && pnpm test:staging",
+    "test:unit": "DEBUG=trace dotenvx run -f .env.test --quiet -- vitest test/unit",
+    "test:staging": "DEBUG=trace TEST_ENV=staging dotenvx run -f .env.test --quiet -- vitest test/staging"
   },
   "dependencies": {
     "@shazow/whatsabi": "^0.21.0",
     "abitype": "^1.0.8",
     "debug": "^4.4.0",
-    "tevm": "1.0.0-next.141",
+    "tevm": "1.0.0-next.143",
     "viem": "^2.21.1"
   },
   "devDependencies": {
@@ -52,23 +58,32 @@
     "@tevm/compiler": "1.0.0-next.134",
     "@tevm/ts-plugin": "1.0.0-next.131",
     "@types/debug": "^4.1.12",
+    "@types/prismjs": "^1.26.5",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "jsdom": "^26.1.0",
+    "lucide-react": "^0.507.0",
     "prettier": "^3.5.3",
     "prettier-plugin-jsdoc": "^1.3.2",
+    "prism-react-renderer": "^2.4.1",
+    "prismjs": "^1.30.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tsup": "^8.4.0",
+    "tailwind-merge": "^3.2.0",
+    "tailwindcss": "^4.1.5",
+    "tsc-alias": "^1.8.15",
     "tsx": "^3.14.0",
     "typescript": "^5.8.2",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.0.9"
+    "vitest": "^3.0.9",
+    "vocs": "1.0.11"
   },
   "peerDependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tevm": "1.0.0-next.141"
+    "tevm": "1.0.0-next.143"
   },
   "peerDependenciesMeta": {
     "react": {

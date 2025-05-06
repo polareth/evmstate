@@ -204,24 +204,18 @@ The `traceState` and `watchState` functions return detailed information about st
 ```typescript
 {
   "0xContractAddress": {
-    // Intrinsic state (balance, nonce, etc.)
+    // Intrinsic state (balance, nonce, code)
     "balance": {
       "current": 1000000000000000000n, // Current value (bigint)
       "modified": true, // Whether it was modified
       "next": 2000000000000000000n // New value after the transaction
     },
     "nonce": {
-      "current": 5n,
+      "current": 5,
       "modified": true,
-      "next": 6n
+      "next": 6
     },
-    // Other account properties
     "code": { "current": "0x...", "modified": false },
-    "codeHash": { "current": "0x...", "modified": false },
-    "isContract": { "current": true, "modified": false },
-    "isEmpty": { "current": false, "modified": false },
-    "storageRoot": { "current": "0x...", "modified": false },
-    "version": { "current": 0, "modified": false },
 
     // Storage changes, labeled by variable name
     "storage": {

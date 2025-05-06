@@ -1,14 +1,20 @@
-import { Abi, AbiFunction, Address, ContractFunctionName } from "tevm";
-import { SolcStorageLayout } from "tevm/bundler/solc";
-import { AbiStateMutability, toFunctionSignature } from "viem";
+import { type Abi, type AbiFunction, type Address, type ContractFunctionName } from "tevm";
+import type { abi } from "@shazow/whatsabi";
+import { toFunctionSignature } from "viem";
 
-import { debug } from "@/debug";
-import { ExploreStorageConfig } from "@/lib/explore/config";
-import { labelStateDiff } from "@/lib/explore/label";
-import { debugTraceTransaction } from "@/lib/trace/debug";
-import { getContracts, getStorageLayout } from "@/lib/trace/storage-layout";
-import { LabeledStateDiff, TraceStateBaseOptions, TraceStateOptions, TraceStateTxParams } from "@/lib/trace/types";
-import { createClient } from "@/lib/trace/utils";
+import { type ExploreStorageConfig } from "@/lib/explore/config.js";
+import { labelStateDiff } from "@/lib/explore/label.js";
+import { type SolcStorageLayout } from "@/lib/solc.js";
+import { debugTraceTransaction } from "@/lib/trace/debug.js";
+import { getContracts, getStorageLayout } from "@/lib/trace/storage-layout.js";
+import type {
+  LabeledStateDiff,
+  TraceStateBaseOptions,
+  TraceStateOptions,
+  TraceStateTxParams,
+} from "@/lib/trace/types.js";
+import { createClient } from "@/lib/trace/utils.js";
+import { logger } from "@/logger.js";
 
 /**
  * Analyzes storage access patterns during transaction execution.
@@ -39,37 +45,50 @@ export const traceState = async <
   options: TraceStateOptions<TAbi, TFunctionName>,
 ): Promise<Record<Address, LabeledStateDiff>> => {
   const client = options.client ?? createClient(options);
+  const { fetchStorageLayouts = true, fetchContracts = true } = options;
   const { stateDiff, addresses, newAddresses, structLogs } = await debugTraceTransaction(client, options);
   const uniqueAddresses = [...new Set([...addresses, ...newAddresses])];
 
   // Debug log showing the trace size and unique stack values
-  debug(`Trace contains ${structLogs.length} steps`);
-  debug(`${uniqueAddresses.length} accounts touched during the transaction`);
-
-  // Retrieve information about the contracts for which we need the storage layout
-  const contractsInfo = await getContracts({
-    client,
-    addresses: uniqueAddresses.filter((address) => Object.keys(stateDiff[address].storage).length > 0),
-    explorers: options.explorers,
-  });
+  logger.log(`Trace contains ${structLogs.length} steps`);
+  logger.log(`${uniqueAddresses.length} accounts touched during the transaction`);
 
   // Map to store storage layouts adapter per contract
-  const layouts: Record<Address, SolcStorageLayout> = {};
-  // Get layout adapters for each contract
-  await Promise.all(
-    Object.entries(contractsInfo).map(async ([address, contract]) => {
-      // Get storage layout adapter for this contract
-      const layout = await getStorageLayout({ ...contract, address: address as Address });
-      if (layout) layouts[address as Address] = layout;
-    }),
+  const layouts: Record<Address, SolcStorageLayout> = Object.fromEntries(
+    Object.entries(options.storageLayouts ?? {}).map(([address, layout]) => [
+      address.toLowerCase(),
+      layout as SolcStorageLayout,
+    ]),
   );
+  // Functions from abis of touched contracts
+  let abiFunctions: Array<abi.ABIFunction> = [];
 
-  // Aggregate functions from all abis to be able to figure out types of args
-  let abiFunctions = Object.values(contractsInfo)
-    .flatMap((contract) => contract.abi)
-    .filter((abi) => abi.type === "function");
+  // Retrieve information about the contracts for which we need the storage layout
+  if (fetchContracts || fetchStorageLayouts) {
+    const contractsInfo = await getContracts({
+      client,
+      addresses: uniqueAddresses.filter((address) => Object.keys(stateDiff[address].storage).length > 0),
+      explorers: options.explorers,
+    });
 
-  // In case the tx was a contract call with the abi and it could not be fetch, add it so we can decode potential mapping keys
+    // Get layout adapters for each contract
+    if (fetchStorageLayouts) {
+      await Promise.all(
+        Object.entries(contractsInfo).map(async ([address, contract]) => {
+          // Get storage layout adapter for this contract
+          const layout = await getStorageLayout({ ...contract, address: address as Address });
+          if (layout) layouts[address as Address] = layout;
+        }),
+      );
+    }
+
+    // Aggregate functions from all abis to be able to figure out types of args
+    abiFunctions = Object.values(contractsInfo)
+      .flatMap((contract) => contract.abi)
+      .filter((abi) => abi.type === "function");
+  }
+
+  // In case the tx was a contract call with the abi, add it so we can decode potential mapping keys
   if (options.abi && options.functionName) {
     const functionDef = (options.abi as Abi).find(
       (func) => func.type === "function" && func.name === options.functionName,

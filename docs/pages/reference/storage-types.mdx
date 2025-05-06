@@ -1,0 +1,398 @@
+# Storage types
+
+This reference explains how the library handles different Solidity storage types.
+
+## Value types
+
+Simple values stored directly in slots.
+
+### Integers (uint/int)
+
+```solidity twoslash
+uint256 public counter = 0;
+```
+
+```typescript
+"counter": {
+  "kind": "primitive",
+  "name": "counter",
+  "type": "uint256",
+  "trace": [
+    {
+      "current": { "hex": "0x00", "decoded": 0n },
+      "modified": true,
+      "next": { "hex": "0x01", "decoded": 1n },
+      "path": [],
+      "fullExpression": "counter",
+      "slots": ["0x0000000000000000000000000000000000000000000000000000000000000000"]
+    }
+  ]
+}
+```
+
+### Booleans
+
+```solidity
+bool public flag = false;
+```
+
+```typescript
+"flag": {
+  "kind": "primitive",
+  "name": "flag",
+  "type": "bool",
+  "trace": [
+    {
+      "current": { "hex": "0x00", "decoded": false },
+      "modified": true,
+      "next": { "hex": "0x01", "decoded": true },
+      "path": [],
+      "fullExpression": "flag",
+      "slots": ["0x0000000000000000000000000000000000000000000000000000000000000001"]
+    }
+  ]
+}
+```
+
+### Addresses
+
+```solidity
+address public owner = address(0);
+```
+
+```typescript
+"owner": {
+  "kind": "primitive",
+  "name": "owner",
+  "type": "address",
+  "trace": [
+    {
+      "current": { 
+        "hex": "0x0000000000000000000000000000000000000000",
+        "decoded": "0x0000000000000000000000000000000000000000"
+      },
+      "modified": true,
+      "next": {
+        "hex": "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+        "decoded": "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+      },
+      "path": [],
+      "fullExpression": "owner",
+      "slots": ["0x0000000000000000000000000000000000000000000000000000000000000002"]
+    }
+  ]
+}
+```
+
+## Mappings
+
+Mappings compute slots based on keys and the base slot.
+
+### Simple mapping
+
+```solidity
+mapping(address => uint256) public balances;
+```
+
+```typescript
+"balances": {
+  "kind": "mapping",
+  "name": "balances",
+  "type": "mapping(address => uint256)",
+  "trace": [
+    {
+      "current": { "hex": "0x00", "decoded": 0n },
+      "modified": true,
+      "next": { "hex": "0x2386f26fc10000", "decoded": 10000000000000000n },
+      "path": [
+        {
+          "kind": "mapping_key",
+          "key": "0x1234567890123456789012345678901234567890",
+          "keyType": "address"
+        }
+      ],
+      "fullExpression": "balances[0x1234567890123456789012345678901234567890]",
+      "slots": ["0x8e9c0c9f9fb928592f2fb0a9314450706c27839d034893b88d8ed2f54cf1bd5e"]
+    }
+  ]
+}
+```
+
+### Nested mapping
+
+```solidity
+mapping(address => mapping(address => uint256)) public allowances;
+```
+
+```typescript
+"allowances": {
+  "kind": "mapping",
+  "name": "allowances",
+  "type": "mapping(address => mapping(address => uint256))",
+  "trace": [
+    {
+      "current": { "hex": "0x00", "decoded": 0n },
+      "modified": true,
+      "next": { "hex": "0x0de0b6b3a7640000", "decoded": 1000000000000000000n },
+      "path": [
+        {
+          "kind": "mapping_key",
+          "key": "0x1234567890123456789012345678901234567890",
+          "keyType": "address"
+        },
+        {
+          "kind": "mapping_key",
+          "key": "0x5678901234567890123456789012345678901234",
+          "keyType": "address"
+        }
+      ],
+      "fullExpression": "allowances[0x1234...][0x5678...]",
+      "slots": ["0x6a70ff112c49166454439c4e0a5f7db9e9a4ac61f326f232ac9eb1a9b05f4eef"]
+    }
+  ]
+}
+```
+
+## Arrays
+
+Arrays store length at the base slot and elements at computed slots.
+
+### Dynamic arrays
+
+```solidity
+uint256[] public numbers;
+```
+
+```typescript
+"numbers": {
+  "kind": "dynamic_array",
+  "name": "numbers",
+  "type": "uint256[]",
+  "trace": [
+    {
+      // Array length
+      "current": { "hex": "0x02", "decoded": 2n },
+      "modified": true,
+      "next": { "hex": "0x03", "decoded": 3n },
+      "path": [
+        { "kind": "array_length", "name": "_length" }
+      ],
+      "fullExpression": "numbers._length",
+      "slots": ["0x0000000000000000000000000000000000000000000000000000000000000006"]
+    },
+    {
+      // Element access
+      "current": { "hex": "0x00", "decoded": 0n },
+      "modified": true,
+      "next": { "hex": "0x2a", "decoded": 42n },
+      "path": [
+        { "kind": "array_index", "index": 2n }
+      ],
+      "fullExpression": "numbers[2]",
+      "slots": ["0x5de13444fe158c7b5525d0d208535a5f84ca2f75ce5219b9c55fb55643beb57c"]
+    }
+  ]
+}
+```
+
+### Fixed-size arrays
+
+```solidity
+uint256[3] public fixedNumbers;
+```
+
+```typescript
+"fixedNumbers": {
+  "kind": "static_array",
+  "name": "fixedNumbers",
+  "type": "uint256[3]",
+  "trace": [
+    {
+      "current": { "hex": "0x00", "decoded": 0n },
+      "modified": true,
+      "next": { "hex": "0x2a", "decoded": 42n },
+      "path": [
+        { "kind": "array_index", "index": 1n }
+      ],
+      "fullExpression": "fixedNumbers[1]",
+      "slots": ["0x0000000000000000000000000000000000000000000000000000000000000008"]
+    }
+  ]
+}
+```
+
+## Structs
+
+Structs organize fields sequentially in storage.
+
+```solidity
+struct User {
+  uint256 id;
+  address wallet;
+  bool active;
+}
+
+User public admin;
+```
+
+```typescript
+"admin": {
+  "kind": "struct",
+  "name": "admin",
+  "type": "struct Contract.User",
+  "trace": [
+    {
+      "current": { "hex": "0x00", "decoded": 0n },
+      "modified": true,
+      "next": { "hex": "0x01", "decoded": 1n },
+      "path": [
+        { "kind": "struct_field", "name": "id" }
+      ],
+      "fullExpression": "admin.id",
+      "slots": ["0x000000000000000000000000000000000000000000000000000000000000000a"]
+    },
+    {
+      "current": {
+        "hex": "0x0000000000000000000000000000000000000000",
+        "decoded": "0x0000000000000000000000000000000000000000"
+      },
+      "modified": true,
+      "next": {
+        "hex": "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4",
+        "decoded": "0x5B38Da6a701c568545dCfcB03FcB875f56beddC4"
+      },
+      "path": [
+        { "kind": "struct_field", "name": "wallet" }
+      ],
+      "fullExpression": "admin.wallet",
+      "slots": ["0x000000000000000000000000000000000000000000000000000000000000000b"]
+    }
+  ]
+}
+```
+
+## Strings and bytes
+
+Strings and bytes can be stored inline (short) or across multiple slots (long).
+
+### Short strings/bytes
+
+```solidity
+string public shortString = "short string";
+```
+
+```typescript
+"shortString": {
+  "kind": "bytes",
+  "name": "shortString",
+  "type": "string",
+  "trace": [
+    {
+      "current": {
+        "decoded": 12n,
+        "hex": "0x0c",
+      },
+      "fullExpression": "shortString._length",
+      "modified": false,
+      "path": [
+        {
+          "kind": "bytes_length",
+          "name": "_length",
+        },
+      ],
+      "slots": [
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+      ],
+    },
+    {
+      "current": {
+        "decoded": "short string",
+        "hex": "0x73686f727420737472696e67",
+      },
+      "fullExpression": "shortString",
+      "modified": false,
+      "path": [],
+      "slots": [
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+      ],
+    },
+  ],
+}
+```
+
+### Long strings/bytes
+
+```solidity
+bytes public longBytes = "0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
+```
+
+```typescript
+"longBytes": {
+  "kind": "bytes",
+  "name": "longBytes",
+  "type": "bytes",
+  "trace": [
+    {
+      "current": {
+        "decoded": 60n,
+        "hex": "0x3c",
+      },
+      "fullExpression": "longBytes._length",
+      "modified": false,
+      "path": [
+        {
+          "kind": "bytes_length",
+          "name": "_length",
+        },
+      ],
+      "slots": [
+        "0x0000000000000000000000000000000000000000000000000000000000000001",
+      ],
+    },
+    {
+      "current": {
+        "decoded": "0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd",
+        "hex": "0xabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd",
+      },
+      "fullExpression": "longBytes",
+      "modified": false,
+      "path": [],
+      "slots": [
+        "0x0000000000000000000000000000000000000000000000000000000000000001",
+        "0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6",
+        "0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf7",
+      ],
+    },
+  ],
+}
+```
+
+## Storage packing
+
+Multiple small variables can be packed into a single slot:
+
+```solidity
+uint8 public value1;   // 1 byte
+uint16 public value2;  // 2 bytes
+bool public flag;      // 1 byte
+// All packed into slot 0
+```
+
+```typescript
+"value1": {
+  "kind": "primitive",
+  "name": "value1",
+  "type": "uint8",
+  "trace": [
+    {
+      "current": { "hex": "0x00", "decoded": 0 },
+      "modified": true,
+      "next": { "hex": "0x2a", "decoded": 42 },
+      "fullExpression": "value1",
+      "slots": ["0x0000000000000000000000000000000000000000000000000000000000000000"],
+      "offset": 0,
+      "size": 1
+    }
+  ]
+}
+```

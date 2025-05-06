@@ -1,13 +1,13 @@
 import fs from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "path";
+import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import { createCache } from "@tevm/bundler-cache";
-import { FileAccessObject } from "tevm/bundler";
-import { ResolvedCompilerConfig } from "tevm/bundler/config";
-import { createSolc, SolcStorageLayout } from "tevm/bundler/solc";
+import { type FileAccessObject } from "tevm/bundler";
+import { type ResolvedCompilerConfig } from "tevm/bundler/config";
 
-import { debug } from "@/debug";
+import { createSolc, type SolcStorageLayout } from "@/lib/solc.js";
+import { logger } from "@/logger.js";
 
 // Get the equivalent of __dirname in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -49,7 +49,7 @@ export const generateStorageLayouts = async () => {
       const dirPath = dirname(artifactFile);
       const relativePath = dirPath.replace(process.cwd() + "/", "");
 
-      debug(`Processing artifact: ${relativePath}`);
+      logger.log(`Processing artifact: ${relativePath}`);
 
       // Read and parse the artifact file
       const artifactContent = await readFile(artifactFile, "utf8");
@@ -59,18 +59,18 @@ export const generateStorageLayouts = async () => {
       const contractNames = Object.keys(artifact.artifacts || {});
 
       if (contractNames.length === 0) {
-        debug(`No contracts found in artifact: ${artifactFile}`);
+        logger.error(`No contracts found in artifact: ${artifactFile}`);
         continue;
       }
 
-      debug(`Found ${contractNames.length} contracts in artifact: ${artifactFile}`);
+      logger.log(`Found ${contractNames.length} contracts in artifact: ${artifactFile}`);
 
       // Try to read from cache first
       const artifacts = cache.readArtifactsSync(relativePath);
 
       // Process each contract in the artifact
       for (const contractName of contractNames) {
-        debug(`Processing contract: ${contractName}`);
+        logger.log(`Processing contract: ${contractName}`);
 
         let storageLayout: SolcStorageLayout | undefined;
 
@@ -104,7 +104,7 @@ export const generateStorageLayouts = async () => {
           });
 
           if (output.errors?.some((error) => error.severity === "error")) {
-            debug(`Compilation errors for ${contractName}:`, output.errors);
+            logger.error(`Compilation errors for ${contractName}:`, output.errors);
             continue;
           }
 
@@ -145,7 +145,7 @@ export const generateStorageLayouts = async () => {
         }
 
         if (!storageLayout) {
-          debug(`No storage layout generated for ${contractName}`);
+          logger.error(`No storage layout generated for ${contractName}`);
           continue;
         }
 
@@ -156,13 +156,13 @@ export default ${JSON.stringify(storageLayout, null, 2)} as const;
 `;
 
         fs.writeFileSync(outputPath, outputContent);
-        debug(`Generated storage layout for ${contractName} at ${outputPath}`);
+        logger.log(`Generated storage layout for ${contractName} at ${outputPath}`);
 
         // Add to the list of generated contracts
         generatedContracts.push(contractName);
       }
     } catch (error) {
-      debug(`Error processing artifact:`, error);
+      logger.error(`Error processing artifact:`, error);
     }
   }
 
@@ -173,7 +173,7 @@ export default ${JSON.stringify(storageLayout, null, 2)} as const;
       generatedContracts.map((name) => `export { default as ${name} } from "./${name}";`).join("\n") + "\n";
 
     fs.writeFileSync(indexPath, indexContent);
-    debug(`Generated index file with ${generatedContracts.length} layouts`);
+    logger.log(`Generated index file with ${generatedContracts.length} layouts`);
   }
 };
 

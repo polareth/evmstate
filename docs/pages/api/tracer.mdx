@@ -1,0 +1,173 @@
+# Tracer
+
+A class that encapsulates the storage access tracing functionality in an object-oriented interface, allowing for reusable tracers with consistent configuration.
+
+## Signature
+
+```typescript twoslash
+import type { Abi, ContractFunctionName, Address } from "tevm";
+import type { TraceStateBaseOptions, LabeledStateDiff, TraceStateTxParams } from "@polareth/evmstate";
+
+class Tracer {
+  // @ts-expect-error - Constructor implementation is missing
+  constructor(options: TraceStateBaseOptions);
+  // @ts-expect-error - Function implementation is missing
+  traceState<
+    TAbi extends Abi | readonly unknown[] = Abi,
+    TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+  >(txOptions: TraceStateTxParams<TAbi, TFunctionName>): Promise<Record<Address, LabeledStateDiff>>;
+}
+```
+
+## Constructor
+
+```typescript twoslash
+import type { TraceStateBaseOptions } from "@polareth/evmstate";
+
+class Tracer {
+  // @ts-expect-error - Constructor implementation is missing
+  constructor(options: TraceStateBaseOptions);
+}
+```
+
+Creates a new `Tracer` instance with shared configuration.
+
+### Parameters
+
+| Property    | Type                                    | Description                               |
+| ----------- | --------------------------------------- | ----------------------------------------- |
+| `rpcUrl`    | `string \| undefined`                   | Ethereum RPC endpoint URL                 |
+| `client`    | `MemoryClient \| undefined`             | Optional Tevm client instance             |
+| `explorers` | `Record<string, Explorer> \| undefined` | Optional contract explorers configuration |
+
+You must provide either `rpcUrl` or `client`.
+
+## Methods
+
+### traceState
+
+```typescript twoslash
+import type { Abi, ContractFunctionName, Address } from "tevm";
+import type { TraceStateTxParams, LabeledStateDiff } from "@polareth/evmstate";
+
+class Tracer {
+  // @ts-expect-error - Function implementation is missing
+  traceState<
+    TAbi extends Abi | readonly unknown[] = Abi,
+    TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+  >(txOptions: TraceStateTxParams<TAbi, TFunctionName>): Promise<Record<Address, LabeledStateDiff>>;
+}
+```
+
+Traces the storage access patterns for a transaction, using the shared configuration from the constructor.
+
+#### Parameters
+
+| Property       | Type                         | Description                 |
+| -------------- | ---------------------------- | --------------------------- |
+| `from`         | `Address`                    | The sender address          |
+| `to`           | `Address \| undefined`       | The recipient address       |
+| `data`         | `Hex \| undefined`           | The transaction calldata    |
+| `value`        | `bigint \| undefined`        | Optional ETH amount to send |
+| `abi`          | `TAbi \| undefined`          | Optional contract ABI       |
+| `functionName` | `TFunctionName \| undefined` | Optional function name      |
+| `args`         | `unknown[] \| undefined`     | Optional function arguments |
+
+Just like the standalone `traceState` function, the `Tracer.traceState` method either takes encoded calldata or an ABI function call.
+
+#### Return value
+
+Returns a promise that resolves to a record mapping account addresses to their state changes:
+
+```typescript twoslash
+import type { Address } from "tevm"
+import type { LabeledStateDiff } from "@polareth/evmstate"
+
+type ReturnType = Record<Address, LabeledStateDiff>;
+```
+
+See the [output format reference](/reference/output-format) for details on the structure.
+
+## Examples
+
+### Basic usage
+
+```typescript twoslash
+import { Tracer } from "@polareth/evmstate";
+
+// Create tracer with shared configuration
+const tracer = new Tracer({
+  rpcUrl: "https://1.rpc.thirdweb.com",
+});
+
+// Trace multiple transactions
+const trace1 = await tracer.traceState({
+  from: "0xSenderAddress",
+  to: "0xContractAddress",
+  data: "0xCalldata1",
+});
+
+const trace2 = await tracer.traceState({
+  from: "0xSenderAddress",
+  to: "0xContractAddress",
+  data: "0xCalldata2",
+});
+```
+
+### With custom Tevm client
+
+```typescript twoslash
+import { createMemoryClient, http } from "tevm";
+import { mainnet } from "tevm/common";
+import { Tracer } from "@polareth/evmstate";
+
+// Create custom Tevm client
+const client = createMemoryClient({
+  common: mainnet,
+  fork: {
+    transport: http("https://1.rpc.thirdweb.com"),
+    blockTag: "latest",
+  },
+});
+
+// Create tracer with custom client
+const tracer = new Tracer({ client });
+
+// Trace a transaction
+const trace = await tracer.traceState({
+  from: "0xSenderAddress",
+  to: "0xContractAddress",
+  data: "0xCalldata",
+  value: 1000000000000000000n, // 1 ETH
+});
+```
+
+### With contract ABI
+
+:::code-group
+```typescript twoslash [example.ts]
+// [!include ~/snippets/abi.ts:erc20]
+
+// ---cut---
+import { Tracer } from "@polareth/evmstate";
+
+// Create tracer
+const tracer = new Tracer({
+  rpcUrl: "https://1.rpc.thirdweb.com",
+});
+
+// Trace an ERC-20 transfer
+const transferTrace = await tracer.traceState({
+  from: "0xSenderAddress",
+  to: "0xTokenAddress",
+  abi: erc20Abi,
+  functionName: "transfer",
+  args: ["0xRecipient", 1000000000000000000n], // recipient, amount
+});
+```
+
+```typescript twoslash [abi.ts]
+// [!include ~/snippets/abi.ts:erc20]
+```
+
+:::

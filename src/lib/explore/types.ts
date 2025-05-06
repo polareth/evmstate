@@ -1,6 +1,7 @@
-import { Hex } from "tevm";
-import { SolcStorageLayoutTypes } from "tevm/bundler/solc";
-import { AbiType, AbiTypeToPrimitiveType, SolidityAddress, SolidityBool, SolidityInt } from "abitype";
+import type { Hex } from "tevm";
+import type { AbiType, AbiTypeToPrimitiveType, SolidityAddress, SolidityBool, SolidityInt } from "abitype";
+
+import type { SolcStorageLayoutTypes } from "@/lib/solc.js";
 
 /* -------------------------------------------------------------------------- */
 /*                              TYPE HELPERS                                  */

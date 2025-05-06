@@ -1,5 +1,5 @@
 // Generated storage layout for NativeTransfer
 export default {
-  "storage": [],
-  "types": null
+  storage: [],
+  types: {},
 } as const;

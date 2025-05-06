@@ -3,8 +3,8 @@ import { createAddress } from "tevm/address";
 import { EthjsAddress } from "tevm/utils";
 import { assert, beforeEach, describe, expect, it } from "vitest";
 
-import { FORK } from "@test/constants";
-import { traceState } from "@/index";
+import { FORK } from "@test/constants.js";
+import { traceState } from "@/index.js";
 
 const { TransparentProxy, CounterImpl, CounterImplV2 } = FORK.mainnet.contracts;
 

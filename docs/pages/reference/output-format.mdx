@@ -1,0 +1,116 @@
+# Output format
+
+This reference documents the structure of data returned by the library's tracing functions.
+
+## Basic structure
+
+For `traceState` and `Tracer.traceState`, the output maps account addresses to state changes:
+
+```typescript twoslash
+import type { Address } from "tevm";
+import type { LabeledStateDiff } from "@polareth/evmstate";
+
+type TraceOutput = Record<Address, LabeledStateDiff>;
+```
+
+For `watchState`, the output focuses on a single address and includes the transaction hash:
+
+```typescript twoslash
+import type { Hex } from "tevm";
+import type { LabeledStateDiff } from "@polareth/evmstate";
+
+type WatchOutput = LabeledStateDiff & { txHash: Hex };
+```
+
+## Account state
+
+Each account in the output has these properties:
+
+```typescript twoslash
+import type { Hex } from "tevm";
+import type { LabeledStorageDiff } from "@polareth/evmstate";
+
+type Diff = {
+  // Intrinsic properties
+  balance: {
+    current: bigint,
+    next?: bigint,
+    modified: boolean
+  },
+  nonce: {
+    current: number,
+    next?: number,
+    modified: boolean
+  },
+  code: {
+    current: Hex,
+    next?: Hex,
+    modified: boolean
+  },
+  // Storage state
+  storage: {
+    [variableName: string]: LabeledStorageDiff
+  }
+}
+```
+
+## Storage variables
+
+The `storage` field contains labeled variables with detailed traces:
+
+```typescript twoslash
+import type { LabeledStorageDiffTrace } from "@polareth/evmstate";
+
+type StorageDiff = {
+  "variableName": {
+    name: string,
+    type?: string,
+    kind?: "primitive" | "mapping" | "dynamic_array" | "static_array" | "struct" | "bytes",
+    trace: Array<LabeledStorageDiffTrace>
+  }
+}
+```
+
+Each `LabeledStorageDiffTrace` represents a specific storage access:
+
+```typescript twoslash
+import type { Hex } from "tevm";
+import type { PathSegment } from "@polareth/evmstate";
+
+type LabeledStorageDiffTrace = {
+  slots: Array<Hex>, // Storage slots accessed
+  path: Array<PathSegment>, // Semantic path components
+  fullExpression: string, // Human-readable expression (e.g., "balances[0x1234]")
+  current?: {
+    hex: Hex,
+    decoded: any // typed if storage layout is provided
+  },
+  next?: {
+    hex: Hex,
+    decoded: any // typed if storage layout is provided
+  },
+  modified: boolean,
+  note?: string // any exception/error during exploration
+}
+```
+
+## Proxy contracts
+
+Proxy contracts are labeled using the implementation contract's ABI and storage layout when possible:
+
+:::code-group
+
+```typescript [output.json]
+// [!include ~/snippets/outputs/proxy.jsonc]
+```
+
+```typescript [trace.ts]
+// [!include ~/snippets/proxy.ts:proxy-trace]
+```
+
+:::
+
+## Next steps
+
+- [Storage types](/reference/storage-types)
+- [Playground](/playground)

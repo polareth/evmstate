@@ -1,22 +1,22 @@
 import {
-  Abi,
-  Address,
-  ContractFunctionName,
   decodeAbiParameters,
   encodeAbiParameters,
-  Hex,
   isAddress,
   isHex,
   keccak256,
   toHex,
+  type Abi,
+  type Address,
+  type ContractFunctionName,
+  type Hex,
 } from "tevm";
 import { abi } from "@shazow/whatsabi";
-import { AbiType, AbiTypeToPrimitiveType } from "abitype";
+import { type AbiType, type AbiTypeToPrimitiveType } from "abitype";
 import { padHex } from "viem";
 
-import { debug } from "@/debug";
-import { MappingKey } from "@/lib/explore/types";
-import { TraceStateOptions } from "@/lib/trace/types";
+import { type MappingKey } from "@/lib/explore/types.js";
+import type { TraceStateOptions } from "@/lib/trace/types.js";
+import { logger } from "@/logger.js";
 
 /**
  * Sort candidate keys to prioritize addresses first. Passed keys here are padded to 32 bytes.
@@ -106,7 +106,7 @@ export const extractPotentialKeys = <
         const type = abiFunction?.inputs?.[index]?.type as AbiType | undefined;
         const hex = type ? padHex(encodeAbiParameters([{ type }], [arg]), { size: 32 }) : undefined;
         if (!hex) {
-          debug(`Failed to extract arg ${index} from ${functionName}: ${arg}`);
+          logger.error(`Failed to extract arg ${index} from ${functionName}: ${arg}`);
           return;
         }
 
@@ -117,7 +117,7 @@ export const extractPotentialKeys = <
         });
       });
     } catch (error) {
-      debug(`Failed to extract args from ${functionName}: ${error}`);
+      logger.error(`Failed to extract args from ${functionName}: ${error}`);
     }
   } else if (data) {
     const selector = data.slice(0, 10);

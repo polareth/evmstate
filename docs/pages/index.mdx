@@ -1,0 +1,23 @@
+---
+title: Vocs – React Documentation Framework
+layout: landing
+showLogo: false
+---
+
+import { HomePage } from "vocs/components";
+
+<HomePage.Root>
+  <HomePage.Logo />
+  <HomePage.Tagline>evmstate</HomePage.Tagline>
+  <HomePage.InstallPackage name="@polareth/evmstate" type="install" />
+  <HomePage.Description>
+    A TypeScript library for tracing, and visualizing EVM state changes with detailed human-readable labeling.
+  </HomePage.Description>
+  <HomePage.Buttons>
+    <HomePage.Button href="/introduction" variant="accent">
+      Getting started
+    </HomePage.Button>
+    <HomePage.Button href="/playground">Try it out</HomePage.Button>
+    <HomePage.Button href="https://github.com/polarethorg/evmstate">GitHub</HomePage.Button>
+  </HomePage.Buttons>
+</HomePage.Root>

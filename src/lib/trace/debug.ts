@@ -1,7 +1,19 @@
-import { Abi, Address, ContractFunctionName, encodeFunctionData, Hex, MemoryClient } from "tevm";
-import { AccountState, DebugTraceBlockResult, EvmTraceResult, PrestateTraceDiffResult } from "tevm/actions";
+import {
+  encodeFunctionData,
+  type Abi,
+  type Address,
+  type ContractFunctionName,
+  type Hex,
+  type MemoryClient,
+} from "tevm";
+import {
+  type AccountState,
+  type DebugTraceBlockResult,
+  type PrestateTraceResult,
+  type TraceResult,
+} from "tevm/actions";
 
-import { LabeledIntrinsicsDiff, TraceStateOptions } from "@/lib/trace/types";
+import type { LabeledIntrinsicsDiff, TraceStateOptions } from "@/lib/trace/types.js";
 
 export const debugTraceTransaction = async <
   TAbi extends Abi | readonly unknown[] = Abi,
@@ -14,7 +26,7 @@ export const debugTraceTransaction = async <
     Address,
     LabeledIntrinsicsDiff & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
   >;
-  structLogs: EvmTraceResult["structLogs"];
+  structLogs: TraceResult["structLogs"];
   addresses: Array<Address>;
   newAddresses: Array<Address>;
 }> => {
@@ -27,8 +39,8 @@ export const debugTraceTransaction = async <
 
   // Trace a call with params
   try {
-    let stateTraceResult: PrestateTraceDiffResult;
-    let callTraceResult: EvmTraceResult;
+    let stateTraceResult: PrestateTraceResult<true>;
+    let callTraceResult: TraceResult;
 
     if (txHash) {
       stateTraceResult = await client.transport.tevm.request({
@@ -37,7 +49,7 @@ export const debugTraceTransaction = async <
       });
       callTraceResult = await client.transport.tevm.request({
         method: "debug_traceTransaction",
-        params: [{ transactionHash: txHash, tracer: "callTracer" }],
+        params: [{ transactionHash: txHash }],
       });
     } else {
       stateTraceResult = await client.transport.tevm.request({
@@ -46,7 +58,7 @@ export const debugTraceTransaction = async <
       });
       callTraceResult = await client.transport.tevm.request({
         method: "debug_traceCall",
-        params: [{ from, to, data, value, tracer: "callTracer" }],
+        params: [{ from, to, data, value }],
       });
     }
 
@@ -61,7 +73,7 @@ export const debugTraceTransaction = async <
       newAddresses: newAddresses as Array<Address>,
     };
   } catch (err) {
-    throw new Error(`Failed to trace transaction: ${err}`);
+    throw new Error(`Failed to trace transaction: ${err instanceof Error ? err.message : String(err)}`);
   }
 };
 
@@ -75,7 +87,7 @@ export const debugTraceBlock = async (
       Address,
       LabeledIntrinsicsDiff & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
     >;
-    structLogs: EvmTraceResult["structLogs"];
+    structLogs: TraceResult["structLogs"];
     addresses: Array<Address>;
     newAddresses: Array<Address>;
   }>
@@ -87,10 +99,10 @@ export const debugTraceBlock = async (
     })) as DebugTraceBlockResult<"prestateTracer", true>;
     const blockCallTraceResult = (await client.transport.tevm.request({
       method: "debug_traceBlock",
-      params: [{ blockHash, tracer: "callTracer" }],
-    })) as DebugTraceBlockResult<"callTracer", false>;
+      params: [{ blockHash }],
+    })) as DebugTraceBlockResult<undefined, false>;
 
-    return blockStateTraceResult.map((stateTraceResult, index) => {
+    return blockStateTraceResult.map((stateTraceResult) => {
       const callTraceResult = blockCallTraceResult.find((result) => result.txHash === stateTraceResult.txHash);
       if (!callTraceResult) {
         throw new Error(`No call trace result found for transaction ${stateTraceResult.txHash}`);
@@ -111,11 +123,11 @@ export const debugTraceBlock = async (
       };
     });
   } catch (err) {
-    throw new Error(`Failed to trace transaction: ${err}`);
+    throw new Error(`Failed to trace block: ${err instanceof Error ? err.message : String(err)}`);
   }
 };
 
-const stateDiff = ({ pre, post, addresses }: PrestateTraceDiffResult & { addresses: Array<Address> }) => {
+const stateDiff = ({ pre, post, addresses }: PrestateTraceResult<true> & { addresses: Array<Address> }) => {
   return addresses.reduce(
     (acc, address) => {
       const { storage: preStorage, ...preIntrinsics }: AccountState | undefined = pre[address] ?? {};
@@ -126,13 +138,14 @@ const stateDiff = ({ pre, post, addresses }: PrestateTraceDiffResult & { address
       // Otherwise, it's a read (with only current)
       acc[address as Hex] = {
         ...(Object.fromEntries(
-          Object.entries(preIntrinsics).map(([key, preValue]) => {
-            const postValue = postIntrinsics?.[key as keyof typeof postIntrinsics];
+          Object.entries(preIntrinsics).map(([_key, preValue]) => {
+            const key = _key as keyof typeof preIntrinsics;
+            const postValue = postIntrinsics?.[key];
             return [
               key,
               {
-                ...(preValue !== undefined ? { current: preValue } : {}),
-                ...(postValue !== undefined ? { next: postValue } : {}),
+                ...(preValue !== undefined ? { current: key === "balance" ? BigInt(preValue) : preValue } : {}),
+                ...(postValue !== undefined ? { next: key === "balance" ? BigInt(postValue) : postValue } : {}),
                 modified: postValue !== undefined && preValue !== undefined && postValue !== preValue,
               },
             ];

@@ -1,5 +1,5 @@
-import { BlockTag, createMemoryClient, http, MemoryClient } from "tevm";
-import { Common } from "tevm/common";
+import { createMemoryClient, http, type BlockTag, type MemoryClient } from "tevm";
+import { type Common } from "tevm/common";
 
 /** Creates a Tevm client from the provided options */
 export const createClient = (options: {

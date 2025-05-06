@@ -2,9 +2,9 @@ import { toHex } from "tevm";
 import { createAddress } from "tevm/address";
 import { mainnet } from "tevm/common";
 
-import * as contracts from "./contracts";
+import * as contracts from "./contracts/index.js";
 
-export * as LAYOUTS from "./generated/layouts";
+export * as LAYOUTS from "./generated/layouts/index.js";
 
 export const CONTRACTS = {
   StoragePacking: contracts.StoragePacking.withAddress(toHex("StoragePacking", { size: 20 })),

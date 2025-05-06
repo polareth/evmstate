@@ -1,8 +1,8 @@
-import React, { createContext, ReactNode, useContext, useMemo } from "react";
+import React, { createContext, type ReactNode, useContext, useMemo } from "react";
 
-import { ExploreStorageConfig } from "@/lib/explore/config";
-import { Tracer } from "@/lib/trace";
-import { TraceStateBaseOptions } from "@/lib/trace/types";
+import { type ExploreStorageConfig } from "@/lib/explore/config.js";
+import { Tracer } from "@/lib/trace/index.js";
+import type { TraceStateBaseOptions } from "@/lib/trace/types.js";
 
 // Define the context type
 type TracerContextType = Tracer | null;
