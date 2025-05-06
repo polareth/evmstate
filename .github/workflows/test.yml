@@ -16,9 +16,11 @@ jobs:
       - name: pnpm install
         run: pnpm install --frozen-lockfile
 
+      - name: Create .env.test file
+        run: |
+          echo "MAINNET_RPC_URL=${{ secrets.MAINNET_RPC_URL }}" > .env.test
+          echo "MAINNET_ETHERSCAN_API_KEY=${{ secrets.MAINNET_ETHERSCAN_API_KEY }}" >> .env.test
+          echo "MAINNET_BLOCKSCOUT_API_KEY=${{ secrets.MAINNET_BLOCKSCOUT_API_KEY }}" >> .env.test
+
       - name: Run Tests
         run: pnpm test
-        env:
-          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
-          MAINNET_ETHERSCAN_API_KEY: ${{ secrets.MAINNET_ETHERSCAN_API_KEY }}
-          MAINNET_BLOCKSCOUT_API_KEY: ${{ secrets.MAINNET_BLOCKSCOUT_API_KEY }}
