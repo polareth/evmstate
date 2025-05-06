@@ -16,6 +16,10 @@
   ],
   "author": "0xpolarzero",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/polareth/evmstate.git"
+  },
   "main": "./dist/index.js",
   "type": "module",
   "exports": {
