@@ -1,9 +1,9 @@
 import { assert, describe, expect, it } from "vitest";
 
-import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants";
-import { getClient, waitFor } from "@test/utils";
-import { watchState } from "@/lib/watch";
-import { StateChange } from "@/lib/watch/types";
+import { ACCOUNTS, CONTRACTS, LAYOUTS } from "@test/constants.js";
+import { getClient, waitFor } from "@test/utils.js";
+import { watchState } from "@/lib/watch/index.js";
+import type { StateChange } from "@/lib/watch/types.js";
 
 const { StoragePacking } = CONTRACTS;
 const { caller, recipient } = ACCOUNTS;

@@ -1,9 +1,9 @@
 import { getAddress } from "tevm";
 import { describe, expect, it } from "vitest";
 
-import { ACCOUNTS, CONTRACTS } from "@test/constants";
-import { getClient } from "@test/utils";
-import { traceState } from "@/index";
+import { ACCOUNTS, CONTRACTS } from "@test/constants.js";
+import { getClient } from "@test/utils.js";
+import { traceState } from "@/index.js";
 
 const { Mappings } = CONTRACTS;
 const { caller, recipient } = ACCOUNTS;

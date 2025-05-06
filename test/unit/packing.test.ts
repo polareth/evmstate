@@ -1,9 +1,9 @@
 import { encodeFunctionData } from "tevm";
-import { assert, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import { ACCOUNTS, CONTRACTS } from "@test/constants";
-import { getClient } from "@test/utils";
-import { traceState } from "@/index";
+import { ACCOUNTS, CONTRACTS } from "@test/constants.js";
+import { getClient } from "@test/utils.js";
+import { traceState } from "@/index.js";
 
 const { StoragePacking } = CONTRACTS;
 const { caller } = ACCOUNTS;

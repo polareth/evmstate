@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { describe, expect, it } from "vitest";
 
-import { ACCOUNTS, CONTRACTS } from "@test/constants";
-import { getClient } from "@test/utils";
-import { Tracer } from "@/lib/trace";
-import { TracerProvider, useTracer } from "@/react";
+import { ACCOUNTS, CONTRACTS } from "@test/constants.js";
+import { getClient } from "@test/utils.js";
+import { Tracer } from "@/index.js";
+import { TracerProvider, useTracer } from "@/lib/react/index.js";
 
 const { StoragePacking } = CONTRACTS;
 const { caller } = ACCOUNTS;

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { ACCOUNTS, CONTRACTS } from "@test/constants";
-import { getClient } from "@test/utils";
-import { traceState } from "@/index";
+import { ACCOUNTS, CONTRACTS } from "@test/constants.js";
+import { getClient } from "@test/utils.js";
+import { traceState } from "@/index.js";
 
 const { Structs } = CONTRACTS;
 const { caller } = ACCOUNTS;
@@ -145,8 +145,6 @@ describe("Structs", () => {
 
     it("should trace mapping operations in struct", async () => {
       const client = getClient();
-      const key = 123n;
-      const value = true;
 
       // Set a flag in the mapping
       expect(

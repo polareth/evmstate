@@ -1,4 +1,4 @@
-import { MemoryClient } from "tevm";
+import type { MemoryClient } from "tevm";
 
 export const getClient = (): MemoryClient => {
   // @ts-expect-error no index signature
