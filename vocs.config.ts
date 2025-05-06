@@ -9,7 +9,7 @@ export default defineConfig({
   description:
     "A TypeScript library for tracing, and visualizing EVM state changes with detailed human-readable labeling.",
   titleTemplate: "%s — evmstate",
-  basePath: "/docs",
+  basePath: "/",
   baseUrl: "https://evmstate.polareth.org",
   editLink: {
     pattern: "https://github.com/polareth/evmstate/edit/main/docs/pages/:path",
