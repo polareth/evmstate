@@ -104,6 +104,7 @@ export const extractPotentialKeys = <
       const abiFunction = abiFunctions.find((fn) => fn.name === functionName);
       (args as unknown[]).forEach((arg, index) => {
         const type = abiFunction?.inputs?.[index]?.type as AbiType | undefined;
+        console.log({ type, arg });
         const hex = type ? padHex(encodeAbiParameters([{ type }], [arg]), { size: 32 }) : undefined;
         if (!hex) {
           logger.error(`Failed to extract arg ${index} from ${functionName}: ${arg}`);
