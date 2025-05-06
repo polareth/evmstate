@@ -1,0 +1,33 @@
+{
+  "__implementation": { // [!code hl]
+    "name": "__implementation",
+    "type": "address",
+    "kind": "primitive",
+    "trace": [
+      {
+        "current": { "hex": "<implementation>", "decoded": "<implementation>" },
+        "next": { "hex": "<implementation>", "decoded": "<implementation>" },
+        "modified": true,
+        // EIP-1967 implementation slot: bytes32(uint256(keccak256("eip1967.proxy.implementation")) - 1)
+        "slots": ["0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc"],
+        "path": [],
+        "fullExpression": "__implementation",
+      },
+    ],
+  },
+  "__admin": { // [!code hl]
+    "name": "__admin",
+    "type": "address",
+    "kind": "primitive",
+    "trace": [
+      {
+        "current": { "hex": "<admin>", "decoded": "<admin>" },
+        "modified": false,
+        // EIP-1967 admin slot: bytes32(uint256(keccak256("eip1967.proxy.admin")) - 1)
+        "slots": ["0xb53127684a568b3173ae13b9f8a6016e019b2c8e8cbb2a6e0a23387fdaa12345"],
+        "path": [],
+        "fullExpression": "__admin",
+      },
+    ],
+  },
+}

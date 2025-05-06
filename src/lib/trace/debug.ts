@@ -1,7 +1,19 @@
-import { Abi, Address, ContractFunctionName, encodeFunctionData, Hex, MemoryClient } from "tevm";
-import { AccountState, DebugTraceBlockResult, PrestateTraceResult, TraceResult } from "tevm/actions";
+import {
+  encodeFunctionData,
+  type Abi,
+  type Address,
+  type ContractFunctionName,
+  type Hex,
+  type MemoryClient,
+} from "tevm";
+import {
+  type AccountState,
+  type DebugTraceBlockResult,
+  type PrestateTraceResult,
+  type TraceResult,
+} from "tevm/actions";
 
-import { LabeledIntrinsicsDiff, TraceStateOptions } from "@/lib/trace/types";
+import type { LabeledIntrinsicsDiff, TraceStateOptions } from "@/lib/trace/types.js";
 
 export const debugTraceTransaction = async <
   TAbi extends Abi | readonly unknown[] = Abi,
@@ -61,7 +73,7 @@ export const debugTraceTransaction = async <
       newAddresses: newAddresses as Array<Address>,
     };
   } catch (err) {
-    throw new Error(`Failed to trace transaction: ${err}`);
+    throw new Error(`Failed to trace transaction: ${err instanceof Error ? err.message : String(err)}`);
   }
 };
 
@@ -90,7 +102,7 @@ export const debugTraceBlock = async (
       params: [{ blockHash }],
     })) as DebugTraceBlockResult<undefined, false>;
 
-    return blockStateTraceResult.map((stateTraceResult, index) => {
+    return blockStateTraceResult.map((stateTraceResult) => {
       const callTraceResult = blockCallTraceResult.find((result) => result.txHash === stateTraceResult.txHash);
       if (!callTraceResult) {
         throw new Error(`No call trace result found for transaction ${stateTraceResult.txHash}`);
@@ -111,7 +123,7 @@ export const debugTraceBlock = async (
       };
     });
   } catch (err) {
-    throw new Error(`Failed to trace transaction: ${err}`);
+    throw new Error(`Failed to trace block: ${err instanceof Error ? err.message : String(err)}`);
   }
 };
 

@@ -1,10 +1,10 @@
-import { Abi, Address, Hex } from "tevm";
-import { SolcStorageLayout } from "tevm/bundler/solc";
+import { type Abi, type Address, type Hex } from "tevm";
 import { abi } from "@shazow/whatsabi";
 
-import { ExploreStorageConfig } from "@/lib/explore/config";
-import { DeepReadonly } from "@/lib/explore/types";
-import { LabeledStateDiff, TraceStateBaseOptions } from "@/lib/trace/types";
+import { type ExploreStorageConfig } from "@/lib/explore/config.js";
+import type { DeepReadonly } from "@/lib/explore/types.js";
+import { type SolcStorageLayout } from "@/lib/solc.js";
+import type { LabeledStateDiff, TraceStateBaseOptions } from "@/lib/trace/types.js";
 
 export type WatchStateOptions<
   TStorageLayout extends DeepReadonly<SolcStorageLayout> | SolcStorageLayout | undefined =

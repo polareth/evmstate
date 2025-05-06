@@ -1,0 +1,131 @@
+@import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap");
+@import "tailwindcss";
+
+:root {
+  --playground-bg: #ffffff;
+  --playground-border: #e2e8f0;
+  --playground-text: #1e293b;
+  --playground-control-bg: #f8fafc;
+  --playground-input-bg: #ffffff;
+  --playground-input-border: #cbd5e1;
+  --playground-button-bg: #3b82f6;
+  --playground-button-hover: #2563eb;
+  --playground-button-text: #ffffff;
+  --playground-output-bg: #f1f5f9;
+  --playground-log-border: #e2e8f0;
+  --playground-log-error: #ef4444;
+  --playground-log-success: #10b981;
+  --playground-shadow: rgba(0, 0, 0, 0.05);
+
+  --border-radius: 0.3rem;
+  --font-mono:
+    "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
+
+  --focus-ring: rgba(59, 130, 246, 0.5);
+}
+
+:root.dark {
+  --playground-bg: #0f172a;
+  --playground-border: #334155;
+  --playground-text: #e2e8f0;
+  --playground-control-bg: #1e293b;
+  --playground-input-bg: #1e293b;
+  --playground-input-border: #475569;
+  --playground-button-bg: #3b82f6;
+  --playground-button-hover: #60a5fa;
+  --playground-button-text: #ffffff;
+  --playground-output-bg: #1e293b;
+  --playground-log-border: #334155;
+  --playground-log-error: #f87171;
+  --playground-log-success: #34d399;
+  --playground-shadow: rgba(0, 0, 0, 0.3);
+}
+
+@layer components {
+  .playground {
+    background-color: var(--playground-bg);
+    color: var(--playground-text);
+    border: 1px solid var(--playground-border);
+    border-radius: var(--border-radius);
+    padding: 1rem 1.5rem;
+    font-size: var(--vocs-fontSize_14);
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .playground label {
+    display: block;
+    font-weight: 500;
+  }
+
+  .playground select,
+  .playground input {
+    font-family: var(--font-mono);
+    width: 100%;
+    padding: 0.3rem 0.75rem;
+    background-color: var(--playground-input-bg);
+    border: 1px solid var(--playground-input-border);
+    border-radius: var(--border-radius);
+    transition: border-color 0.15s ease;
+  }
+
+  .playground select:focus,
+  .playground input:focus {
+    outline: none;
+    border-color: var(--playground-button-bg);
+  }
+
+  .border-separator-bottom {
+    border-bottom: 1px solid var(--playground-border);
+  }
+
+  /* Responsive adjustments */
+  @media (min-width: 768px) {
+    .playground-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+  }
+
+  /* Button styles */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--playground-button-bg) !important;
+    color: var(--playground-button-text);
+    border: none;
+    padding: 0.3rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+
+  .btn-ghost {
+    background: transparent !important;
+    color: var(--playground-text);
+  }
+
+  .btn:hover:not(:disabled) {
+    background: var(--playground-button-hover) !important;
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--playground-control-bg) !important;
+  }
+
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--focus-ring);
+  }
+
+  .btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}

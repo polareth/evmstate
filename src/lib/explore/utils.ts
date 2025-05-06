@@ -1,9 +1,9 @@
-import { decodeAbiParameters, Hex, toHex } from "tevm";
-import { SolcStorageLayoutTypes } from "tevm/bundler/solc";
-import { ByteArray, padHex, ToHexParameters } from "viem";
+import { decodeAbiParameters, toHex, type Hex } from "tevm";
+import { padHex, type ByteArray, type ToHexParameters } from "viem";
 
-import { debug } from "@/debug";
-import { DecodedResult, SolidityTypeToTsType } from "@/lib/explore/types";
+import type { DecodedResult, SolidityTypeToTsType } from "@/lib/explore/types.js";
+import { type SolcStorageLayoutTypes } from "@/lib/solc.js";
+import { logger } from "@/logger.js";
 
 export const max = <T extends bigint | number>(...nums: Array<T>): T =>
   // @ts-expect-error bigint/number
@@ -24,7 +24,7 @@ export const decodeSlotDiffForPrimitive = (
 
   const current = currentHex ? decodePrimitiveField(typeInfo, currentHex, offsetBytes) : undefined;
   if (current === undefined || current.decoded === undefined) {
-    debug(`Failed to decode primitive field ${typeInfo.label} at slot ${slotHex}`);
+    logger.error(`Failed to decode primitive field ${typeInfo.label} at slot ${slotHex}`);
     return undefined;
   }
 
@@ -104,7 +104,7 @@ const extractRelevantHex = (data: Hex, offset: number, length: number): { extrac
 
     return { extracted, padded: padHex(extracted, { size: 32 }) };
   } catch {
-    debug(`Failed to extract relevant hex from ${data} at offset ${offset} with length ${length}`);
+    logger.error(`Failed to extract relevant hex from ${data} at offset ${offset} with length ${length}`);
     return { extracted: data, padded: padHex(data, { size: 32 }) };
   }
 };

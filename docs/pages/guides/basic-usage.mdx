@@ -1,0 +1,115 @@
+# Basic usage
+
+This guide covers the fundamental ways to use the library to analyze and label state access patterns.
+
+## Core functions
+
+The library provides three main entry points:
+
+1. `traceState`: Analyze state changes from a single transaction
+2. `Tracer`: Create a reusable instance for multiple traces
+3. `watchState`: Monitor ongoing state changes for a specific address
+
+## Tracing a transaction
+
+There are three ways to trace a transaction:
+
+1. Using transaction calldata
+2. Using a contract ABI
+3. Using a transaction hash
+
+:::code-group
+
+```typescript twoslash [calldata.ts]
+// [!include ~/snippets/client.ts]
+// ---cut---
+import { traceState } from "@polareth/evmstate";
+
+// [!include ~/snippets/trace-state.ts:calldata]
+```
+
+```typescript twoslash [abi.ts]
+// [!include ~/snippets/client.ts]
+// [!include ~/snippets/abi.ts:mappings]
+// ---cut---
+import { traceState } from "@polareth/evmstate";
+
+// [!include ~/snippets/trace-state.ts:abi]
+```
+
+```typescript twoslash [txHash.ts]
+// [!include ~/snippets/client.ts]
+// ---cut---
+import { traceState } from "@polareth/evmstate";
+
+// [!include ~/snippets/trace-state.ts:txHash]
+```
+
+:::
+
+## Tracing options
+
+There are various ways to configure the client:
+- Using an existing Tevm client (likely in forking mode)
+- Using a RPC url (which will internally create a Tevm)
+
+:::code-group
+
+```typescript twoslash [tevm-client.ts]
+import { createMemoryClient } from "tevm";
+import { traceState } from "@polareth/evmstate";
+
+const client = createMemoryClient(); // [!code hl]
+
+// [!include ~/snippets/trace-state.ts:options-client]
+```
+
+```typescript twoslash [rpc-url.ts]
+// [!include ~/snippets/client.ts]
+// ---cut---
+import { traceState } from "@polareth/evmstate";
+
+// [!include ~/snippets/trace-state.ts:options-rpc]
+```
+
+:::
+
+Finally, we recommend providing an url & API key for at least one supported explorer:
+
+```typescript twoslash [explorers.ts]
+// [!include ~/snippets/client.ts]
+// ---cut---
+import { traceState } from "@polareth/evmstate";
+
+// [!include ~/snippets/trace-state.ts:options-explorers]
+```
+
+## Watching state changes
+
+To monitor an address for state changes in real-time:
+
+:::code-group
+
+```typescript twoslash [example.ts]
+// [!include ~/snippets/layout.ts:mappings]
+// [!include ~/snippets/abi.ts:mappings]
+// ---cut---
+import { watchState } from "@polareth/evmstate";
+
+// [!include ~/snippets/watch-state.ts:watchState]
+```
+
+```typescript twoslash [layout.ts]
+// [!include ~/snippets/layout.ts:mappings]
+```
+
+```typescript twoslash [abi.ts]
+// [!include ~/snippets/abi.ts:mappings]
+```
+
+:::
+
+## Next steps
+
+- [Example usage](/guides/usage-examples)
+- [Understanding output format](/reference/output-format)

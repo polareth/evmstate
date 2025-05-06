@@ -1,0 +1,57 @@
+# Installation
+
+## Installing the package
+
+Install @polareth/evmstate using your preferred package manager:
+
+```bash
+# Using npm
+npm install @polareth/evmstate
+
+# Using pnpm
+pnpm add @polareth/evmstate
+
+# Using yarn
+yarn add @polareth/evmstate
+```
+
+## RPC provider requirements
+
+@polareth/evmstate needs an Ethereum RPC provider that supports the `debug` namespace methods:
+
+- `debug_traceTransaction`: For analyzing single transactions
+- `debug_traceBlock`: For watching state changes across blocks
+
+Compatible RPC providers include:
+
+- Self-hosted nodes with `debug` namespace enabled (Geth, Erigon)
+- Some specialized services like Alchemy or QuickNode (may require higher tier plans)
+
+## Example initialization
+
+:::code-group
+
+```ts twoslash [example.ts]
+// [!include ~/snippets/abi.ts:mappings] 
+// [!include ~/snippets/client.ts]
+// ---cut---
+import { traceState } from "@polareth/evmstate";
+
+// Basic usage with abi
+// [!include ~/snippets/trace-state.ts:example-featured] 
+```
+
+```ts twoslash [abi.ts]
+// [!include ~/snippets/abi.ts:mappings] 
+```
+
+```ts twoslash [client.ts]
+// [!include ~/snippets/client.ts] 
+```
+
+:::
+
+## Next steps
+
+- [Basic usage examples](/guides/basic-usage)
+- [Understanding the output format](/reference/output-format)

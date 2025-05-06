@@ -1,18 +1,18 @@
-import { Abi, Address, ContractFunctionName, Hex, MemoryClient } from "tevm";
-import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
-import { Common } from "tevm/common";
+import { type Abi, type Address, type ContractFunctionName, type Hex, type MemoryClient } from "tevm";
+import { type Common } from "tevm/common";
 import { abi } from "@shazow/whatsabi";
-import { AbiStateMutability, ContractFunctionArgs } from "viem";
+import { type AbiStateMutability, type ContractFunctionArgs } from "viem";
 
-import { ExploreStorageConfig } from "@/lib/explore/config";
-import {
+import { type ExploreStorageConfig } from "@/lib/explore/config.js";
+import type {
   DeepReadonly,
   ParseSolidityType,
   PathSegment,
   SolidityTypeToTsType,
   VariableExpression,
   VariablePathSegments,
-} from "@/lib/explore/types";
+} from "@/lib/explore/types.js";
+import { type SolcStorageLayout, type SolcStorageLayoutTypes } from "@/lib/solc.js";
 
 /* -------------------------------------------------------------------------- */
 /*                                    TRACE                                   */
@@ -29,17 +29,28 @@ export type TraceStateOptions<
  * Base options for analyzing storage access patterns during transaction simulation.
  *
  * Note: You will need to provide either a memory client or a JSON-RPC URL.
- *
- * @param client - Use existing memory client (either this or fork/rpcUrl is required)
- * @param rpcUrl - JSON-RPC URL for creating a memory client
- * @param common - EVM chain configuration (improves performance by avoiding fetching chain info)
- * @param explorers - Explorers urls and keys to use for fetching contract sources and ABI
  */
 export type TraceStateBaseOptions = {
+  /** An existing memory client to use for tracing (either this or fork/rpcUrl is required) */
   client?: MemoryClient;
+  /** JSON-RPC URL for creating a memory client */
   rpcUrl?: string;
+  /** EVM chain configuration (improves performance by avoiding fetching chain info) */
   common?: Common;
 
+  /** Optional storage layouts to help labeling the trace */
+  storageLayouts?: Record<Address, SolcStorageLayout | DeepReadonly<SolcStorageLayout>>;
+  /** Whether to try to fetch storage layouts for touched accounts (default: true) */
+  fetchStorageLayouts?: boolean;
+  /**
+   * Whether to try to fetch contract infos for touched accounts (default: true)
+   *
+   * Note: This is used for retrieving ABIs and storage layouts, so setting this to false will be effective only if
+   * `fetchStorageLayouts` is also set to false.
+   */
+  fetchContracts?: boolean;
+
+  /** Explorers urls and keys to use for fetching contract sources and ABI */
   explorers?: {
     etherscan?: {
       baseUrl: string;

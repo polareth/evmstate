@@ -1,13 +1,18 @@
-import { Buffer } from "buffer"; // TODO: we'll probably have issues in the browser with this
-import { SolcStorageLayout, SolcStorageLayoutMappingType, SolcStorageLayoutTypes } from "tevm/bundler/solc";
-import { AbiTypeToPrimitiveType } from "abitype";
-import { decodeAbiParameters, Hex, keccak256, padHex, toBytes, toHex } from "viem";
+import type { AbiTypeToPrimitiveType } from "abitype";
+import { bytesToString, decodeAbiParameters, keccak256, padHex, toBytes, toHex, type Hex } from "viem";
 
-import { debug } from "@/debug";
-import { ExploreStorageConfig } from "@/lib/explore/config";
-import { computeMappingSlot, sortCandidateKeys } from "@/lib/explore/mapping";
-import { AbiTypeInplace, DecodedResult, PathSegment, PathSegmentKind, TypePriority } from "@/lib/explore/types";
-import { decodeSlotDiffForPrimitive, max, toHexFullBytes } from "@/lib/explore/utils";
+import { type ExploreStorageConfig } from "@/lib/explore/config.js";
+import { computeMappingSlot, sortCandidateKeys } from "@/lib/explore/mapping.js";
+import {
+  PathSegmentKind,
+  TypePriority,
+  type AbiTypeInplace,
+  type DecodedResult,
+  type PathSegment,
+} from "@/lib/explore/types.js";
+import { decodeSlotDiffForPrimitive, max, toHexFullBytes } from "@/lib/explore/utils.js";
+import type { SolcStorageLayout, SolcStorageLayoutMappingType } from "@/lib/solc.js";
+import { logger } from "@/logger.js";
 
 /**
  * Memory-efficient implementation of storage exploration.
@@ -181,7 +186,7 @@ export const exploreStorage = (
 
       // If we can't even decode the current state, we can't proceed
       if (!currentDecoded) {
-        debug(`Failed to decode initial bytes/string content for slot ${baseSlotHex}`);
+        logger.error(`Failed to decode initial bytes/string content for slot ${baseSlotHex}`);
         return;
       }
 
@@ -205,7 +210,7 @@ export const exploreStorage = (
         if (nextDecoded) {
           nextDecoded.usedSlots.forEach((slot) => allContentSlots.add(slot));
         } else {
-          debug(`Failed to decode next bytes/string content for slot ${baseSlotHex}`);
+          logger.error(`Failed to decode next bytes/string content for slot ${baseSlotHex}`);
           // Continue anyway, just won't have 'next' data for content
         }
       }
@@ -419,7 +424,7 @@ export const exploreStorage = (
         const hex = toHexFullBytes(data);
         if (typeLabel === "string") {
           try {
-            content = Buffer.from(data).toString("utf8");
+            content = bytesToString(data);
           } catch {
             content = hex; // Fallback to hex if UTF-8 decoding fails
           }
@@ -499,7 +504,7 @@ export const exploreStorage = (
         let content: string;
         if (typeLabel === "string") {
           try {
-            content = Buffer.from(contentBytes).toString("utf8");
+            content = bytesToString(contentBytes);
             // Check if decoding resulted in replacement characters, indicating potential issues
             if (content.includes("\uFFFD")) {
               note = (note ? note + " " : "") + "Contains invalid UTF-8 sequences.";
@@ -523,7 +528,7 @@ export const exploreStorage = (
         };
       }
     } catch (error) {
-      debug(`Error decoding bytes/string content for base slot ${baseSlotHex}:`, error);
+      logger.error(`Error decoding bytes/string content for base slot ${baseSlotHex}:`, error);
       return null; // Return null on any unexpected error
     }
   };

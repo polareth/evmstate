@@ -1,0 +1,56 @@
+# API Overview
+
+@polareth/evmstate provides three main APIs for analyzing Ethereum state changes:
+
+## traceState
+
+Main function for tracing state changes from a transaction.
+
+```typescript twoslash
+import type { TraceStateOptions, LabeledStateDiff } from "@polareth/evmstate";
+import type { Address } from "tevm";
+
+// @ts-expect-error - Function implementation is missing
+function traceState(options: TraceStateOptions): Promise<Record<Address, LabeledStateDiff>>;
+```
+
+Use `traceState` when you need to analyze a single transaction and don't need to reuse configuration.
+
+[API reference →](/api/trace-state)
+
+## Tracer
+
+Class for creating reusable tracing instances with shared configuration.
+
+```typescript twoslash
+import type { TraceStateBaseOptions, LabeledStateDiff, TraceStateTxParams } from "@polareth/evmstate";
+import type { Abi, ContractFunctionName, Address } from "tevm";
+
+class Tracer {
+  // @ts-expect-error - Constructor implementation is missing
+  constructor(options: TraceStateBaseOptions);
+  // @ts-expect-error - Function implementation is missing
+  traceState(txOptions: TraceStateTxParams): Promise<Record<Address, LabeledStateDiff>>;
+}
+```
+
+Use `Tracer` when you need to perform multiple traces with the same configuration.
+
+[API reference →](/api/tracer)
+
+## watchState
+
+Function for monitoring state changes for a specific address.
+
+```typescript twoslash
+import type { WatchStateOptions, DeepReadonly, SolcStorageLayout } from "@polareth/evmstate";
+
+// @ts-expect-error - Function implementation is missing
+function watchState<TStorageLayout extends DeepReadonly<SolcStorageLayout> | undefined = undefined>(
+  options: WatchStateOptions<TStorageLayout>
+): Promise<() => void>;
+```
+
+Use `watchState` to continuously monitor an address for state changes across multiple blocks.
+
+[API reference →](/api/watch-state)

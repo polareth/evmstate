@@ -3,16 +3,16 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "path";
 import { createCache } from "@tevm/bundler-cache";
 import { createMemoryClient } from "tevm";
-import { FileAccessObject } from "tevm/bundler";
-import { ResolvedCompilerConfig } from "tevm/bundler/config";
-import { createSolc, SolcStorageLayout } from "tevm/bundler/solc";
+import { type FileAccessObject } from "tevm/bundler";
+import { type ResolvedCompilerConfig } from "tevm/bundler/config";
 import { EthjsAccount, parseEther } from "tevm/utils";
 import { toFunctionSelector } from "viem";
 import { beforeEach, vi } from "vitest";
 
-import { ACCOUNTS, CONTRACTS } from "@test/constants";
-import { debug } from "@/debug";
-import * as storageLayout from "@/lib/trace/storage-layout";
+import { ACCOUNTS, CONTRACTS } from "@test/constants.js";
+import { createSolc, type SolcStorageLayout } from "@/lib/solc.js";
+import * as storageLayout from "@/lib/trace/storage-layout.js";
+import { logger } from "@/logger.js";
 
 beforeEach(async () => {
   const client = createMemoryClient({ loggingLevel: "warn" });
@@ -107,7 +107,7 @@ const setupContractsMock = () => {
   vi.spyOn(storageLayout, "getStorageLayout").mockImplementation(async ({ address, sources }) => {
     // Return empty layout if we're missing critical information
     if (!sources || sources.length === 0) {
-      debug(`Missing compiler info for ${address}. Cannot generate storage layout.`);
+      logger.error(`Missing compiler info for ${address}. Cannot generate storage layout.`);
       return undefined;
     }
 
@@ -117,7 +117,7 @@ const setupContractsMock = () => {
       );
 
       if (!contract?.name) {
-        debug(`Could not find contract name for address ${address}`);
+        logger.error(`Could not find contract name for address ${address}`);
         return undefined;
       }
 
@@ -170,7 +170,7 @@ const setupContractsMock = () => {
       }
 
       if (!layout) {
-        debug(`Could not find storage layout for contract ${contract.name}`);
+        logger.error(`Could not find storage layout for contract ${contract.name}`);
         return undefined;
       }
 
@@ -179,7 +179,7 @@ const setupContractsMock = () => {
         types: layout.types || {},
       };
     } catch (error) {
-      debug(`Error generating storage layout for ${address}:`, error);
+      logger.error(`Error generating storage layout for ${address}:`, error);
       return undefined;
     }
   });

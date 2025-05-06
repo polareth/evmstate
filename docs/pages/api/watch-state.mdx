@@ -1,0 +1,171 @@
+# watchState
+
+Monitors state changes for a specific Ethereum address by watching new blocks and tracing transactions. It provides notifications when the address's state is accessed or modified.
+
+## Signature
+
+```typescript twoslash
+import type { Address } from "tevm";
+import type { WatchStateOptions, StateChange, SolcStorageLayout, DeepReadonly } from "@polareth/evmstate";
+
+// @ts-expect-error - Function implementation is missing
+function watchState<TStorageLayout extends DeepReadonly<SolcStorageLayout> | undefined = undefined>(
+  options: WatchStateOptions<TStorageLayout>,
+): Promise<() => void>;
+```
+
+## Parameters
+
+The function accepts a single options object with these properties:
+
+| Property          | Type                                                 | Description                                     |
+| ----------------- | ---------------------------------------------------- | ----------------------------------------------- |
+| `address`         | `Address`                                            | The Ethereum address to monitor                 |
+| `onStateChange`   | `(stateChange: StateChange<TStorageLayout>) => void` | Callback for state changes                      |
+| `onError`         | `(error: Error) => void \| undefined`                | Optional error handling callback                |
+| `pollingInterval` | `number \| undefined`                                | Optional polling interval in ms (default: 1000) |
+| `storageLayout`   | `TStorageLayout \| undefined`                        | Optional contract storage layout                |
+| `abi`             | `Abi \| undefined`                                   | Optional contract ABI                           |
+| `rpcUrl`          | `string \| undefined`                                | Ethereum RPC endpoint URL                       |
+| `client`          | `MemoryClient \| undefined`                          | Optional Tevm client instance                   |
+| `explorers`       | `Record<string, Explorer> \| undefined`              | Optional contract explorers configuration       |
+
+## Return value
+
+Returns a promise that resolves to an unsubscribe function:
+
+```typescript twoslash
+type Unsubscribe = () => void;
+```
+
+Call this function to stop watching for state changes.
+
+## Type parameters
+
+```typescript twoslash
+import type { SolcStorageLayout, DeepReadonly } from "@polareth/evmstate";
+
+type TStorageLayout = /* extends */ DeepReadonly<SolcStorageLayout> | undefined;
+```
+
+By providing a storage layout with the `as const` assertion, TypeScript will infer precise types for all state change properties, enhancing the developer experience with autocompletion and type checking.
+
+## Examples
+
+### Basic usage
+
+```typescript twoslash
+import { watchState } from "@polareth/evmstate";
+
+// Start watching an address
+const unsubscribe = await watchState({
+  rpcUrl: "https://1.rpc.thirdweb.com",
+  address: "0xContractAddress",
+  onStateChange: (stateChange) => {
+    console.log("Transaction:", stateChange.txHash);
+
+    // Check balance changes
+    if (stateChange.balance?.modified) {
+      console.log("Balance changed:", {
+        from: stateChange.balance.current,
+        to: stateChange.balance.next,
+      });
+    }
+
+    // Print storage changes
+    if (stateChange.storage) {
+      console.log("Storage accessed:", Object.keys(stateChange.storage));
+    }
+  },
+  onError: (error) => {
+    console.error("Watch error:", error);
+  },
+});
+
+// Later, stop watching
+unsubscribe();
+```
+
+### With storage layout and ABI
+
+:::code-group
+```typescript twoslash [example.ts]
+// [!include ~/snippets/abi.ts:erc20]
+// [!include ~/snippets/layout.ts:erc20]
+
+// ---cut---
+import { watchState } from "@polareth/evmstate";
+
+// Watch with enhanced typing
+const unsubscribe = await watchState({
+  rpcUrl: "https://1.rpc.thirdweb.com",
+  address: "0xTokenAddress",
+  storageLayout: erc20Layout, // Type assertion with as const
+  abi: erc20Abi,
+  onStateChange: (stateChange) => {
+    // TypeScript knows the exact structure of stateChange.storage
+
+    // Access totalSupply (if changed)
+    if (stateChange.storage?.totalSupply) {
+      const totalSupply = stateChange.storage.totalSupply.trace[0];
+      if (totalSupply.modified) {
+        console.log("Total supply changed:", {
+          from: totalSupply.current?.decoded,
+          to: totalSupply.next?.decoded,
+        });
+      }
+    }
+
+    // Access balances mapping
+    if (stateChange.storage?.balances) {
+      const balances = stateChange.storage.balances.trace;
+      balances.forEach((entry) => {
+        if (entry.modified) {
+          // TypeScript knows this is an address key
+          const address = entry.path[0].key;
+          console.log(`Balance changed for ${address}:`, {
+            from: entry.current?.decoded,
+            to: entry.next?.decoded,
+          });
+        }
+      });
+    }
+  },
+});
+```
+
+```typescript twoslash [layout.ts]
+// [!include ~/snippets/layout.ts:erc20]
+```
+
+```typescript twoslash [abi.ts]
+// [!include ~/snippets/abi.ts:erc20]
+```
+
+:::
+
+### With custom Tevm client
+
+```typescript twoslash
+import { createMemoryClient, http } from "tevm";
+import { mainnet } from "tevm/common";
+import { watchState } from "@polareth/evmstate";
+
+// Create custom client
+const client = createMemoryClient({
+  common: mainnet,
+  fork: {
+    transport: http("https://1.rpc.thirdweb.com"),
+    blockTag: "latest",
+  },
+});
+
+// Watch with custom client
+const unsubscribe = await watchState({
+  client,
+  address: "0xContractAddress",
+  onStateChange: (stateChange) => {
+    console.log("State changed:", stateChange);
+  },
+});
+```

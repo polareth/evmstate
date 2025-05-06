@@ -1,14 +1,14 @@
-import { SolcStorageLayout } from "tevm/bundler/solc";
-import { Address } from "tevm/utils";
+import { type Address } from "tevm/utils";
 import { abi } from "@shazow/whatsabi";
 import { toFunctionSignature } from "viem";
 
-import { labelStateDiff } from "@/lib/explore/label";
-import { DeepReadonly } from "@/lib/explore/types";
-import { debugTraceBlock } from "@/lib/trace/debug";
-import { getContracts, getStorageLayout } from "@/lib/trace/storage-layout";
-import { createClient } from "@/lib/trace/utils";
-import { StateChange, WatchStateOptions } from "@/lib/watch/types";
+import { labelStateDiff } from "@/lib/explore/label.js";
+import { type DeepReadonly } from "@/lib/explore/types.js";
+import { type SolcStorageLayout } from "@/lib/solc.js";
+import { debugTraceBlock } from "@/lib/trace/debug.js";
+import { getContracts, getStorageLayout } from "@/lib/trace/storage-layout.js";
+import { createClient } from "@/lib/trace/utils.js";
+import { type StateChange, type WatchStateOptions } from "@/lib/watch/types.js";
 
 /**
  * A naive and inefficient implementation of watching state changes.

@@ -20,7 +20,7 @@ contract Mappings {
     mapping(address => UserInfo) private userInfo;
 
     // Mapping to an array
-    mapping(uint256 => uint256[]) private arrayMapping;
+    mapping(uint256 => uint256[]) private purchases;
 
     function setBalance(address user, uint256 amount) public {
         balances[user] = amount;
@@ -39,7 +39,7 @@ contract Mappings {
     }
 
     function setArrayMapping(uint256 index, uint256 value) public {
-        arrayMapping[index].push(value);
+        purchases[index].push(value);
     }
 
     function getAllowance(address owner, address spender) public view returns (uint256) {
@@ -59,7 +59,7 @@ contract Mappings {
     }
 
     function getArrayMapping(uint256 index) public view returns (uint256[] memory) {
-        return arrayMapping[index];
+        return purchases[index];
     }
 
     function updateUserBalance(address user, uint256 newBalance) public {

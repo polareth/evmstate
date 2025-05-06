@@ -1,0 +1,25 @@
+{
+  "index": "Home",
+  "quickstart": "Quickstart",
+  "guides": {
+    "title": "Guides",
+    "type": "separator"
+  },
+  "guides/installation": "Installation",
+  "guides/basic-usage": "Basic usage",
+  "guides/usage-examples": "Examples",
+  "api": {
+    "title": "API",
+    "type": "separator"
+  },
+  "api/index": "Overview",
+  "api/trace-state": "traceState",
+  "api/tracer": "Tracer",
+  "api/watch-state": "watchState",
+  "reference": {
+    "title": "Reference",
+    "type": "separator"
+  },
+  "reference/output-format": "Output format",
+  "reference/storage-types": "Storage types"
+}

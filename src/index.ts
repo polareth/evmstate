@@ -1,4 +1,4 @@
-export { traceState, Tracer } from "@/lib/trace";
+export { traceState, Tracer } from "@/lib/trace/index.js";
 export type {
   // Solidity type extraction (mapping, array, struct)
   ExtractMappingKeyType,
@@ -17,7 +17,6 @@ export type {
   GetMappingKeysTuple,
   // Path segment types
   PathSegment,
-  PathSegmentKind,
   VariablePathSegments,
   VariableExpression,
   FullExpression,
@@ -29,8 +28,9 @@ export type {
   // Helpers
   DeepReadonly,
   AbiTypeInplace,
-} from "@/lib/explore/types";
-export type { ExploreStorageConfig } from "@/lib/explore/config";
+} from "@/lib/explore/types.js";
+export { PathSegmentKind } from "@/lib/explore/types.js";
+export type { ExploreStorageConfig } from "@/lib/explore/config.js";
 
 export type {
   // Options
@@ -45,7 +45,9 @@ export type {
   LabeledStorageDiff,
   LabeledStorageDiffTrace,
   LabeledIntrinsicsDiff,
-} from "@/lib/trace/types";
+} from "@/lib/trace/types.js";
 
-export { watchState } from "@/lib/watch";
-export type { WatchStateOptions, StateChange } from "@/lib/watch/types";
+export { watchState } from "@/lib/watch/index.js";
+export type { WatchStateOptions, StateChange } from "@/lib/watch/types.js";
+
+export type { SolcStorageLayout } from "tevm/bundler/solc";

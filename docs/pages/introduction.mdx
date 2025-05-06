@@ -1,0 +1,119 @@
+# @polareth/evmstate
+
+A TypeScript library for tracing and visualizing EVM state changes with detailed human-readable labeling.
+
+## Overview
+
+@polareth/evmstate traces all state changes after a transaction execution in a local VM, or by watching transactions in incoming blocks. It retrieves and labels storage slots with semantic insights and provides a detailed diff of all changes.
+
+As an alternative to event logs for tracking state, it captures and labels every state change with precise semantic information:
+
+- Variable names
+- Mapping keys
+- Array indices
+- Decoded values
+- Path tracing from base slots to final values
+
+Powered by [Tevm](https://github.com/evmts/tevm-monorepo) and [whatsabi](https://github.com/shazow/whatsabi).
+
+## Installation
+
+```bash
+npm install @polareth/evmstate
+# or
+pnpm add @polareth/evmstate
+# or
+yarn add @polareth/evmstate
+```
+
+## Quick start
+
+:::code-group
+
+```ts twoslash [example.ts]
+// [!include ~/snippets/abi.ts:mappings] 
+// [!include ~/snippets/layout.ts:mappings] 
+// [!include ~/snippets/client.ts] 
+// ---cut---
+import { traceState, watchState } from "@polareth/evmstate";
+
+// Trace a transaction
+// [!include ~/snippets/trace-state.ts:abi] 
+
+// Watch an account's state
+// [!include ~/snippets/watch-state.ts:watchState] 
+```
+
+```ts twoslash [layout.ts]
+// [!include ~/snippets/layout.ts:mappings] 
+```
+
+```ts twoslash [abi.ts]
+// [!include ~/snippets/abi.ts:mappings] 
+```
+
+```ts twoslash [client.ts]
+// [!include ~/snippets/client.ts] 
+```
+
+:::
+
+## Key features
+
+- **Complete state tracing**: Track all storage slots accessed during transaction execution
+- **Human-readable labeling**: Label slots with variable names and provide access paths
+- **Intelligent key detection**: Extract mapping keys and array indices from transaction data
+- **Type-aware decoding**: Convert raw storage values to appropriate TypeScript types with automatic type inference
+
+## Example output
+
+```typescript
+{
+  "0xContractAddress": {
+    "balance": {
+      "current": 0n,
+      "modified": false,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": false,
+    },
+    ...
+    "storage": {
+      "counter": {
+        "kind": "primitive",
+        "name": "counter",
+        "type": "uint256",
+        "trace": [
+          {
+            "current": { "hex": "0x05", "decoded": 5n },
+            "modified": true,
+            "next": { "hex": "0x06", "decoded": 6n },
+            "fullExpression": "counter",
+            "slots": ["0x0000000000000000000000000000000000000000000000000000000000000000"]
+          }
+        ]
+      }
+    }
+  },
+  "0xCallerAddress": {
+    "balance": {
+      "current": 1000000000000000000n,
+      "modified": true,
+      "next": 999999998747698854n,
+    },
+    "nonce": {
+      "current": 0n,
+      "modified": true,
+      "next": 1n,
+    },
+    ...
+  },
+}
+```
+
+## Documentation
+
+- [Installation](/guides/installation)
+- [Basic usage](/guides/basic-usage)
+- [Understanding output formats](/reference/output-format)

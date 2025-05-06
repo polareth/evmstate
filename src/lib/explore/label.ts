@@ -1,16 +1,21 @@
-import { Abi } from "tevm";
-import { TraceResult } from "tevm/actions";
-import { SolcStorageLayout, SolcStorageLayoutTypes } from "tevm/bundler/solc";
-import { Address, ContractFunctionName, Hex } from "tevm/utils";
+import { type Abi } from "tevm";
+import { type TraceResult } from "tevm/actions";
+import { type Address, type ContractFunctionName, type Hex } from "tevm/utils";
 import { abi } from "@shazow/whatsabi";
 import { trim } from "viem";
 
-import { debug } from "@/debug";
-import { exploreStorage } from "@/lib/explore";
-import { parseConfig } from "@/lib/explore/config";
-import { extractPotentialKeys } from "@/lib/explore/mapping";
-import { LabeledIntrinsicsDiff, LabeledStateDiff, LabeledStorageDiff, TraceStateOptions } from "@/lib/trace/types";
-import { cleanTrace } from "@/lib/trace/utils";
+import { parseConfig } from "@/lib/explore/config.js";
+import { exploreStorage } from "@/lib/explore/index.js";
+import { extractPotentialKeys } from "@/lib/explore/mapping.js";
+import { type SolcStorageLayout, type SolcStorageLayoutTypes } from "@/lib/solc.js";
+import type {
+  LabeledIntrinsicsDiff,
+  LabeledStateDiff,
+  LabeledStorageDiff,
+  TraceStateOptions,
+} from "@/lib/trace/types.js";
+import { cleanTrace } from "@/lib/trace/utils.js";
+import { logger } from "@/logger.js";
 
 export const labelStateDiff = <
   TAbi extends Abi | readonly unknown[] = Abi,
@@ -43,7 +48,7 @@ export const labelStateDiff = <
   };
 
   const potentialKeys = extractPotentialKeys(dedupedTraceLog, uniqueAddresses, abiFunctions, options);
-  debug(`Extracted ${potentialKeys.length} unique potential values from the trace`);
+  logger.log(`Extracted ${potentialKeys.length} unique potential values from the trace`);
 
   // Process each address and create enhanced trace with labels
   return uniqueAddresses.reduce(

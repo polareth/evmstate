@@ -1,10 +1,10 @@
-import { Address } from "tevm";
-import { createSolc, releases, SolcSettings, SolcStorageLayout } from "tevm/bundler/solc";
+import { type Address } from "tevm";
 import { randomBytes } from "tevm/utils";
 import { autoload, loaders } from "@shazow/whatsabi";
 
-import { debug } from "@/debug";
-import { GetContractsOptions, GetContractsResult } from "@/lib/trace/types";
+import { createSolc, getReleases, type Releases, type SolcSettings, type SolcStorageLayout } from "@/lib/solc.js";
+import type { GetContractsOptions, GetContractsResult } from "@/lib/trace/types.js";
+import { logger } from "@/logger.js";
 
 const ignoredSourcePaths = ["metadata.json", "creator-tx-hash.txt", "immutable-references"];
 
@@ -75,12 +75,13 @@ export const getStorageLayout = async ({
 
   // Return empty layout if we're missing critical information
   if (!compilerVersion || !evmVersion || !sources || sources.length === 0) {
-    debug(`Missing compiler info for ${address}. Cannot generate storage layout.`);
+    logger.error(`Missing compiler info for ${address}. Cannot generate storage layout.`);
     return undefined;
   }
 
   try {
-    const solc = await createSolc(getSolcVersion(compilerVersion));
+    const release = await getSolcVersion(compilerVersion);
+    const solc = await createSolc(release);
     const output = solc.compile({
       language: "Solidity",
       settings: {
@@ -95,7 +96,10 @@ export const getStorageLayout = async ({
     });
 
     if (output.errors && Object.keys(output.contracts).length === 0) {
-      debug(`Errors when generating storage layout for ${address} with version ${compilerVersion}:`, output.errors);
+      logger.error(
+        `Errors when generating storage layout for ${address} with version ${compilerVersion}:`,
+        output.errors,
+      );
       return undefined;
     }
 
@@ -103,7 +107,7 @@ export const getStorageLayout = async ({
     let contractLayout = findMostRelevantLayout(output, name);
 
     if (!contractLayout) {
-      debug(`Could not find a relevant storage layout for ${address} (${name || "unnamed"})`);
+      logger.error(`Could not find a relevant storage layout for ${address} (${name || "unnamed"})`);
       return undefined;
     }
 
@@ -142,7 +146,7 @@ export const getStorageLayout = async ({
 
     return { storage, types };
   } catch (error) {
-    debug(`Error generating storage layout for ${address}:`, error);
+    logger.error(`Error generating storage layout for ${address}:`, error);
     return undefined;
   }
 };
@@ -193,11 +197,12 @@ export const findMostRelevantLayout = (output: any, contractName?: string): Solc
 };
 
 /** Converts a compiler version string to a recognized solc version */
-const getSolcVersion = (_version: string) => {
+const getSolcVersion = async (_version: string) => {
   try {
+    const releases = await getReleases();
     // Try exact version match first
     const release = Object.entries(releases).find(([_, v]) => v.includes(_version));
-    if (release) return release[0] as keyof typeof releases;
+    if (release) return release[0] as keyof Releases;
 
     // Try approximate match (e.g. 0.8.17 might match with 0.8.19)
     const majorMinor = _version.split(".").slice(0, 2).join(".");
@@ -206,15 +211,15 @@ const getSolcVersion = (_version: string) => {
       .sort((a, b) => b[1].localeCompare(a[1]))[0]; // Sort to get latest
 
     if (fallbackRelease) {
-      debug(`Exact Solc version ${_version} not found, using ${fallbackRelease[1]}`);
-      return fallbackRelease[0] as keyof typeof releases;
+      logger.error(`Exact Solc version ${_version} not found, using ${fallbackRelease[1]}`);
+      return fallbackRelease[0] as keyof Releases;
     }
 
     // Default to a recent 0.8.x version
-    debug(`No compatible Solc version for ${_version}, using fallback`);
-    return "0.8.17" as keyof typeof releases;
+    logger.error(`No compatible Solc version for ${_version}, using fallback`);
+    return "0.8.17" as keyof Releases;
   } catch (error) {
-    debug(`Error finding Solc version for ${_version}:`, error);
-    return "0.8.17" as keyof typeof releases;
+    logger.error(`Error finding Solc version for ${_version}:`, error);
+    return "0.8.17" as keyof Releases;
   }
 };
