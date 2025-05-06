@@ -103,8 +103,12 @@ export const extractPotentialKeys = <
     try {
       const abiFunction = abiFunctions.find((fn) => fn.name === functionName);
       (args as unknown[]).forEach((arg, index) => {
+        if (typeof arg === "string" && arg.length > 66) {
+          logger.log(`arg ${index} is more than 32 bytes: ${arg}`);
+          return;
+        }
+
         const type = abiFunction?.inputs?.[index]?.type as AbiType | undefined;
-        console.log({ type, arg });
         const hex = type ? padHex(encodeAbiParameters([{ type }], [arg]), { size: 32 }) : undefined;
         if (!hex) {
           logger.error(`Failed to extract arg ${index} from ${functionName}: ${arg}`);
