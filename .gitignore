@@ -3,5 +3,6 @@ dist
 .tevm
 .env.test
 .tsbuildinfo
+tsconfig.build.tsbuildinfo
 .cursorrules
 llm_refs
