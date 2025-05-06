@@ -14,7 +14,12 @@
     "labeling",
     "trace"
   ],
-  "author": "0xpolarzero",
+  "author": "polareth",
+  "contributors": [
+    {
+      "name": "0xpolarzero"
+    }
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
