@@ -18,52 +18,50 @@ const { caller } = ACCOUNTS;
  * 4. Tracing interactions with created contracts
  */
 describe("Contract creation", () => {
-  describe("Contract creation from a factory contract", () => {
-    it("should trace contract creation and factory state changes", async () => {
-      const client = getClient();
+  it("should trace contract creation and factory state changes", async () => {
+    const client = getClient();
 
-      // Deploy a contract from the factory
-      expect(
-        await traceState({
-          ...Factory.write.createContract(123n),
-          client,
-          from: caller.toString(),
-        }),
-      ).toMatchSnapshot();
-    });
-
-    it("should trace interactions with a created contract", async () => {
-      const client = getClient();
-
-      // First create a contract
-      const { data: contractAddress } = await client.tevmContract({
+    // Deploy a contract from the factory
+    expect(
+      await traceState({
         ...Factory.write.createContract(123n),
+        client,
         from: caller.toString(),
-        addToBlockchain: true,
-      });
-      assert(contractAddress, "Contract address should be defined");
+      }),
+    ).toMatchSnapshot();
+  });
 
-      // Trace a setter function call with the created contract
-      expect(
-        await traceState({
-          ...SimpleContract.write.setValue(456n),
-          client,
-          from: caller.toString(),
-          to: contractAddress,
-        }),
-      ).toMatchSnapshot();
+  it("should trace interactions with a created contract", async () => {
+    const client = getClient();
 
-      // Trace a getter function call with the created contract
-      expect(
-        await traceState({
-          client,
-          from: caller.toString(),
-          to: contractAddress,
-          abi: SimpleContract.abi,
-          functionName: "getValue",
-          args: [],
-        }),
-      ).toMatchSnapshot();
+    // First create a contract
+    const { data: contractAddress } = await client.tevmContract({
+      ...Factory.write.createContract(123n),
+      from: caller.toString(),
+      addToBlockchain: true,
     });
+    assert(contractAddress, "Contract address should be defined");
+
+    // Trace a setter function call with the created contract
+    expect(
+      await traceState({
+        ...SimpleContract.write.setValue(456n),
+        client,
+        from: caller.toString(),
+        to: contractAddress,
+      }),
+    ).toMatchSnapshot();
+
+    // Trace a getter function call with the created contract
+    expect(
+      await traceState({
+        client,
+        from: caller.toString(),
+        to: contractAddress,
+        abi: SimpleContract.abi,
+        functionName: "getValue",
+        args: [],
+      }),
+    ).toMatchSnapshot();
   });
 });
