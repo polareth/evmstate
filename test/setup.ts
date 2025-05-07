@@ -11,6 +11,7 @@ import { beforeEach, vi } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants.js";
 import { createSolc, type SolcStorageLayout } from "@/lib/solc.js";
+import * as trace from "@/lib/trace/index.js";
 import * as storageLayout from "@/lib/trace/storage-layout.js";
 import { logger } from "@/logger.js";
 
@@ -183,4 +184,82 @@ const setupContractsMock = () => {
       return undefined;
     }
   });
+
+  // Add a mock for traceState to strip metadata from bytecode
+  const originalTraceState = trace.traceState;
+  // Strip metadata from bytecode, as it will be different for each environment and break the snapshot tests (different paths to contract files)
+  vi.spyOn(trace, "traceState").mockImplementation(async (params) =>
+    stripMetadataFromTrace(await originalTraceState(params)),
+  );
 };
+
+/**
+ * Recursively processes a trace result to strip metadata hashes from bytecode while preserving compiler version
+ * information.
+ *
+ * This prevents slightly different snapshots depending on test environment just due to a different path structure.
+ */
+function stripMetadataFromTrace(obj: any): any {
+  if (!obj) return obj;
+
+  // Process each address in the trace
+  for (const address of Object.keys(obj)) {
+    const addressData = obj[address];
+
+    // Process code.current & code.next if they exist and are a hex string
+    ["current", "next"].forEach((key) => {
+      if (
+        addressData.code?.[key] &&
+        typeof addressData.code[key] === "string" &&
+        addressData.code[key].startsWith("0x")
+      ) {
+        addressData.code[key] = stripMetadataHash(addressData.code[key]);
+      }
+    });
+  }
+
+  return obj;
+}
+
+/**
+ * Replaces the metadata hash in Solidity bytecode with zeros while preserving compiler info Format can vary but
+ * typically ends with something like: a2646970667358221220...64736f6c634300081c0033
+ */
+function stripMetadataHash(bytecode: string): string {
+  // Look for the solc version marker which appears at the end
+  // 64736f6c6343 = hex for "solc43"
+  // followed by 6 digits for version (e.g., 00081c)
+  // and 0033 as end marker
+  const solcMarker = "64736f6c6343";
+  const endMarker = "0033";
+
+  // Find the last occurrence of the solc marker
+  const solcIndex = bytecode.lastIndexOf(solcMarker);
+
+  if (solcIndex === -1) return bytecode;
+
+  // Check if we have the expected pattern: solcMarker + 6 digits + endMarker
+  const expectedEnd = solcIndex + solcMarker.length + 6 + endMarker.length;
+
+  // If the pattern doesn't match or it's not at the end, return original
+  if (expectedEnd !== bytecode.length || !bytecode.endsWith(endMarker)) {
+    console.log("Bytecode doesn't match expected pattern:", bytecode.slice(-100));
+    return bytecode;
+  }
+
+  // Find the start of the IPFS hash (a264697066735822...)
+  // This typically appears before the solc marker
+  const ipfsMarker = "a264697066735822";
+  const ipfsIndex = bytecode.lastIndexOf(ipfsMarker, solcIndex);
+
+  if (ipfsIndex === -1) {
+    // If no IPFS marker, just zero out a fixed length before the solc marker
+    const hashStartIndex = Math.max(0, solcIndex - 64);
+    const zeroFill = "0".repeat(solcIndex - hashStartIndex);
+    return bytecode.substring(0, hashStartIndex) + zeroFill + bytecode.substring(solcIndex);
+  }
+
+  // Zero out the entire metadata section from IPFS marker to the end
+  const zeroFill = "0".repeat(bytecode.length - ipfsIndex);
+  return bytecode.substring(0, ipfsIndex) + zeroFill;
+}
