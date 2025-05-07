@@ -1,6 +1,7 @@
 import { createMemoryClient, http } from "tevm";
 import { mainnet } from "tevm/common";
 
+// @ts-expect-error - 'client' is declared but never used
 // [!region client-fork]
 const client = createMemoryClient({ // [!code hl]
   common: mainnet, // [!code hl]

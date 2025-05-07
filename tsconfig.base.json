@@ -47,7 +47,11 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@test/*": ["./test/*"]
+      "@test/*": ["./test/*"],
+      // docs
+      "@polareth/evmstate": ["./src"],
+      "@polareth/evmstate/react": ["./src/lib/react"],
+      "~/*": ["./docs/*"]
     }
   }
 }

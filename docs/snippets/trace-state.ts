@@ -1,6 +1,7 @@
-import { traceState } from "@/index.js";
-import { abi } from "./abi.js";
-import { client } from "./client.js";
+import { traceState } from "@polareth/evmstate";
+
+import { abi } from "~/snippets/abi.js";
+import { client } from "~/snippets/client.js";
 
 // @ts-expect-error can't redeclare variable trace
 // [!region example-featured]

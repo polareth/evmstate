@@ -1,12 +1,12 @@
-import type React from "react";
-import { useState } from "react";
 import clsx from "clsx";
 import { ChevronDown, ChevronUp, File, FileDiff, TerminalSquare } from "lucide-react";
 import { Highlight } from "prism-react-renderer";
 import Prism from "prismjs";
-import { cn } from "../../utils.js";
+import type React from "react";
+import { useState } from "react";
 
-import { Button } from "../button.js";
+import { Button } from "~/components/button.js";
+import { cn } from "~/utils.js";
 
 import CodeBlockActions from "./actions.js";
 import CodeBlockLanguageLogo from "./language-logo/index.js";

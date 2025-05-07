@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
 import type { AbiParametersToPrimitiveTypes, Address } from "tevm";
-import type { ContractFunctionArgs } from "viem";
-import { traceState, type LabeledStateDiff } from "../../dist/index.js";
 import { createMemoryClient, parseEther } from "tevm";
-import * as CONTRACTS from "../../test/contracts/index.js";
-import * as LAYOUTS from "../../test/generated/layouts/index.js";
-import CodeBlock from "./code-block/index.js";
-import { Button } from "./button.js";
 import type { ExtractAbiFunctions } from "abitype";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { ContractFunctionArgs } from "viem";
+
+import { traceState, type LabeledStateDiff } from "@polareth/evmstate";
+import * as CONTRACTS from "@test/contracts/index.js";
+import * as LAYOUTS from "@test/generated/layouts/index.js";
+
+import { Button } from "~/components/button.js";
+import CodeBlock from "~/components/code-block/index.js";
 
 const callerAddress = "0xca11e40000000000000000000000000000000000";
 

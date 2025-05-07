@@ -1,7 +1,8 @@
-import { PathSegmentKind, watchState, type StateChange } from "../../dist/index.js";
-import { abi } from "./abi.js";
-import { client } from "./client.js";
-import { layout } from "./layout.js";
+import { PathSegmentKind, watchState, type StateChange } from "@polareth/evmstate";
+
+import { abi } from "~/snippets/abi.js";
+import { client } from "~/snippets/client.js";
+import { layout } from "~/snippets/layout.js";
 
 // [!region watchState]
 const unsubscribe = await watchState({

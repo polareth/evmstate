@@ -12,8 +12,21 @@
   "requirePragma": false,
 
   "importOrderBuiltinModulesToTop": true,
-  "importOrderParserPlugins": ["typescript", "decorators-legacy"],
+  "importOrderParserPlugins": ["typescript", "jsx", "decorators-legacy"],
   "importOrderCombineTypeAndValueImports": true,
   "plugins": ["@ianvs/prettier-plugin-sort-imports", "prettier-plugin-jsdoc"],
-  "importOrder": ["tevm", "^tevm/(.*)$", "<THIRD_PARTY_MODULES>", "", "^@test/(.*)$", "^@/(.*)$", "", "^[./]"]
+  "importOrder": [
+    "tevm",
+    "^tevm/(.*)$",
+    "<THIRD_PARTY_MODULES>",
+    "",
+    "@polareth/evmstate",
+    "@polareth/evmstate/react",
+    "^@test/(.*)$",
+    "^@/(.*)$",
+    "",
+    "~/*",
+    "",
+    "^[./]"
+  ]
 }

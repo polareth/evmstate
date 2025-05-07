@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
 import { Check, ClipboardIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { Button } from "~/components/button.js";
 
 import { codeBlockActionsVariants } from "./styles.js";
 import type { CodeBlockActionsProps } from "./types.js";
-import { Button } from "../button.js";
+
 // -----------------------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------------------

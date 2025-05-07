@@ -1,5 +1,6 @@
-import { type ButtonHTMLAttributes, forwardRef } from "react";
-import { cn } from "../utils.js";
+import { forwardRef, type ButtonHTMLAttributes } from "react";
+
+import { cn } from "~/utils.js";
 
 // Button props interface
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {

@@ -106,14 +106,6 @@ export default defineConfig({
     { text: "Playground", link: "/playground" },
     { text: "Github", link: "https://github.com/polareth/evmstate" },
   ],
-  // twoslash: {
-  //   compilerOptions: {
-  //     paths: {
-  //       "@polareth/evmstate": ["dist"],
-  //       "@polareth/evmstate/react": ["dist/react"],
-  //     },
-  //   },
-  // },
   vite: {
     plugins: [vitePluginTevm({ solc: "0.8.23" }), tsconfigPaths()],
   },
