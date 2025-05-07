@@ -27,12 +27,12 @@ export default defineConfig({
     code: {
       themes: {
         dark: "poimandres",
-        light: JSON.parse(fs.readFileSync(path.join(__dirname, "docs/themes/theme-light.json"), "utf8")),
+        light: JSON.parse(fs.readFileSync(path.join(__dirname, "themes/theme-light.json"), "utf8")),
       },
     },
   },
   ogImageUrl: "https://vocs.dev/api/og?logo=%logo&title=%title&description=%description",
-  rootDir: "docs",
+  rootDir: ".",
   socials: [
     { icon: "github", link: "https://github.com/polareth" },
     { icon: "x", link: "https://twitter.com/polarethorg" },
@@ -106,14 +106,14 @@ export default defineConfig({
     { text: "Playground", link: "/playground" },
     { text: "Github", link: "https://github.com/polareth/evmstate" },
   ],
-  twoslash: {
-    compilerOptions: {
-      paths: {
-        "@polareth/evmstate": ["dist"],
-        "@polareth/evmstate/react": ["dist/react"],
-      },
-    },
-  },
+  // twoslash: {
+  //   compilerOptions: {
+  //     paths: {
+  //       "@polareth/evmstate": ["dist"],
+  //       "@polareth/evmstate/react": ["dist/react"],
+  //     },
+  //   },
+  // },
   vite: {
     plugins: [vitePluginTevm({ solc: "0.8.23" }), tsconfigPaths()],
   },

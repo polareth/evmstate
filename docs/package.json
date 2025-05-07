@@ -1,0 +1,28 @@
+{
+  "name": "@polareth/evmstate-docs",
+  "version": "0.0.0",
+  "description": "Documentation for @polareth/evmstate",
+  "type": "module",
+  "scripts": {
+    "dev": "vocs dev",
+    "build": "vocs build",
+    "preview": "vocs preview",
+    "prepare": "tsx scripts/prepare.ts"
+  },
+  "dependencies": {
+    "@polareth/evmstate": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.507.0",
+    "prism-react-renderer": "^2.4.1",
+    "prismjs": "^1.30.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwind-merge": "^3.2.0",
+    "vocs": "1.0.11"
+  },
+  "devDependencies": {
+    "@types/prismjs": "^1.26.5",
+    "tailwindcss": "^4.1.5"
+  }
+}
