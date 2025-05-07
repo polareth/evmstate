@@ -13,9 +13,6 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
-      - name: pnpm install
-        run: pnpm install --frozen-lockfile
-
       - name: Create .env.test file
         run: |
           echo "MAINNET_RPC_URL=${{ secrets.MAINNET_RPC_URL }}" > .env.test
