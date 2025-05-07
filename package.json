@@ -1,6 +1,6 @@
 {
   "name": "@polareth/evmstate",
-  "version": "0.0.0-semantically-released",
+  "version": "0.1.0",
   "description": "A TypeScript library for tracing, and visualizing EVM state changes with detailed human-readable labeling.",
   "keywords": [
     "evm",
@@ -38,6 +38,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "build:clean": "rm -rf dist && rm -rf tsconfig.build.tsbuildinfo",
+    "changeset": "changeset",
+    "changeset:publish": "pnpm build && changeset publish",
+    "changeset:version": "changeset version && pnpm install --lockfile-only",
     "prepare": "tsx scripts/prepare.ts",
     "docs:dev": "pnpm build && vocs dev",
     "docs:build": "pnpm build && vocs build",
@@ -55,6 +58,8 @@
     "viem": "^2.21.1"
   },
   "devDependencies": {
+    "@changesets/changelog-github": "^0.5.1",
+    "@changesets/cli": "^2.29.3",
     "@dotenvx/dotenvx": "^1.39.0",
     "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
     "@testing-library/react": "^16.3.0",
