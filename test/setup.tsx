@@ -199,7 +199,7 @@ const setupContractsMock = () => {
     return await originalWatchState({
       ...params,
       onStateChange: (state) => {
-        params.onStateChange(stripMetadataFromTrace(state));
+        params.onStateChange(stripMetadataFromTrace({ "0x": state })["0x"]);
       },
     });
   };

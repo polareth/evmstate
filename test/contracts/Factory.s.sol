@@ -8,6 +8,9 @@ pragma solidity ^0.8.23;
 contract Factory {
     // Created contract addresses are stored here
     address[] private createdContracts;
+
+    // Bytecode for deterministic metadata regardless of the environment (metadata part might differ)
+    bytes private constant SIMPLE_CONTRACT_BYTECODE = type(SimpleContract).creationCode;
     
     /**
      * @notice Creates a new SimpleContract with the given value
@@ -15,9 +18,17 @@ contract Factory {
      * @return The address of the newly created contract
      */
     function createContract(uint256 initialValue) external returns (address) {
-        SimpleContract newContract = new SimpleContract(initialValue);
-        createdContracts.push(address(newContract));
-        return address(newContract);
+        bytes memory encodedParams = abi.encode(initialValue);
+        bytes memory deploymentBytecode = abi.encodePacked(SIMPLE_CONTRACT_BYTECODE, encodedParams);
+        
+        address newContract;
+        assembly {
+            newContract := create(0, add(deploymentBytecode, 0x20), mload(deploymentBytecode))
+            if iszero(extcodesize(newContract)) { revert(0, 0) }
+        }
+        
+        createdContracts.push(newContract);
+        return newContract;
     }
     
     /**
