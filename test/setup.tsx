@@ -3,6 +3,7 @@ import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "path";
 import { createCache } from "@tevm/bundler-cache";
 import { createMemoryClient } from "tevm";
+import type { Abi, ContractFunctionName } from "tevm";
 import { type FileAccessObject } from "tevm/bundler";
 import { type ResolvedCompilerConfig } from "tevm/bundler/config";
 import { EthjsAccount, parseEther } from "tevm/utils";
@@ -10,12 +11,15 @@ import { toFunctionSelector } from "viem";
 import { beforeEach, vi } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants.js";
+import type { TraceStateBaseOptions, TraceStateOptions, TraceStateTxParams, WatchStateOptions } from "@/index.js";
 import * as react from "@/lib/react/index.js";
 import { createSolc, type SolcStorageLayout } from "@/lib/solc.js";
 import * as trace from "@/lib/trace/index.js";
 import * as storageLayout from "@/lib/trace/storage-layout.js";
 import * as watch from "@/lib/watch/index.js";
 import { logger } from "@/logger.js";
+import { useMemo } from "react";
+import { TracerContext } from "@/lib/react/lib.js";
 
 beforeEach(async () => {
   const client = createMemoryClient({ loggingLevel: "warn" });
@@ -189,31 +193,41 @@ const setupContractsMock = () => {
 
   // Add a mock for tracing functions to strip metadata from bytecode
   const originalTraceState = trace.traceState;
-  const originalTracer = trace.Tracer;
   const originalWatchState = watch.watchState;
-  // Strip metadata from bytecode, as it will be different for each environment and break the snapshot tests (different paths to contract files)
-  vi.spyOn(trace, "traceState").mockImplementation(async (params) =>
-    stripMetadataFromTrace(await originalTraceState(params)),
-  );
-  vi.spyOn(watch, "watchState").mockImplementation(async (params) => {
+  const mockTraceState = async (params: TraceStateOptions) => stripMetadataFromTrace(await originalTraceState(params));
+  const mockWatchState = async (params: WatchStateOptions) => {
     return await originalWatchState({
       ...params,
       onStateChange: (state) => {
         params.onStateChange(stripMetadataFromTrace(state));
       },
     });
-  });
-  vi.spyOn(trace, "Tracer").mockImplementation((options) => {
-    const tracer = new originalTracer(options);
-    // @ts-ignore
-    tracer.traceState = async (params) => stripMetadataFromTrace(await originalTraceState(params));
-    return tracer;
-  });
-  vi.spyOn(react, "useTracer").mockImplementation(() => {
-    const tracer = new originalTracer({});
-    // @ts-ignore
-    tracer.traceState = async (params) => stripMetadataFromTrace(await originalTraceState(params));
-    return tracer;
+  };
+  class mockTracer extends trace.Tracer {
+    constructor(options: TraceStateBaseOptions) {
+      super(options);
+    }
+
+    override traceState = async <
+      TAbi extends Abi | readonly unknown[] = Abi,
+      TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
+    >(
+      txOptions: TraceStateTxParams<TAbi, TFunctionName>,
+    ) => stripMetadataFromTrace(await super.traceState(txOptions));
+  }
+
+  // Strip metadata from bytecode, as it will be different for each environment and break the snapshot tests (different paths to contract files)
+  vi.spyOn(trace, "traceState").mockImplementation(async (params) => mockTraceState(params as TraceStateOptions));
+  vi.spyOn(watch, "watchState").mockImplementation(async (params) => mockWatchState(params));
+  vi.spyOn(trace, "Tracer").mockImplementation((options) => new mockTracer(options));
+  vi.spyOn(react, "TracerProvider").mockImplementation(({ children, ...options }) => {
+    // Memoize the Tracer instance to avoid recreating it on every render unless the options change.
+    const tracer = useMemo(
+      () => new mockTracer(options),
+      [options.client, options.rpcUrl, options.common, options.explorers, options.config],
+    );
+
+    return <TracerContext.Provider value={tracer}>{children}</TracerContext.Provider>;
   });
 };
 

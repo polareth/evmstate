@@ -73,7 +73,7 @@ export const debugTraceTransaction = async <
       newAddresses: newAddresses as Array<Address>,
     };
   } catch (err) {
-    throw new Error(`Failed to trace transaction: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`Failed to trace transaction: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
   }
 };
 
@@ -123,7 +123,7 @@ export const debugTraceBlock = async (
       };
     });
   } catch (err) {
-    throw new Error(`Failed to trace block: ${err instanceof Error ? err.message : String(err)}`);
+    throw new Error(`Failed to trace block: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
   }
 };
 

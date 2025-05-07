@@ -7,6 +7,6 @@ export default defineConfig({
   test: {
     testTimeout: 600_000,
     hookTimeout: 60_000,
-    setupFiles: ["./test/setup.ts"],
+    setupFiles: ["./test/setup.tsx"],
   },
 });

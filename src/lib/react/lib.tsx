@@ -8,7 +8,7 @@ import type { TraceStateBaseOptions } from "@/lib/trace/types.js";
 type TracerContextType = Tracer | null;
 
 // Create the context with a default null value
-const TracerContext = createContext<TracerContextType>(null);
+export const TracerContext = createContext<TracerContextType>(null);
 
 interface TracerProviderProps extends TraceStateBaseOptions {
   config?: ExploreStorageConfig;
