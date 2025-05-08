@@ -1,43 +1,24 @@
-import type { Address, MemoryClient } from "tevm";
+import type { MemoryClient } from "tevm";
 import { createMemoryClient, createSyncStoragePersister, parseEther } from "tevm";
-import { EthjsAddress } from "tevm/utils";
 import type { ExtractAbiFunctions } from "abitype";
-import { ArrowRight } from "lucide-react";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createHighlighter, type Highlighter, type ThemeRegistrationAny } from "shiki";
 import type { ContractFunctionArgs } from "viem";
 
 import { traceState } from "@polareth/evmstate";
-import * as CONTRACTS from "@test/contracts/index.js";
-import * as LAYOUTS from "@test/generated/layouts/index.js";
 
-import { Button } from "~/components/button.js";
-import { CodeBlock, type CodeBlockRef } from "~/components/code-block/index.js";
+import { type CodeBlockRef } from "~/components/code-block/index.js";
+import {
+  callerAddress,
+  contract,
+  functionDescriptions,
+  layout,
+  localStorageKey,
+} from "~/components/playground/constants.js";
 import { usePlaygroundStore } from "~/components/stores/trace-store.js";
 import themeLight from "~/themes/theme-light.json" with { type: "json" };
 
-const contract = CONTRACTS["Playground"].withAddress(
-  EthjsAddress.fromString("0x987C2AF139EAEaBdF8D6d3d1723C1883bEa1f2AF").toString(),
-);
-const layout = LAYOUTS["Playground"];
-const callerAddress = EthjsAddress.fromString("0xCa11e40000000000000000000000000000000000");
-const localStorageKey = "EVMSTATE_PLAYGROUND_STATE";
-
-// Function descriptions for the Playground contract
-const functionDescriptions: Record<ExtractAbiFunctions<typeof contract.abi, "nonpayable">["name"], string> = {
-  addValue: "Adds to a dynamic array",
-  addUser: "Adds a user struct to a mapping and array",
-  toggleUserActive: "Toggles a boolean in a struct within a mapping",
-  setBalance: "Updates a simple mapping value",
-  setAllowance: "Updates a nested mapping value",
-  addTransaction: "Adds to a dynamic array within a mapping",
-  updateBasicValues: "Updates primitive types (uint256, bool)",
-  updatePackedValues: "Updates packed storage variables (uint8, uint16, uint32, bool)",
-  setStringAndBytes: "Updates string and bytes storage",
-  setFixedValue: "Updates a fixed-size array element",
-};
-
-export const Playground = () => {
+export const usePlayground = () => {
   const [client, setClient] = useState<MemoryClient | undefined>(undefined);
   const { traces, addTrace, clearTraces } = usePlaygroundStore();
 
@@ -231,101 +212,21 @@ export const Playground = () => {
     await init();
   };
 
-  const codeBlocks = useMemo(() => {
-    if (!highlighter) return [];
-    return traces.map((trace, index) => (
-      <CodeBlock
-        key={index}
-        highlighter={highlighter}
-        ref={(el) => {
-          traceCodeBlockRefs.current[index] = el;
-        }}
-        fileName={`${trace.functionName}(
-              ${trace.args
-                .map((arg) =>
-                  typeof arg === "string" ? `"${arg}"` : typeof arg === "bigint" ? `${arg.toString()}n` : String(arg),
-                )
-                .join(", ")}
-              )`}
-        caption={
-          <div className="flex items-center gap-x-2 text-accent">
-            <ArrowRight className="size-3 mt-0.5" />
-            <span className="font-mono text-sm font-medium text-xs">
-              {Object.keys(JSON.parse(trace.state)[contract.address.toLowerCase() as Address]?.storage ?? {}).join(
-                ", ",
-              )}
-            </span>
-          </div>
-        }
-        collapsible={true}
-      >
-        {trace.state}
-      </CodeBlock>
-    ));
-  }, [traces, highlighter]);
-
-  // Render UI
-  return (
-    <div className="playground">
-      <div className="flex flex-col gap-y-2">
-        <div>
-          <label className="font-medium">Function</label>
-          <select value={selectedFunction?.name ?? ""} onChange={handleFunctionChange}>
-            {Object.entries(functionDescriptions).map(([funcName, description]) => (
-              <option key={funcName} value={funcName}>
-                {funcName} - {description}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {selectedFunction && selectedFunction.inputs.length > 0 && (
-          <div className="flex flex-col gap-y-2">
-            {selectedFunction.inputs.map((input, index) => (
-              <div key={`${"name" in input ? input.name : "arg"}-${index}`}>
-                <label>
-                  <span className="vocs_Code">
-                    {"name" in input ? input.name : `Arg ${index + 1}`} ({input.type})
-                  </span>
-                  <input
-                    type="text"
-                    // @ts-expect-error - type inconsistency
-                    value={args[index] ?? ""}
-                    onChange={(e) => handleArgChange(index, e.target.value)}
-                    placeholder={`Enter ${input.type} value`}
-                  />
-                </label>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <Button onClick={executeFunction} disabled={!client || isLoading || !selectedFunction} className="col-span-2">
-          {isLoading ? "Running..." : "Execute"}
-        </Button>
-      </div>
-
-      {error && <div className="error-message p-2 bg-red-100 text-red-700 rounded">{error}</div>}
-
-      {/* Traces History */}
-      <div className="flex flex-col gap-y-2">
-        <div className="flex items-center gap-x-2">
-          <h3 className="text-xl font-medium flex-1">Traces</h3>
-          <Button variant="ghost" onClick={handleCollapseAllTraces} className="text-muted">
-            collapse all
-          </Button>
-          <Button variant="destructive" onClick={handleReset} className="text-muted">
-            reset
-          </Button>
-        </div>
-        <div className="flex flex-col gap-y-1 pr-1">{codeBlocks.reverse()}</div>
-      </div>
-
-      {traces.length === 0 && !error && (
-        <div className="flex items-center justify-center font-medium text-muted mt-6 p-4">
-          <p>Run a function to see the trace</p>
-        </div>
-      )}
-    </div>
-  );
+  return {
+    client,
+    traces,
+    addTrace,
+    clearTraces,
+    traceCodeBlockRefs,
+    highlighter,
+    selectedFunction,
+    args,
+    isLoading,
+    error,
+    handleFunctionChange,
+    handleArgChange,
+    executeFunction,
+    handleCollapseAllTraces,
+    handleReset,
+  };
 };
