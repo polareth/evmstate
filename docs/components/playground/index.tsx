@@ -7,6 +7,8 @@ import { CodeBlock } from "~/components/code-block/index.js";
 import { usePlayground } from "~/components/hooks/use-playground.js";
 import { contract, functionDescriptions } from "~/components/playground/constants.js";
 
+import { FeedbackButton } from "../feedback-button.js";
+
 export const Playground = () => {
   const {
     client,
@@ -96,7 +98,7 @@ export const Playground = () => {
         )}
 
         <Button onClick={executeFunction} disabled={!client || isLoading || !selectedFunction} className="col-span-2">
-          {isLoading ? "Running..." : "Execute"}
+          {isLoading ? "running..." : "execute"}
         </Button>
       </div>
 
@@ -109,9 +111,7 @@ export const Playground = () => {
           <Button variant="ghost" onClick={handleCollapseAllTraces} className="text-muted">
             collapse all
           </Button>
-          <Button variant="destructive" onClick={handleReset} className="text-muted">
-            reset
-          </Button>
+          <FeedbackButton action={handleReset} actionLabel="reset" variant="destructive" />
         </div>
         <div className="flex flex-col gap-y-1 pr-1">{codeBlocks}</div>
       </div>

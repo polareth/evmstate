@@ -19,11 +19,7 @@ export const CollapseButton = ({
       onClick={toggle}
       type="button"
     >
-      <div
-        aria-label={collapsed ? "Expand code" : "Collapse code"}
-        role="img"
-        className={cn("vocs_Icon" /* , copied && "vocs_CopyButton_copied" */)}
-      >
+      <div aria-label={collapsed ? "Expand code" : "Collapse code"} role="img" className={cn("vocs_Icon")}>
         {collapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
       </div>
     </button>
