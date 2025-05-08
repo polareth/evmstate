@@ -19,7 +19,8 @@
     "react-dom": "^18.2.0",
     "shiki": "^3.4.0",
     "tailwind-merge": "^3.2.0",
-    "vocs": "1.0.11"
+    "vocs": "1.0.11",
+    "zustand": "^5.0.4"
   },
   "devDependencies": {
     "@types/prismjs": "^1.26.5",

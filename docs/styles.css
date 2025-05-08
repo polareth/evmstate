@@ -98,12 +98,21 @@
     color: var(--playground-text);
   }
 
+  .btn-destructive {
+    background: var(--vocs-color_backgroundRedTint) !important;
+    color: var(--vocs-color_dangerText) !important;
+  }
+
   .btn:hover:not(:disabled) {
     background: var(--playground-button-hover) !important;
   }
 
   .btn-ghost:hover:not(:disabled) {
     background: var(--playground-control-bg) !important;
+  }
+
+  .btn-destructive:hover:not(:disabled) {
+    background: var(--vocs-color_backgroundRedTint2) !important;
   }
 
   .btn:focus-visible {
