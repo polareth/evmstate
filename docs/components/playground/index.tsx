@@ -48,11 +48,13 @@ export const Playground = () => {
           caption={
             <div className="flex items-center gap-x-2 text-accent">
               <ArrowRight className="size-3 mt-0.5" />
-              <span className="font-mono text-sm font-medium text-xs">
-                {Object.keys(JSON.parse(trace.state)[contract.address.toLowerCase() as Address]?.storage ?? {}).join(
-                  ", ",
-                )}
-              </span>
+              {Object.keys(JSON.parse(trace.state)[contract.address.toLowerCase() as Address]?.storage ?? {}).map(
+                (key) => (
+                  <span key={key} className="vocs_Code font-medium text-xs">
+                    {key}
+                  </span>
+                ),
+              )}
             </div>
           }
           collapsible={true}
