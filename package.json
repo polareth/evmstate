@@ -44,7 +44,7 @@
     "docs:dev": "pnpm build && pnpm --filter @polareth/evmstate-docs dev",
     "docs:build": "pnpm build && pnpm --filter @polareth/evmstate-docs build",
     "docs:preview": "pnpm build && pnpm --filter @polareth/evmstate-docs preview",
-    "generate:layouts": "DEBUG=trace tsx test/generate.ts",
+    "prepare": "DEBUG=trace tsx scripts/prepare.ts",
     "test": "pnpm test:unit && pnpm test:staging",
     "test:unit": "DEBUG=trace dotenvx run -f .env.test --quiet -- vitest test/unit",
     "test:staging": "DEBUG=trace TEST_ENV=staging dotenvx run -f .env.test --quiet -- vitest test/staging"

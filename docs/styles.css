@@ -1,9 +1,6 @@
-@import url("https://fonts.googleapis.com/css2?family=Fira+Code:wght@300..700&family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap");
 @import "tailwindcss";
 
 :root {
-  --playground-bg: #ffffff;
-  --playground-border: #e2e8f0;
   --playground-text: #1e293b;
   --playground-control-bg: #f8fafc;
   --playground-input-bg: #ffffff;
@@ -16,18 +13,18 @@
   --playground-log-error: #ef4444;
   --playground-log-success: #10b981;
   --playground-shadow: rgba(0, 0, 0, 0.05);
+  --playground-border: #e2e8f0;
+  --playground-border-light: #f1f5f9;
 
   --border-radius: 0.3rem;
-  --font-mono:
-    "Source Code Pro", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
-    monospace;
+  --font-mono: Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
+  --accent-color: #3b82f6;
+  --accent-color-rgb: 59, 130, 246;
   --focus-ring: rgba(59, 130, 246, 0.5);
 }
 
 :root.dark {
-  --playground-bg: #0f172a;
-  --playground-border: #334155;
   --playground-text: #e2e8f0;
   --playground-control-bg: #1e293b;
   --playground-input-bg: #1e293b;
@@ -40,36 +37,32 @@
   --playground-log-error: #f87171;
   --playground-log-success: #34d399;
   --playground-shadow: rgba(0, 0, 0, 0.3);
+  --playground-border: #334155;
+  --playground-border-light: #1e293b;
+
+  --accent-color: #60a5fa;
+  --accent-color-rgb: 96, 165, 250;
+  --focus-ring: rgba(96, 165, 250, 0.5);
 }
 
 @layer components {
   .playground {
-    background-color: var(--playground-bg);
     color: var(--playground-text);
-    border: 1px solid var(--playground-border);
-    border-radius: var(--border-radius);
-    padding: 1rem 1.5rem;
     font-size: var(--vocs-fontSize_14);
-    transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
     gap: 1rem;
   }
 
-  .playground label {
-    display: block;
-    font-weight: 500;
-  }
-
   .playground select,
   .playground input {
-    font-family: var(--font-mono);
     width: 100%;
-    padding: 0.3rem 0.75rem;
+    padding: 0.3rem 0.6rem;
     background-color: var(--playground-input-bg);
     border: 1px solid var(--playground-input-border);
     border-radius: var(--border-radius);
     transition: border-color 0.15s ease;
+    color: var(--playground-text);
   }
 
   .playground select:focus,
@@ -81,14 +74,8 @@
   .border-separator-bottom {
     border-bottom: 1px solid var(--playground-border);
   }
-
-  /* Responsive adjustments */
-  @media (min-width: 768px) {
-    .playground-controls {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1.5rem;
-    }
+  .border-separator-bottom-light {
+    border-bottom: 1px solid var(--playground-border-light);
   }
 
   /* Button styles */
@@ -101,7 +88,7 @@
     border: none;
     padding: 0.3rem 0.75rem;
     border-radius: var(--border-radius);
-    font-weight: 500;
+    font-weight: var(--vocs-fontWeight_medium);
     transition: all 0.2s ease;
     cursor: pointer;
   }
@@ -127,5 +114,50 @@
   .btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .text-accent {
+    color: var(--accent-color);
+  }
+
+  .bg-accent {
+    background-color: rgba(var(--accent-color-rgb), 0.2);
+  }
+
+  .bg-accent-muted {
+    background-color: rgba(var(--accent-color-rgb), 0.4);
+  }
+
+  .text-muted {
+    color: var(--vocs-color_text3);
+  }
+
+  .border-light {
+    border: 1px solid var(--playground-button-bg) !important;
+    border-radius: var(--border-radius) !important;
+  }
+
+  /* Scrollbar styles */
+  .hide-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(var(--accent-color-rgb), 0.3);
+    border-radius: 3px;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(var(--accent-color-rgb), 0.5);
+  }
+
+  /* Reapply vocs logic */
+  .vocs_Pre_wrapper:hover .vocs_CopyButton {
+    opacity: 1 !important;
   }
 }

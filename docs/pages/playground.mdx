@@ -1,59 +1,31 @@
+import { Callout } from "vocs/components";
 import { Playground } from "../components/playground.tsx";
 
 # Playground
 
-Explore various trace outputs through interactive examples that reference common data structures.
+This interactive playground demonstrates how different Solidity storage types are traced and visualized.
 
-## Interactive examples
+<Callout type="tip">
+_The client is shared and persisted across sessions (the state of the chain and traces will persist everytime you visit the playground)._
+</Callout>
 
-### Mappings
 
-<Playground contract="Mappings" />
+## Usage Guide
 
-### Arrays
+1. **Select a function** from the dropdown menu - each function is labeled with a description of what storage type it affects
+2. **Enter parameters** if required by the selected function
+3. **Click "Execute"** to run the function
+4. **View the trace** in the collapsible code block right below
+5. **Explore the history** of all executed functions and their traces
 
-<Playground contract="Arrays" />
+Try different functions to see how various storage patterns are represented in the trace output!
 
-### Structs
+## Interactive example
 
-<Playground contract="Structs" />
+<Playground />
 
-### Bytes
-
-<Playground contract="Bytes" />
-
-### Factory
-
-<Playground contract="Factory" />
-
-## Reference contracts
-
-### Mappings
+## Reference contract
 
 ```solidity
-// [!include ~/../test/contracts/Mappings.s.sol]
-```
-
-### Arrays
-
-```solidity
-// [!include ~/../test/contracts/Arrays.s.sol]
-```
-
-### Structs
-
-```solidity
-// [!include ~/../test/contracts/Structs.s.sol]
-```
-
-### Bytes
-
-```solidity
-// [!include ~/../test/contracts/Bytes.s.sol]
-```
-
-### Factory
-
-```solidity
-// [!include ~/../test/contracts/Factory.s.sol]
+// [!include ~/../test/contracts/Playground.s.sol]
 ```

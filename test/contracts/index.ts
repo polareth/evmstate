@@ -6,3 +6,4 @@ export { Factory, SimpleContract } from "./Factory.s.sol";
 export { NativeTransfer, ETHReceiver } from "./NativeTransfer.s.sol";
 export { Bytes } from "./Bytes.s.sol";
 export { TransparentProxy, CounterImpl, CounterImplV2 } from "./TransparentProxy.s.sol";
+export { Playground } from "./Playground.s.sol";

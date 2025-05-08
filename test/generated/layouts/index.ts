@@ -5,6 +5,7 @@ export { default as SimpleContract } from "./SimpleContract.js";
 export { default as Mappings } from "./Mappings.js";
 export { default as ETHReceiver } from "./ETHReceiver.js";
 export { default as NativeTransfer } from "./NativeTransfer.js";
+export { default as Playground } from "./Playground.js";
 export { default as StoragePacking } from "./StoragePacking.js";
 export { default as Structs } from "./Structs.js";
 export { default as CounterImpl } from "./CounterImpl.js";

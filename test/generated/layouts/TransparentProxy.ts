@@ -1,5 +1,5 @@
 // Generated storage layout for TransparentProxy
 export default {
-  storage: [],
-  types: {},
+  "storage": [],
+  "types": {}
 } as const;

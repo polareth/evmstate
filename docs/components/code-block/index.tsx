@@ -1,203 +1,236 @@
-import clsx from "clsx";
-import { ChevronDown, ChevronUp, File, FileDiff, TerminalSquare } from "lucide-react";
-import { Highlight } from "prism-react-renderer";
-import Prism from "prismjs";
-import type React from "react";
-import { useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState, type ReactNode } from "react";
+import { createHighlighter, type Highlighter } from "shiki";
+import type { ShikiTransformer, ThemeRegistrationAny } from "shiki";
 
-import { Button } from "~/components/button.js";
-import { cn } from "~/utils.js";
+import { CollapseButton } from "~/components/collapse-button.js";
+import { CopyButton } from "~/components/copy-button.js";
+import { useCopyCode } from "~/components/hooks/use-copy-code.js";
+import themeLight from "~/themes/theme-light.json" with { type: "json" };
+import { cn, stringify } from "~/utils.js";
 
-import CodeBlockActions from "./actions.js";
-import CodeBlockLanguageLogo from "./language-logo/index.js";
-import {
-  codeBlockContainerVariants,
-  codeBlockHeaderFileNameContainerStyles,
-  codeBlockHeaderFileNameIconStyles,
-  codeBlockHeaderFileNameStyles,
-  codeBlockHeaderStyles,
-  codeBlockLineHighlightedStyles,
-  codeBlockLineNumberStyles,
-  codeBlockLineVariants,
-  codeBlockPreVariants,
-  codeBlockStyles,
-  collapseButtonStyles,
-} from "./styles.js";
-import { theme } from "./theme.js";
-import type { CodeBlockProps } from "./types.js";
+interface CodeBlockProps {
+  children: string | ReactNode;
+  highlighter?: Highlighter;
+  className?: string;
+  fileName?: string;
+  caption?: string | ReactNode;
+  language?: string;
+  collapsible?: boolean;
+}
 
-// // Add support for additional languages.
-// (typeof global === "undefined" ? window : global).Prism = Prism;
-// require("prismjs/components/prism-javascript");
-// require("prismjs/components/prism-typescript");
-// require("prismjs/components/prism-jsx");
-// require("prismjs/components/prism-tsx");
-// require("prismjs/components/prism-solidity");
-// require("prismjs/components/prism-python");
-// require("prismjs/components/prism-bash");
-// require("prismjs/components/prism-diff");
+// Define the type for the imperative handle
+export interface CodeBlockRef {
+  collapse: () => void;
+  expand: () => void;
+  isCollapsed: () => boolean;
+}
 
-const CodeBlock: React.FC<CodeBlockProps> = ({
-  className,
-  fileName,
-  language = "none",
-  logo,
-  highlightLines = [],
-  breakLines = false,
-  showLineNumbers = true,
-  collapsible = false,
-  defaultCollapsed = false,
-  roundedTop = true,
-  containerized = true,
-  containerProps,
-  children,
-  ...rest
-}) => {
-  const [isCollapsed, setIsCollapsed] = useState(collapsible && defaultCollapsed);
-  const hasHeader = fileName !== undefined;
-  const childrenString =
-    typeof children === "string"
-      ? children
-      : JSON.stringify(children, (_, v) => (typeof v === "bigint" ? `__bigint__${v.toString()}` : v), 2);
+// Enhanced BigInt transformer that removes quotes and properly formats BigInts
+const bigIntTransformer: ShikiTransformer = {
+  code(root) {
+    // Access children of the root element
+    if (!root.children) return root;
 
-  const Icon = logo
-    ? logo
-    : language === "javascript" || language === "js"
-      ? CodeBlockLanguageLogo.JavaScript
-      : language === "typescript" || language === "ts"
-        ? CodeBlockLanguageLogo.TypeScript
-        : language === "jsx"
-          ? CodeBlockLanguageLogo.React
-          : language === "tsx"
-            ? CodeBlockLanguageLogo.React
-            : language === "solidity" || language === "sol"
-              ? CodeBlockLanguageLogo.Solidity
-              : language === "python" || language === "py"
-                ? CodeBlockLanguageLogo.Python
-                : language === "bash" || language === "sh"
-                  ? TerminalSquare
-                  : language === "diff"
-                    ? FileDiff
-                    : File;
+    /**
+     * Recursively processes an array of Shiki nodes to transform BigInt placeholders and remove surrounding quotes.
+     *
+     * @param nodes The array of nodes to process.
+     * @returns A new array of nodes after transformation.
+     */
+    const transformNodes = (nodes: typeof root.children): typeof root.children => {
+      const newNodes: typeof root.children = [];
+      let skipNext = false;
 
-  const { ref: containerRef, ...containerRest } = containerProps ?? {};
+      for (let i = 0; i < nodes.length; i++) {
+        if (skipNext) {
+          skipNext = false;
+          continue;
+        }
 
-  const toggleCollapse = () => {
-    if (collapsible) {
-      setIsCollapsed(!isCollapsed);
-    }
-  };
+        const node = nodes[i];
+        let currentNode = { ...node }; // Create a copy to avoid modifying original nodes directly before deciding to keep them
 
-  const CollapseButton = () => (
-    <Button
-      onClick={toggleCollapse}
-      className={collapseButtonStyles}
-      variant="ghost"
-      aria-label={isCollapsed ? "Expand code" : "Collapse code"}
-      title={isCollapsed ? "Expand code" : "Collapse code"}
-    >
-      {isCollapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
-    </Button>
-  );
+        // Recursively process children if they exist
+        if (currentNode.type === "element" && currentNode.children) {
+          currentNode.children = transformNodes(currentNode.children);
+        }
 
-  return (
-    <div
-      className={cn(codeBlockContainerVariants({ roundedTop, containerized }), className)}
-      code-block-container=""
-      tabIndex={-1}
-      ref={containerRef}
-      {...containerRest}
-    >
-      {hasHeader ? (
-        <div
-          className={clsx(codeBlockHeaderStyles, collapsible && "hover:bg-muted/20 cursor-pointer transition-colors")}
-          code-block-header=""
-          onClick={toggleCollapse}
-        >
-          <div className={codeBlockHeaderFileNameContainerStyles}>
-            <Icon className={codeBlockHeaderFileNameIconStyles} />
-            <div className={codeBlockHeaderFileNameStyles}>{fileName}</div>
-          </div>
-          <div className="flex items-center gap-2">
-            {!collapsible || (collapsible && !isCollapsed) ? <CodeBlockActions code={childrenString} inHeader /> : null}
-            {collapsible && <CollapseButton />}
-          </div>
-        </div>
-      ) : collapsible ? (
-        <div className="flex justify-end p-2">
-          <CollapseButton />
-        </div>
-      ) : null}
+        // Check if the current node is a BigInt placeholder
+        const isBigIntPlaceholder =
+          currentNode.type === "element" &&
+          currentNode.children?.[0]?.type === "text" &&
+          currentNode.children[0].value.includes("__bigint__");
 
-      <div
-        className={clsx(
-          "transition-all",
-          isCollapsed ? "max-h-0 opacity-0 duration-200 ease-out" : "max-h-[5000px] opacity-100 duration-300 ease-in",
-        )}
-      >
-        <Highlight prism={Prism} theme={theme} code={childrenString} language={language}>
-          {({ tokens, getLineProps, getTokenProps }) => (
-            // crop blank space
-            <div className="relative -mb-4">
-              <pre
-                className={codeBlockPreVariants({ hasHeader: hasHeader || !roundedTop || collapsible, breakLines })}
-                {...rest}
-                code-block-pre=""
-              >
-                <code className={clsx(codeBlockStyles)}>
-                  {tokens.map((line, i) => {
-                    const { className, ...restLineProps } = getLineProps({ line });
+        if (isBigIntPlaceholder) {
+          // Remove the surrounding quotes and transform the value
+          const placeholderValue = "value" in currentNode.children![0] ? currentNode.children![0].value : ""; // We know it exists and matches the pattern
+          // const bigintMatch = placeholderValue.match(/^"__bigint__(\d+)"$/);
+          const bigintMatch = placeholderValue.split("__bigint__")[1];
+          if (bigintMatch) {
+            // Create a new text node with the transformed BigInt value (e.g., 123n)
+            // We might want to preserve the original class names from the element node
+            const transformedTextNode = {
+              type: "text" as const, // Explicitly type as 'text'
+              value: ` ${bigintMatch}n`,
+            };
+            // Create a new element node with the original classes but the new text child
+            const transformedElementNode = {
+              ...currentNode, // Copy existing properties like tagName, properties
+              children: [transformedTextNode],
+            };
+            // Remove the previous node and skip the next one
+            newNodes.splice(i - 1, 1, transformedElementNode);
+            skipNext = true;
+          } else {
+            // Should not happen if regex matches, but as a fallback, push original node
+            newNodes.push(currentNode);
+          }
+        } else {
+          // If not a BigInt placeholder, just add the node (after processing its children)
+          newNodes.push(currentNode);
+        }
+      }
+      return newNodes;
+    };
 
-                    return (
-                      <div
-                        key={i}
-                        className={clsx(
-                          codeBlockLineVariants({ breakLines }),
-                          highlightLines.includes(i + 1) ? codeBlockLineHighlightedStyles : "",
-                          className,
-                        )}
-                        {...restLineProps}
-                        code-block-line=""
-                      >
-                        {showLineNumbers ? (
-                          <div className={codeBlockLineNumberStyles} code-block-line-number="">
-                            {i + 1}
-                          </div>
-                        ) : null}
-                        <span className="grow">
-                          {line.map((token, key) => (
-                            <span
-                              key={key}
-                              {...getTokenProps({
-                                token: {
-                                  ...token,
-                                  content: token.content
-                                    .replace(/"__bigint__(\d+)"/g, "$1n")
-                                    .replace(/__bigint__(\d+)/g, "$1n"),
-                                },
-                              })}
-                              code-block-token=""
-                            />
-                          ))}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  {!hasHeader && !collapsible ? <CodeBlockActions code={childrenString} /> : null}
-                </code>
-              </pre>
-            </div>
-          )}
-        </Highlight>
-      </div>
-    </div>
-  );
+    // Start the recursive transformation from the root's children
+    root.children = transformNodes(root.children);
+
+    return root;
+  },
 };
 
-// -----------------------------------------------------------------------------
-// Export
-// -----------------------------------------------------------------------------
+const longHexTransformer: ShikiTransformer = {
+  // Simply if we catch a __long_hex__0xabcabc...abcabc we replace it with a 0xabcabc<truncated>abcabc
+  span(span) {
+    if (
+      span.type === "element" &&
+      span.children?.[0]?.type === "text" &&
+      span.children[0].value.includes("__long_hex__")
+    ) {
+      const value = span.children[0].value;
+      span.children[0].value = value
+        .replace("__long_hex__", "")
+        .replace("...", "<truncated_see_console_for_full_diff>");
+    }
+    return span;
+  },
+};
 
-CodeBlock.displayName = "CodeBlock";
+/** Renders a JavaScript object with syntax highlighting using Shiki. */
+export const CodeBlock = forwardRef<CodeBlockRef, CodeBlockProps>(
+  (
+    { children, highlighter: _highlighter, className, fileName, caption, language = "typescript", collapsible = false },
+    ref,
+  ) => {
+    // State to hold the highlighter instance
+    const [highlighter, setHighlighter] = useState<Highlighter | undefined>(_highlighter);
+    // State to hold the highlighted HTML string
+    const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
 
-export default CodeBlock;
+    const { copied, copy, ref: copyRef } = useCopyCode();
+    const codeString = useMemo(() => (typeof children === "string" ? children : stringify(children)), [children]);
+
+    const [collapsed, setCollapsed] = useState(false);
+    const toggleCollapsed = () => collapsible && setCollapsed(!collapsed);
+
+    // Expose methods via the ref
+    useImperativeHandle(ref, () => ({
+      /** Imperatively collapses the code block. */
+      collapse: () => setCollapsed(true),
+      /** Imperatively expands the code block. */
+      expand: () => setCollapsed(false),
+      /** Returns whether the code block is currently collapsed. */
+      isCollapsed: () => collapsed,
+    }));
+
+    useEffect(() => {
+      const initHighlighter = async () => {
+        if (_highlighter) return;
+        const highlighter = await createHighlighter({
+          themes: ["poimandres", themeLight as ThemeRegistrationAny],
+          langs: [language],
+        });
+
+        setHighlighter(highlighter);
+      };
+
+      initHighlighter();
+    }, [_highlighter]);
+
+    // Effect to perform async highlighting when code changes
+    useEffect(() => {
+      // Async function to perform highlighting
+      const highlightCode = async () => {
+        try {
+          if (!highlighter) return;
+          // Use Shiki to highlight the stringified code to HTML
+          const html = highlighter.codeToHtml(codeString, {
+            lang: language,
+            themes: {
+              light: themeLight as ThemeRegistrationAny,
+              dark: "poimandres",
+            },
+            transformers: [bigIntTransformer, longHexTransformer],
+          });
+          setHighlightedHtml(html);
+        } catch (error) {
+          console.error("Error highlighting code:", error);
+          // Optionally set an error state or fallback content
+          setHighlightedHtml(
+            `<pre>Error highlighting code: ${error instanceof Error ? error.message : JSON.stringify(error)}</pre>`,
+          );
+        }
+      };
+
+      highlightCode();
+
+      // Cleanup function if needed (though not strictly necessary here)
+      // return () => { /* cleanup */ };
+    }, [children, highlighter]); // Re-run effect if code or theme changes
+
+    // Render loading state or null if not yet highlighted
+    if (!highlightedHtml) {
+      return (
+        <div className={cn("vocs_CodeBlock", className)}>
+          <div className="vocs_Pre_wrapper">
+            <pre className={cn(className, "vocs_Pre")}>
+              <code className="vocs_Code">Loading...</code>
+            </pre>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      // Wrapped in vocs_ code classes for consistent styling with other code blocks
+      <div
+        className="vocs_CodeGroup vocs_Tabs"
+        style={{ borderBottom: "0", borderBottomLeftRadius: "0", borderBottomRightRadius: "0" }}
+      >
+        {!!fileName && (
+          <div className="vocs_Tabs_list flex items-center gap-x-2 justify-between cursor-pointer">
+            <div className="vocs_Tabs_trigger">
+              {fileName} {!!caption && <div>{caption}</div>}
+            </div>
+            {collapsible && <CollapseButton toggle={toggleCollapsed} collapsed={collapsed} className="mr-[0.25rem]" />}
+          </div>
+        )}
+        <div
+          className={cn(
+            "vocs_CodeBlock",
+            collapsible && collapsed
+              ? "max-h-0 opacity-0 duration-200 ease-out"
+              : "max-h-[5000px] opacity-100 duration-300 ease-in",
+            className,
+          )}
+        >
+          <div ref={copyRef} className="vocs_Pre_wrapper">
+            <CopyButton copy={copy} copied={copied} />
+            <div dangerouslySetInnerHTML={{ __html: highlightedHtml }} />
+          </div>
+        </div>
+      </div>
+    );
+  },
+);

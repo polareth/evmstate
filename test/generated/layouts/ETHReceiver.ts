@@ -1,5 +1,5 @@
 // Generated storage layout for ETHReceiver
 export default {
-  storage: [],
-  types: {},
+  "storage": [],
+  "types": {}
 } as const;

@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "path";
-import { fileURLToPath } from "url";
 import { createCache } from "@tevm/bundler-cache";
 import { type FileAccessObject } from "tevm/bundler";
 import { type ResolvedCompilerConfig } from "tevm/bundler/config";
@@ -9,12 +8,8 @@ import { type ResolvedCompilerConfig } from "tevm/bundler/config";
 import { createSolc, type SolcStorageLayout } from "@/lib/solc.js";
 import { logger } from "@/logger.js";
 
-// Get the equivalent of __dirname in ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
 // Setup file access and cache similar to setup.ts
-const config = JSON.parse(fs.readFileSync(join(__dirname, "../tevm.config.json"), "utf8")) as ResolvedCompilerConfig;
+const config = JSON.parse(fs.readFileSync(join(process.cwd(), "tevm.config.json"), "utf8")) as ResolvedCompilerConfig;
 const fileAccess: FileAccessObject = {
   writeFileSync: fs.writeFileSync,
   writeFile,
@@ -32,7 +27,7 @@ const cache = createCache(config.cacheDir, fileAccess, process.cwd());
 
 export const generateStorageLayouts = async () => {
   // Create output directory if it doesn't exist
-  const outputDir = join(__dirname, "generated/layouts");
+  const outputDir = join(process.cwd(), "test/generated/layouts");
   await mkdir(outputDir, { recursive: true });
 
   // Get the contracts directory
@@ -150,6 +145,7 @@ export const generateStorageLayouts = async () => {
         }
 
         // Generate output file
+        if (!storageLayout.types) storageLayout.types = {};
         const outputPath = join(outputDir, `${contractName}.ts`);
         const outputContent = `// Generated storage layout for ${contractName}
 export default ${JSON.stringify(storageLayout, null, 2)} as const;
@@ -170,7 +166,7 @@ export default ${JSON.stringify(storageLayout, null, 2)} as const;
   if (generatedContracts.length > 0) {
     const indexPath = join(outputDir, "index.ts");
     const indexContent =
-      generatedContracts.map((name) => `export { default as ${name} } from "./${name}";`).join("\n") + "\n";
+      generatedContracts.map((name) => `export { default as ${name} } from "./${name}.js";`).join("\n") + "\n";
 
     fs.writeFileSync(indexPath, indexContent);
     logger.log(`Generated index file with ${generatedContracts.length} layouts`);
@@ -194,13 +190,3 @@ async function findArtifactFiles(dir: string): Promise<string[]> {
 
   return artifactFiles;
 }
-
-generateStorageLayouts()
-  .then(() => {
-    console.log("done");
-    process.exit(0);
-  })
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });

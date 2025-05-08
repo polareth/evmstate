@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 /** Fetches a JSON file from a URL and writes it to a local file. */
-const fetchAndWriteTheme = async () => {
+export const generateThemesDocs = async () => {
   const themeJsonUrl =
     "https://raw.githubusercontent.com/0xpolarzero/poimandres-light-theme-vscode/refs/heads/main/themes/poimandres-light-color-theme.json";
   const themeJsonOutput = "docs/themes/theme-light.json";
@@ -25,5 +25,3 @@ const fetchAndWriteTheme = async () => {
     process.exit(1);
   }
 };
-
-fetchAndWriteTheme();
