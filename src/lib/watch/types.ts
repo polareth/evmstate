@@ -4,7 +4,7 @@ import { abi } from "@shazow/whatsabi";
 import { type ExploreStorageConfig } from "@/lib/explore/config.js";
 import type { DeepReadonly } from "@/lib/explore/types.js";
 import { type SolcStorageLayout } from "@/lib/solc.js";
-import type { LabeledStateDiff, TraceStateBaseOptions } from "@/lib/trace/types.js";
+import type { LabeledState, TraceStateBaseOptions } from "@/lib/trace/types.js";
 
 export type WatchStateOptions<
   TStorageLayout extends DeepReadonly<SolcStorageLayout> | SolcStorageLayout | undefined =
@@ -26,5 +26,5 @@ export type StateChange<
     | SolcStorageLayout
     | undefined,
 > = (TStorageLayout extends DeepReadonly<SolcStorageLayout>
-  ? Partial<LabeledStateDiff<TStorageLayout>>
-  : Partial<LabeledStateDiff>) & { txHash: Hex };
+  ? Partial<LabeledState<TStorageLayout>>
+  : Partial<LabeledState>) & { txHash: Hex };

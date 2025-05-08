@@ -143,15 +143,15 @@ export type TraceStateTxWithReplay = { txHash: Hex };
  * Account state access trace for a transaction
  *
  * @param storage - Storage slots that were accessed during transaction (only applicable for contracts) with a labeled
- *   diff
+ *   state capture
  * @param ... {@link AccountIntrinsicState} fields that were accessed during transaction (e.g. balance, nonce, code,
- *   etc.) with a labeled diff
+ *   etc.) with a labeled state capture
  */
-export type LabeledStateDiff<
+export type LabeledState<
   TStorageLayout extends DeepReadonly<SolcStorageLayout> | SolcStorageLayout = SolcStorageLayout,
-> = LabeledIntrinsicsDiff & {
+> = LabeledIntrinsicsState & {
   storage: {
-    [Variable in TStorageLayout["storage"][number] as Variable["label"]]: LabeledStorageDiff<
+    [Variable in TStorageLayout["storage"][number] as Variable["label"]]: LabeledStorageState<
       Variable["label"],
       ParseSolidityType<Variable["type"], TStorageLayout["types"]>,
       TStorageLayout["types"]
@@ -160,7 +160,7 @@ export type LabeledStateDiff<
 };
 
 export type AccountIntrinsicState = { balance: bigint; nonce: number; code: Hex };
-export type LabeledIntrinsicsDiff = {
+export type LabeledIntrinsicsState = {
   [K in keyof AccountIntrinsicState]:
     | {
         modified: true;
@@ -177,7 +177,7 @@ export type LabeledIntrinsicsDiff = {
       };
 };
 
-export type LabeledStorageDiff<
+export type LabeledStorageState<
   TName extends string = string,
   TTypeId extends string | undefined = string | undefined,
   TTypes extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,
@@ -203,7 +203,7 @@ export type LabeledStorageDiff<
                 ? undefined
                 : never;
   /** The trace of the variable's access */
-  trace: Array<LabeledStorageDiffTrace<TName, TTypeId, TTypes>>;
+  trace: Array<LabeledStorageStateTrace<TName, TTypeId, TTypes>>;
 };
 
 /**
@@ -212,7 +212,7 @@ export type LabeledStorageDiff<
  * `current` and `next` can always be undefined regardless of the `modified` flag, as it might be a new contract, or a
  * selfdestruct if the hardfork supports it.
  */
-export type LabeledStorageDiffTrace<
+export type LabeledStorageStateTrace<
   TName extends string = string,
   TTypeId extends string | undefined = string | undefined,
   TTypes extends SolcStorageLayoutTypes = SolcStorageLayoutTypes,

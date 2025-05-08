@@ -9,9 +9,9 @@ import { exploreStorage } from "@/lib/explore/index.js";
 import { extractPotentialKeys } from "@/lib/explore/mapping.js";
 import { type SolcStorageLayout, type SolcStorageLayoutTypes } from "@/lib/solc.js";
 import type {
-  LabeledIntrinsicsDiff,
-  LabeledStateDiff,
-  LabeledStorageDiff,
+  LabeledIntrinsicsState,
+  LabeledState,
+  LabeledStorageState,
   TraceStateOptions,
 } from "@/lib/trace/types.js";
 import { cleanTrace } from "@/lib/trace/utils.js";
@@ -30,14 +30,14 @@ export const labelStateDiff = <
 }: {
   stateDiff: Record<
     Address,
-    LabeledIntrinsicsDiff & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
+    LabeledIntrinsicsState & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
   >;
   layouts: Record<Address, SolcStorageLayout>;
   uniqueAddresses: Array<Address>;
   structLogs: TraceResult["structLogs"];
   abiFunctions: Array<abi.ABIFunction>;
   options: TraceStateOptions<TAbi, TFunctionName>;
-}): Record<Address, LabeledStateDiff> => {
+}): Record<Address, LabeledState> => {
   // Extract potential key/index values from the execution trace
   // Create a slim version of the trace with deduplicated stack values for efficiency
   const dedupedTraceLog = {
@@ -78,7 +78,7 @@ export const labelStateDiff = <
               };
               return acc;
             },
-            {} as Record<string, LabeledStorageDiff<string, string, SolcStorageLayoutTypes>>,
+            {} as Record<string, LabeledStorageState<string, string, SolcStorageLayoutTypes>>,
           ),
         };
 
@@ -93,7 +93,7 @@ export const labelStateDiff = <
         parseConfig(options.config),
       );
 
-      // 2. Process results into named variables - convert all results to LabeledStorageDiff format
+      // 2. Process results into named variables - convert all results to LabeledStorageState format
       const decoded = withLabels.reduce(
         (acc, result) => {
           // Retrieve existing entry or create a new one
@@ -131,7 +131,7 @@ export const labelStateDiff = <
 
           return acc;
         },
-        {} as Record<string, LabeledStorageDiff<string, string, SolcStorageLayoutTypes>>,
+        {} as Record<string, LabeledStorageState<string, string, SolcStorageLayoutTypes>>,
       );
 
       // 3. Create unknown variables access traces for remaining slots
@@ -168,6 +168,6 @@ export const labelStateDiff = <
 
       return acc;
     },
-    {} as Record<Address, LabeledStateDiff>,
+    {} as Record<Address, LabeledState>,
   );
 };

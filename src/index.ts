@@ -41,10 +41,10 @@ export type {
   TraceStateTxWithData,
   TraceStateTxWithReplay,
   // Trace
-  LabeledStateDiff,
-  LabeledStorageDiff,
-  LabeledStorageDiffTrace,
-  LabeledIntrinsicsDiff,
+  LabeledState,
+  LabeledStorageState,
+  LabeledStorageStateTrace,
+  LabeledIntrinsicsState,
 } from "@/lib/trace/types.js";
 
 export { watchState } from "@/lib/watch/index.js";

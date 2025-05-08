@@ -6,13 +6,13 @@ Analyzes storage access patterns during transaction execution, identifying which
 
 ```typescript twoslash
 import type { Abi, ContractFunctionName, Address } from "tevm";
-import type { LabeledStateDiff, TraceStateOptions } from "@polareth/evmstate";
+import type { LabeledState, TraceStateOptions } from "@polareth/evmstate";
 
 // @ts-expect-error - Function implementation is missing
 function traceState<
   TAbi extends Abi | readonly unknown[] = Abi,
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
->(options: TraceStateOptions<TAbi, TFunctionName>): Promise<Record<Address, LabeledStateDiff>>;
+>(options: TraceStateOptions<TAbi, TFunctionName>): Promise<Record<Address, LabeledState>>;
 ```
 
 ## Parameters
@@ -63,9 +63,9 @@ Returns a promise that resolves to a record mapping account addresses to their s
 
 ```typescript twoslash
 import type { Address } from "tevm";
-import type { LabeledStateDiff } from "@polareth/evmstate";
+import type { LabeledState } from "@polareth/evmstate";
 
-type ReturnType = Record<Address, LabeledStateDiff>;
+type ReturnType = Record<Address, LabeledState>;
 ```
 
 See the [output format reference](/reference/output-format) for details on the structure.

@@ -8,18 +8,18 @@ For `traceState` and `Tracer.traceState`, the output maps account addresses to s
 
 ```typescript twoslash
 import type { Address } from "tevm";
-import type { LabeledStateDiff } from "@polareth/evmstate";
+import type { LabeledState } from "@polareth/evmstate";
 
-type TraceOutput = Record<Address, LabeledStateDiff>;
+type TraceOutput = Record<Address, LabeledState>;
 ```
 
 For `watchState`, the output focuses on a single address and includes the transaction hash:
 
 ```typescript twoslash
 import type { Hex } from "tevm";
-import type { LabeledStateDiff } from "@polareth/evmstate";
+import type { LabeledState } from "@polareth/evmstate";
 
-type WatchOutput = LabeledStateDiff & { txHash: Hex };
+type WatchOutput = LabeledState & { txHash: Hex };
 ```
 
 ## Account state
@@ -28,9 +28,9 @@ Each account in the output has these properties:
 
 ```typescript twoslash
 import type { Hex } from "tevm";
-import type { LabeledStorageDiff } from "@polareth/evmstate";
+import type { LabeledStorageState } from "@polareth/evmstate";
 
-type Diff = {
+type LabeledState = {
   // Intrinsic properties
   balance: {
     current: bigint,
@@ -49,7 +49,7 @@ type Diff = {
   },
   // Storage state
   storage: {
-    [variableName: string]: LabeledStorageDiff
+    [variableName: string]: LabeledStorageState
   }
 }
 ```
@@ -59,25 +59,25 @@ type Diff = {
 The `storage` field contains labeled variables with detailed traces:
 
 ```typescript twoslash
-import type { LabeledStorageDiffTrace } from "@polareth/evmstate";
+import type { LabeledStorageStateTrace } from "@polareth/evmstate";
 
-type StorageDiff = {
+type LabeledStorageState = {
   "variableName": {
     name: string,
     type?: string,
     kind?: "primitive" | "mapping" | "dynamic_array" | "static_array" | "struct" | "bytes",
-    trace: Array<LabeledStorageDiffTrace>
+    trace: Array<LabeledStorageStateTrace>
   }
 }
 ```
 
-Each `LabeledStorageDiffTrace` represents a specific storage access:
+Each `LabeledStorageStateTrace` represents a specific storage access:
 
 ```typescript twoslash
 import type { Hex } from "tevm";
 import type { PathSegment } from "@polareth/evmstate";
 
-type LabeledStorageDiffTrace = {
+type LabeledStorageStateTrace = {
   slots: Array<Hex>, // Storage slots accessed
   path: Array<PathSegment>, // Semantic path components
   fullExpression: string, // Human-readable expression (e.g., "balances[0x1234]")

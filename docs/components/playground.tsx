@@ -122,7 +122,7 @@ export const Playground = () => {
       if (!txHash) throw new Error("txHash is undefined");
 
       // Get a trace for deployment
-      const diff = await traceState({
+      const state = await traceState({
         client,
         txHash,
         fetchContracts: false,
@@ -135,7 +135,7 @@ export const Playground = () => {
       addTrace({
         functionName: "deploy",
         args: [callerAddress.toString(), "Playground"],
-        diff,
+        state,
       });
     } catch (err) {
       console.error("Failed to deploy contract:", err);
@@ -175,8 +175,8 @@ export const Playground = () => {
       setError(null);
       setIsLoading(true);
 
-      // Get the diff
-      const diff = await traceState({
+      // Get the state
+      const state = await traceState({
         client,
         from: callerAddress.toString(),
         to: contract.address,
@@ -204,7 +204,7 @@ export const Playground = () => {
       const newTrace = {
         functionName: selectedFunction.name,
         args: [...args],
-        diff,
+        state,
       };
       addTrace(newTrace);
       console.log(newTrace);
@@ -251,13 +251,15 @@ export const Playground = () => {
           <div className="flex items-center gap-x-2 text-accent">
             <ArrowRight className="size-3 mt-0.5" />
             <span className="font-mono text-sm font-medium text-xs">
-              {Object.keys(JSON.parse(trace.diff)[contract.address.toLowerCase() as Address]?.storage ?? {}).join(", ")}
+              {Object.keys(JSON.parse(trace.state)[contract.address.toLowerCase() as Address]?.storage ?? {}).join(
+                ", ",
+              )}
             </span>
           </div>
         }
         collapsible={true}
       >
-        {trace.diff}
+        {trace.state}
       </CodeBlock>
     ));
   }, [traces, highlighter]);

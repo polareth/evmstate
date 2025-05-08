@@ -3,7 +3,7 @@ import type { ExtractAbiFunctions } from "abitype";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-import type { LabeledStateDiff } from "@polareth/evmstate";
+import type { LabeledState } from "@polareth/evmstate";
 import * as CONTRACTS from "@test/contracts/index.js";
 
 import { stringify } from "~/utils.js";
@@ -14,11 +14,11 @@ const localStorageKey = "EVMSTATE_PLAYGROUND_TRACES";
 export type Trace = {
   functionName: ExtractAbiFunctions<typeof contract.abi>["name"] | "deploy";
   args: any[];
-  diff: Record<Address, LabeledStateDiff>;
+  state: Record<Address, LabeledState>;
 };
 
 interface PlaygroundState {
-  traces: Array<Omit<Trace, "diff"> & { diff: string }>; // stringified diff
+  traces: Array<Omit<Trace, "state"> & { state: string }>; // stringified state
   addTrace: (trace: Trace) => void;
   clearTraces: () => void;
 }
@@ -26,8 +26,8 @@ interface PlaygroundState {
 export const usePlaygroundStore = create<PlaygroundState>()(
   persist(
     (set) => ({
-      traces: [] as Array<Omit<Trace, "diff"> & { diff: string }>,
-      addTrace: (trace) => set((state) => ({ traces: [...state.traces, { ...trace, diff: stringify(trace.diff) }] })),
+      traces: [] as Array<Omit<Trace, "state"> & { state: string }>,
+      addTrace: (trace) => set((state) => ({ traces: [...state.traces, { ...trace, state: stringify(trace.state) }] })),
       clearTraces: () => set({ traces: [] }),
     }),
     {

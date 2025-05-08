@@ -13,7 +13,7 @@ import {
   type TraceResult,
 } from "tevm/actions";
 
-import type { LabeledIntrinsicsDiff, TraceStateOptions } from "@/lib/trace/types.js";
+import type { LabeledIntrinsicsState, TraceStateOptions } from "@/lib/trace/types.js";
 
 export const debugTraceTransaction = async <
   TAbi extends Abi | readonly unknown[] = Abi,
@@ -24,7 +24,7 @@ export const debugTraceTransaction = async <
 ): Promise<{
   stateDiff: Record<
     Address,
-    LabeledIntrinsicsDiff & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
+    LabeledIntrinsicsState & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
   >;
   structLogs: TraceResult["structLogs"];
   addresses: Array<Address>;
@@ -85,7 +85,7 @@ export const debugTraceBlock = async (
     txHash: Hex;
     stateDiff: Record<
       Address,
-      LabeledIntrinsicsDiff & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
+      LabeledIntrinsicsState & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
     >;
     structLogs: TraceResult["structLogs"];
     addresses: Array<Address>;
@@ -150,7 +150,7 @@ const stateDiff = ({ pre, post, addresses }: PrestateTraceResult<true> & { addre
               },
             ];
           }),
-        ) as LabeledIntrinsicsDiff),
+        ) as LabeledIntrinsicsState),
         storage: Object.fromEntries(
           [...uniqueSlots].map((slot) => {
             const preValue = preStorage?.[slot as Hex];
@@ -171,7 +171,7 @@ const stateDiff = ({ pre, post, addresses }: PrestateTraceResult<true> & { addre
     },
     {} as Record<
       Address,
-      LabeledIntrinsicsDiff & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
+      LabeledIntrinsicsState & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
     >,
   );
 };

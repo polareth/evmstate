@@ -7,12 +7,7 @@ import { labelStateDiff } from "@/lib/explore/label.js";
 import { type SolcStorageLayout } from "@/lib/solc.js";
 import { debugTraceTransaction } from "@/lib/trace/debug.js";
 import { getContracts, getStorageLayout } from "@/lib/trace/storage-layout.js";
-import type {
-  LabeledStateDiff,
-  TraceStateBaseOptions,
-  TraceStateOptions,
-  TraceStateTxParams,
-} from "@/lib/trace/types.js";
+import type { LabeledState, TraceStateBaseOptions, TraceStateOptions, TraceStateTxParams } from "@/lib/trace/types.js";
 import { createClient } from "@/lib/trace/utils.js";
 import { logger } from "@/logger.js";
 
@@ -35,15 +30,15 @@ import { logger } from "@/logger.js";
  *   });
  *
  * @param options - {@link TraceStateOptions}
- * @returns Promise<Record<Address, {@link LabeledStateDiff}>> - Storage access trace with labeled slots and labeled
- *   layout access for each touched account
+ * @returns Promise<Record<Address, {@link LabeledState}>> - Storage access trace with labeled slots and labeled layout
+ *   access for each touched account
  */
 export const traceState = async <
   TAbi extends Abi | readonly unknown[] = Abi,
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
 >(
   options: TraceStateOptions<TAbi, TFunctionName>,
-): Promise<Record<Address, LabeledStateDiff>> => {
+): Promise<Record<Address, LabeledState>> => {
   const client = options.client ?? createClient(options);
   const { fetchStorageLayouts = true, fetchContracts = true } = options;
   const { stateDiff, addresses, newAddresses, structLogs } = await debugTraceTransaction(client, options);
@@ -132,7 +127,7 @@ export class Tracer {
   async traceState<
     TAbi extends Abi | readonly unknown[] = Abi,
     TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
-  >(txOptions: TraceStateTxParams<TAbi, TFunctionName>): Promise<Record<Address, LabeledStateDiff>> {
+  >(txOptions: TraceStateTxParams<TAbi, TFunctionName>): Promise<Record<Address, LabeledState>> {
     // @ts-expect-error args unknown
     return traceState({
       ...this.options,

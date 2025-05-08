@@ -111,7 +111,7 @@ const longHexTransformer: ShikiTransformer = {
       const value = span.children[0].value;
       span.children[0].value = value
         .replace("__long_hex__", "")
-        .replace("...", "<truncated_see_console_for_full_diff>");
+        .replace("...", "<truncated_see_console_for_full_state>");
     }
     return span;
   },

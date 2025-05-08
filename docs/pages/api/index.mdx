@@ -7,11 +7,11 @@
 Main function for tracing state changes from a transaction.
 
 ```typescript twoslash
-import type { TraceStateOptions, LabeledStateDiff } from "@polareth/evmstate";
+import type { TraceStateOptions, LabeledState } from "@polareth/evmstate";
 import type { Address } from "tevm";
 
 // @ts-expect-error - Function implementation is missing
-function traceState(options: TraceStateOptions): Promise<Record<Address, LabeledStateDiff>>;
+function traceState(options: TraceStateOptions): Promise<Record<Address, LabeledState>>;
 ```
 
 Use `traceState` when you need to analyze a single transaction and don't need to reuse configuration.
@@ -23,14 +23,14 @@ Use `traceState` when you need to analyze a single transaction and don't need to
 Class for creating reusable tracing instances with shared configuration.
 
 ```typescript twoslash
-import type { TraceStateBaseOptions, LabeledStateDiff, TraceStateTxParams } from "@polareth/evmstate";
+import type { TraceStateBaseOptions, LabeledState, TraceStateTxParams } from "@polareth/evmstate";
 import type { Abi, ContractFunctionName, Address } from "tevm";
 
 class Tracer {
   // @ts-expect-error - Constructor implementation is missing
   constructor(options: TraceStateBaseOptions);
   // @ts-expect-error - Function implementation is missing
-  traceState(txOptions: TraceStateTxParams): Promise<Record<Address, LabeledStateDiff>>;
+  traceState(txOptions: TraceStateTxParams): Promise<Record<Address, LabeledState>>;
 }
 ```
 
