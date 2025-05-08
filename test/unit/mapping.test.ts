@@ -92,6 +92,19 @@ describe("Mappings", () => {
     ).toMatchSnapshot();
   });
 
+  it("should trace mapping with struct values slot access across multiple slots", async () => {
+    const client = getClient();
+
+    // Update the userInfo mapping at the 3rd slot for the recipient address
+    expect(
+      await traceState({
+        ...Mappings.write.toggleUserActive(recipient.toString()),
+        client,
+        from: caller.toString(),
+      }),
+    ).toMatchSnapshot();
+  });
+
   it("should trace complex mapping operations with multiple keys", async () => {
     const client = getClient();
 

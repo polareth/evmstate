@@ -353,6 +353,49 @@ export const exploreStorage = (
             pathKeys: [...pathKeys, { hex: key, type: keyTypeLabel }], // Only append minimal key info
             depth: depth + 1,
           });
+        } else if (valueTypeInfo.encoding === "inplace" && "members" in valueTypeInfo) {
+          // Special case for structs: check if any of the struct's slots exist in storage
+          // This handles cases where only a nested field of a struct is updated
+          let structSlotFound = false;
+
+          // Check each member of the struct to see if its slot exists in the diff
+          for (const member of valueTypeInfo.members) {
+            const memberSlot = BigInt(member.slot);
+            const memberBaseSlotIndex = BigInt(hashedSlot) + memberSlot;
+            const memberSlotHex = toHex(memberBaseSlotIndex, { size: 32 });
+
+            if (storageDiff[memberSlotHex]) {
+              // Found a struct member slot! Mark the base slot and this member slot as explored
+              exploredSlots.add(hashedSlot);
+              exploredSlots.add(memberSlotHex);
+              matchesFound++;
+
+              // Construct the full path with all segments
+              const fullPath = [...path];
+
+              // Create a new array with all previous keys plus the current key
+              const currentPathKeys = [...pathKeys, { hex: key, type: keyTypeLabel }];
+
+              // Add all mapping key segments from our minimal storage
+              for (const { hex, type } of currentPathKeys) {
+                fullPath.push({
+                  kind: PathSegmentKind.MappingKey,
+                  key: decodeAbiParameters([{ type }], hex)[0] as AbiTypeToPrimitiveType<AbiTypeInplace>,
+                  keyType: type,
+                });
+              }
+
+              // Explore the entire struct with the full path
+              exploreType(valueTypeId, hashedSlot, 0n, fullPath, root);
+
+              // We only need to explore the struct once, even if multiple members are updated
+              structSlotFound = true;
+              break;
+            }
+          }
+
+          // If we found and processed a struct slot, continue to the next key
+          if (structSlotFound) continue;
         } else {
           // For terminal values, we only care if the slot exists in storage
           if (storageDiff[hashedSlot]) {

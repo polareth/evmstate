@@ -67,4 +67,8 @@ contract Mappings {
         info.balance = newBalance;
         info.lastUpdate = block.timestamp;
     }
+
+    function toggleUserActive(address user) public {
+        userInfo[user].isActive = !userInfo[user].isActive;
+    }
 }
