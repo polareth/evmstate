@@ -72,7 +72,7 @@ export const watchState = async <TStorageLayout extends DeepReadonly<SolcStorage
             data: tx?.input,
             value: tx?.value,
           },
-        })[address.toLowerCase() as Address];
+        }).get(address);
 
         if (diff) onStateChange({ ...diff, txHash: txHash } as unknown as StateChange<TStorageLayout>);
       });

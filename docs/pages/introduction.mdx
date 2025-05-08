@@ -38,7 +38,7 @@ yarn add @polareth/evmstate
 import { traceState, watchState } from "@polareth/evmstate";
 
 // Trace a transaction
-// [!include ~/snippets/trace-state.ts:abi] 
+// [!include ~/snippets/trace-state.ts:example-featured] 
 
 // Watch an account's state
 // [!include ~/snippets/watch-state.ts:watchState] 
@@ -68,8 +68,8 @@ import { traceState, watchState } from "@polareth/evmstate";
 ## Example output
 
 ```typescript
-{
-  "0xContractAddress": {
+Map(2) {
+  "0xContractAddress" => {
     "balance": {
       "current": 0n,
       "modified": false,
@@ -96,7 +96,7 @@ import { traceState, watchState } from "@polareth/evmstate";
       }
     }
   },
-  "0xCallerAddress": {
+  "0xCallerAddress" => {
     "balance": {
       "current": 1000000000000000000n,
       "modified": true,
@@ -111,6 +111,20 @@ import { traceState, watchState } from "@polareth/evmstate";
   },
 }
 ```
+
+You can get the result for any address (case-insensitive):
+
+```ts twoslash
+import { traceState } from "@polareth/evmstate";
+// [!include ~/snippets/client.ts]
+// [!include ~/snippets/abi.ts]
+// [!include ~/snippets/trace-state.ts:example-featured]
+
+// ---cut---
+const result = trace.get("0xContractAddress");
+```
+
+
 
 ## Documentation
 

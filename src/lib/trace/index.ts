@@ -6,6 +6,7 @@ import { type ExploreStorageConfig } from "@/lib/explore/config.js";
 import { labelStateDiff } from "@/lib/explore/label.js";
 import { type SolcStorageLayout } from "@/lib/solc.js";
 import { debugTraceTransaction } from "@/lib/trace/debug.js";
+import { TraceStateResult } from "@/lib/trace/result.js";
 import { getContracts, getStorageLayout } from "@/lib/trace/storage-layout.js";
 import type { LabeledState, TraceStateBaseOptions, TraceStateOptions, TraceStateTxParams } from "@/lib/trace/types.js";
 import { createClient } from "@/lib/trace/utils.js";
@@ -38,7 +39,7 @@ export const traceState = async <
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
 >(
   options: TraceStateOptions<TAbi, TFunctionName>,
-): Promise<Record<Address, LabeledState>> => {
+): Promise<TraceStateResult> => {
   const client = options.client ?? createClient(options);
   const { fetchStorageLayouts = true, fetchContracts = true } = options;
   const { stateDiff, addresses, newAddresses, structLogs } = await debugTraceTransaction(client, options);
@@ -72,7 +73,7 @@ export const traceState = async <
         Object.entries(contractsInfo).map(async ([address, contract]) => {
           // Get storage layout adapter for this contract
           const layout = await getStorageLayout({ ...contract, address: address as Address });
-          if (layout) layouts[address as Address] = layout;
+          if (layout) layouts[address.toLowerCase() as Address] = layout;
         }),
       );
     }
@@ -127,7 +128,7 @@ export class Tracer {
   async traceState<
     TAbi extends Abi | readonly unknown[] = Abi,
     TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
-  >(txOptions: TraceStateTxParams<TAbi, TFunctionName>): Promise<Record<Address, LabeledState>> {
+  >(txOptions: TraceStateTxParams<TAbi, TFunctionName>): Promise<TraceStateResult> {
     // @ts-expect-error args unknown
     return traceState({
       ...this.options,

@@ -7,10 +7,9 @@ This reference documents the structure of data returned by the library's tracing
 For `traceState` and `Tracer.traceState`, the output maps account addresses to state changes:
 
 ```typescript twoslash
-import type { Address } from "tevm";
-import type { LabeledState } from "@polareth/evmstate";
+import type { TraceStateResult } from "@polareth/evmstate";
 
-type TraceOutput = Record<Address, LabeledState>;
+type TraceOutput = TraceStateResult;
 ```
 
 For `watchState`, the output focuses on a single address and includes the transaction hash:

@@ -1,4 +1,25 @@
 export { traceState, Tracer } from "@/lib/trace/index.js";
+export { TraceStateResult } from "@/lib/trace/result.js";
+
+export type {
+  // Options
+  TraceStateOptions,
+  TraceStateBaseOptions,
+  TraceStateTxParams,
+  TraceStateTxWithAbi,
+  TraceStateTxWithData,
+  TraceStateTxWithReplay,
+  // Trace
+  LabeledState,
+  LabeledStorageState,
+  LabeledStorageStateTrace,
+  LabeledIntrinsicsState,
+} from "@/lib/trace/types.js";
+
+export { watchState } from "@/lib/watch/index.js";
+export type { WatchStateOptions, StateChange } from "@/lib/watch/types.js";
+
+export type { ExploreStorageConfig } from "@/lib/explore/config.js";
 export type {
   // Solidity type extraction (mapping, array, struct)
   ExtractMappingKeyType,
@@ -30,24 +51,5 @@ export type {
   AbiTypeInplace,
 } from "@/lib/explore/types.js";
 export { PathSegmentKind } from "@/lib/explore/types.js";
-export type { ExploreStorageConfig } from "@/lib/explore/config.js";
-
-export type {
-  // Options
-  TraceStateOptions,
-  TraceStateBaseOptions,
-  TraceStateTxParams,
-  TraceStateTxWithAbi,
-  TraceStateTxWithData,
-  TraceStateTxWithReplay,
-  // Trace
-  LabeledState,
-  LabeledStorageState,
-  LabeledStorageStateTrace,
-  LabeledIntrinsicsState,
-} from "@/lib/trace/types.js";
-
-export { watchState } from "@/lib/watch/index.js";
-export type { WatchStateOptions, StateChange } from "@/lib/watch/types.js";
 
 export type { SolcStorageLayout } from "tevm/bundler/solc";

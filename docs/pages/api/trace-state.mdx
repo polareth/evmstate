@@ -5,14 +5,14 @@ Analyzes storage access patterns during transaction execution, identifying which
 ## Signature
 
 ```typescript twoslash
-import type { Abi, ContractFunctionName, Address } from "tevm";
-import type { LabeledState, TraceStateOptions } from "@polareth/evmstate";
+import type { Abi, ContractFunctionName } from "tevm";
+import type { TraceStateOptions, TraceStateResult } from "@polareth/evmstate";
 
 // @ts-expect-error - Function implementation is missing
 function traceState<
   TAbi extends Abi | readonly unknown[] = Abi,
   TFunctionName extends ContractFunctionName<TAbi> = ContractFunctionName<TAbi>,
->(options: TraceStateOptions<TAbi, TFunctionName>): Promise<Record<Address, LabeledState>>;
+>(options: TraceStateOptions<TAbi, TFunctionName>): Promise<TraceStateResult>;
 ```
 
 ## Parameters
@@ -62,10 +62,9 @@ Three ways to specify the transaction to trace:
 Returns a promise that resolves to a record mapping account addresses to their state changes:
 
 ```typescript twoslash
-import type { Address } from "tevm";
-import type { LabeledState } from "@polareth/evmstate";
+import type { TraceStateResult } from "@polareth/evmstate";
 
-type ReturnType = Record<Address, LabeledState>;
+type ReturnType = TraceStateResult;
 ```
 
 See the [output format reference](/reference/output-format) for details on the structure.

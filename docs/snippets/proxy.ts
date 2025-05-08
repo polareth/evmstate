@@ -16,5 +16,5 @@ const trace = await traceState({
   ...proxy.write.changeImplementation(implementation),
 });
 
-console.log(trace[proxy.address].storage);
+console.log(trace.get(proxy.address)?.storage);
 // [!endregion proxy-trace]
