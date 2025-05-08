@@ -1,12 +1,13 @@
 import type { Address } from "tevm";
 import { ArrowRight } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { Button } from "~/components/button.js";
 import { CodeBlock } from "~/components/code-block/index.js";
 import { usePlayground } from "~/components/hooks/use-playground.js";
-import { contract, functionDescriptions } from "~/components/playground/constants.js";
+import { callerAddress, contract, functionDescriptions } from "~/components/playground/constants.js";
 
+import { CopyButton } from "../copy-button.js";
 import { FeedbackButton } from "../feedback-button.js";
 
 export const Playground = () => {
@@ -24,6 +25,7 @@ export const Playground = () => {
     executeFunction,
     handleCollapseAllTraces,
     handleReset,
+    generateRandomArgs,
   } = usePlayground();
 
   const codeBlocks = useMemo(() => {
@@ -61,10 +63,36 @@ export const Playground = () => {
       .reverse();
   }, [traces, highlighter]);
 
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(callerAddress.toString());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1000);
+  };
+
   // Render UI
   return (
     <div className="playground">
       <div className="flex flex-col gap-y-2">
+        <div className="flex items-center gap-x-2 justify-between">
+          <div className="flex items-center gap-x-2 text-muted text-sm">
+            <div>sender</div>
+            <div className="flex items-center gap-x-1">
+              <span className="vocs_Code">{callerAddress.toString()}</span>
+              <CopyButton
+                copy={handleCopy}
+                copied={copied}
+                style={{ opacity: 1, position: "initial", width: "1.5rem", height: "1.5rem" }}
+                iconClassName="size-3"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-x-2">
+            <Button variant="ghost" onClick={generateRandomArgs} className="text-muted">
+              random args
+            </Button>
+          </div>
+        </div>
         <div>
           <label className="font-medium">Function</label>
           <select value={selectedFunction?.name ?? ""} onChange={handleFunctionChange}>

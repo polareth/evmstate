@@ -212,6 +212,45 @@ export const usePlayground = () => {
     await init();
   };
 
+  // Generate random values for the current function's arguments
+  const generateRandomArgs = useCallback(() => {
+    if (!selectedFunction.inputs) return;
+
+    let randomArgs = selectedFunction.inputs.map((input) => {
+      // Handle different types with appropriate random values
+      switch (input.type) {
+        case "address":
+          return `0x${Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join("")}`;
+        case "uint256":
+        case "uint8":
+        case "uint16":
+        case "uint32":
+          // Generate a reasonable random number (not too large)
+          return Math.floor(Math.random() * 1000);
+        case "bool":
+          return Math.random() > 0.5;
+        case "string":
+          // Generate a random string of 5-10 characters
+          const length = Math.floor(Math.random() * 6) + 5;
+          return Array.from({ length }, () => String.fromCharCode(97 + Math.floor(Math.random() * 26))).join("");
+        case "bytes":
+          // Generate random bytes of random length (2-10 bytes)
+          const bytesLength = Math.floor(Math.random() * 9) + 2;
+          return `0x${Array.from({ length: bytesLength * 2 }, () => Math.floor(Math.random() * 16).toString(16)).join(
+            "",
+          )}`;
+        default:
+          return "";
+      }
+    });
+
+    if (selectedFunction.name === "setFixedValue") {
+      randomArgs[0] = Math.floor(Math.random() * 3);
+    }
+    // @ts-expect-error - args mismatch
+    setArgs(randomArgs);
+  }, [selectedFunction]);
+
   return {
     client,
     traces,
@@ -228,5 +267,6 @@ export const usePlayground = () => {
     executeFunction,
     handleCollapseAllTraces,
     handleReset,
+    generateRandomArgs,
   };
 };
