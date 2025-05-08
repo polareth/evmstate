@@ -170,3 +170,17 @@ const transferTrace = await tracer.traceState({
 ```
 
 :::
+
+### Tracing an existing transaction
+
+```typescript twoslash
+import { Tracer } from "@polareth/evmstate";
+
+const tracer = new Tracer({
+  rpcUrl: "https://1.rpc.thirdweb.com",
+});
+
+const trace = await tracer.traceState({
+  txHash: "0x1234567890abcdef...",
+});
+```

@@ -83,6 +83,9 @@ const trace = await traceState({
   data: "0xEncodedCalldata",
   value: 0n,
 });
+
+const state = trace.get("0xTokenAddress");
+console.log(state?.storage);
 ```
 
 ### Using a contract ABI
@@ -107,6 +110,8 @@ const trace = await traceState({
 ```typescript twoslash [abi.ts]
 // [!include ~/snippets/abi.ts:erc20]
 ```
+
+:::
 
 ### Tracing an existing transaction
 
