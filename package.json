@@ -22,6 +22,7 @@
   },
   "main": "./dist/index.js",
   "type": "module",
+  "private": false,
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
