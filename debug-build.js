@@ -1,6 +1,6 @@
-const fs = require('fs');
-const path = require('path');
-const { execSync } = require('child_process');
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 
 // Function to recursively list all directories and files
 function listAllFiles(dir, outputFile, indent = '') {
