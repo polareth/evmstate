@@ -101,7 +101,7 @@ export const traceState = async <
  *
  * Allows for creating a reusable tracer with consistent configuration.
  *
- * @unsupported - This class should not be used yet, as rebase mode is not available yet. Meaning that in the case of a fork client, it won't follow the state of the fork. For now, you should use the `traceState` function directly, and refork in case you want to use the latest state of the forked chain.
+ * @unsupported - This class should not be used if you want to follow the chain, as rebase mode is not available yet. Meaning that in the case of a fork client, it won't follow the state of the fork. For now, you should use the `traceState` function directly, and refork in case you want to use the latest state of the forked chain.
  */
 export class Tracer {
   private options: TraceStateBaseOptions & { config?: ExploreStorageConfig };

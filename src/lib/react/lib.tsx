@@ -18,6 +18,8 @@ interface TracerProviderProps extends TraceStateBaseOptions {
 /**
  * Provides a Tracer instance to its children components via context. It initializes the Tracer with the provided
  * options.
+ *
+ * @unsupported - This provider should not be used if you want to follow the chain, as rebase mode is not available yet. Meaning that in the case of a fork client, it won't follow the state of the fork. For now, you should use the `traceState` function directly, and refork in case you want to use the latest state of the forked chain.
  */
 export const TracerProvider: React.FC<TracerProviderProps> = ({ children, ...options }) => {
   // Memoize the Tracer instance to avoid recreating it on every render unless the options change.
@@ -34,6 +36,7 @@ export const TracerProvider: React.FC<TracerProviderProps> = ({ children, ...opt
  *
  * @returns The Tracer instance.
  * @throws Error if used outside of a TracerProvider.
+ * @unsupported - This hook should not be used if you want to follow the chain, as rebase mode is not available yet. Meaning that in the case of a fork client, it won't follow the state of the fork. For now, you should use the `traceState` function directly, and refork in case you want to use the latest state of the forked chain.
  */
 export const useTracer = (): Tracer => {
   const context = useContext(TracerContext);
