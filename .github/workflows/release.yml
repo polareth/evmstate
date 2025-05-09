@@ -53,9 +53,11 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Set deployment token
-        run: npm config set '//registry.npmjs.org/:_authToken' "${NODE_AUTH_TOKEN}"
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ${PNPM_HOME}/.npmrc
+          npm whoami
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Debug npm config
         run: |
