@@ -79,7 +79,6 @@ export const watchState = async <TStorageLayout extends DeepReadonly<SolcStorage
       // if the user didn't provide a client, or if they provided a client in fork mode
       if (!options.client) internalClient = createClient(options);
 
-      console.log(block.transactions);
       const traces = await debugTraceBlock(client, block.hash);
       traces.forEach(({ txHash, stateDiff, addresses, newAddresses, structLogs }) => {
         const uniqueAddresses = [...new Set([...addresses, ...newAddresses])].map((addr) => addr.toLowerCase());
