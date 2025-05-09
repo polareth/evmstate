@@ -8,6 +8,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+  # https://docs.npmjs.com/generating-provenance-statements
+  NPM_CONFIG_PROVENANCE: true
+
 jobs:
   changesets:
     name: Create version pull request
@@ -33,8 +40,6 @@ jobs:
           commit: "chore: version package"
           title: "chore: version package"
           version: pnpm changeset:version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release:
     name: Release
@@ -59,17 +64,9 @@ jobs:
             @polareth:registry=https://registry.npmjs.org/
             //registry.npmjs.org/:_authToken=$NPM_TOKEN
           EOF
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to NPM
         uses: changesets/action@v1
         with:
           createGithubReleases: ${{ github.ref == 'refs/heads/main' }}
           publish: pnpm changeset:publish
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # https://docs.npmjs.com/generating-provenance-statements
-          NPM_CONFIG_PROVENANCE: true
