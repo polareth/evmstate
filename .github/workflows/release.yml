@@ -35,7 +35,6 @@ jobs:
 
   release:
     name: Release
-    needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
