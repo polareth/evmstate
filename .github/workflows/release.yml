@@ -55,6 +55,8 @@ jobs:
       - name: Set deployment token
         run: |
           cat << EOF > "$HOME/.npmrc"
+            registry=https://registry.npmjs.org/
+            @polareth:registry=https://registry.npmjs.org/
             //registry.npmjs.org/:_authToken=$NPM_TOKEN
           EOF
         env:
