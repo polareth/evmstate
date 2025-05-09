@@ -52,6 +52,11 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
 
+      - name: Set deployment token
+        run: npm config set '//registry.npmjs.org/:_authToken' "${NPM_TOKEN}"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish to NPM
         uses: changesets/action@v1
         with:
