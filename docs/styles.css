@@ -47,7 +47,7 @@
 
   .btn-destructive {
     background: var(--vocs-color_backgroundRedTint) !important;
-    color: var(--vocs-color_white) !important;
+    color: var(--vocs-color_textRed) !important;
   }
 
   .btn:hover:not(:disabled) {

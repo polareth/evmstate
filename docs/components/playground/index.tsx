@@ -38,13 +38,11 @@ export const Playground = () => {
           ref={(el) => {
             traceCodeBlockRefs.current[index] = el;
           }}
-          fileName={`${trace.functionName}(
-              ${trace.args
-                .map((arg) =>
-                  typeof arg === "string" ? `"${arg}"` : typeof arg === "bigint" ? `${arg.toString()}n` : String(arg),
-                )
-                .join(", ")}
-              )`}
+          fileName={`${trace.functionName}(${trace.args
+            .map((arg) =>
+              typeof arg === "string" ? `"${arg}"` : typeof arg === "bigint" ? `${arg.toString()}n` : String(arg),
+            )
+            .join(", ")})`}
           caption={
             <div className="flex items-center gap-x-2 text-accent">
               <ArrowRight className="size-3 mt-0.5" />
