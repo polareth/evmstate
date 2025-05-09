@@ -5,6 +5,7 @@ showLogo: false
 ---
 
 import { HomePage } from "vocs/components";
+import { Button } from "../components/button.tsx";
 
 <HomePage.Root>
   <HomePage.Logo />
@@ -20,4 +21,12 @@ import { HomePage } from "vocs/components";
     <HomePage.Button href="/playground">Try it out</HomePage.Button>
     <HomePage.Button href="https://github.com/polarethorg/evmstate">GitHub</HomePage.Button>
   </HomePage.Buttons>
+  <div className="flex gap-2">
+    <a href="/llms.txt" className="vocs_Code font-medium hover:underline">
+      llms.txt
+    </a>
+    <a href="/llms-full.txt" className="vocs_Code font-medium hover:underline">
+      llms-full.txt
+    </a>
+  </div>
 </HomePage.Root>
