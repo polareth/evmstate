@@ -55,9 +55,7 @@ jobs:
       - name: Set deployment token
         run: |
           npm config set //registry.npmjs.org/:_authToken $NPM_TOKEN
-          npm config set @polareth:registry https://registry.npmjs.org/
-          npm config set registry https://registry.npmjs.org/
-          npm config set scope @polareth
+          npm adduser --registry https://registry.npmjs.org/
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
