@@ -57,6 +57,14 @@ jobs:
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Debug npm config
+        run: |
+          npm config list
+          npm config get registry
+          npm config get always-auth
+          npm config get //registry.npmjs.org/:_authToken
+          npm whoami
+
       - name: Publish to NPM
         uses: changesets/action@v1
         with:
