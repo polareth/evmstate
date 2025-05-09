@@ -9,10 +9,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build
-    uses: ./.github/actions/build
-
   changesets:
     name: Create version pull request
     runs-on: ubuntu-latest
@@ -52,6 +48,9 @@ jobs:
 
       - name: Install dependencies
         uses: ./.github/actions/setup
+
+      - name: Build
+        run: pnpm build
 
       - name: Publish to NPM
         uses: changesets/action@v1
