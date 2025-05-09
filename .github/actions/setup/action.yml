@@ -4,16 +4,17 @@ runs:
   using: composite
   steps:
     - name: Setup pnpm
-      uses: pnpm/action-setup@v2
+      uses: pnpm/action-setup@v4
       with:
-        version: 9.x
+        version: 10.x
 
     - name: Setup node
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: 20.x
-        registry-url: https://registry.npmjs.org
-        cache: pnpm
+        node-version: 23.x
+        registry-url: "https://registry.npmjs.org"
+        cache: "pnpm"
+        scope: "@polareth"
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
