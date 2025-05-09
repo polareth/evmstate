@@ -53,13 +53,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Set deployment token
-        run: |
-          cat << EOF > "$HOME/.npmrc"
-          @polareth:registry=https://registry.npmjs.org/
-          registry=https://registry.npmjs.org/
-          //registry.npmjs.org/:_authToken=${NPM_TOKEN}
-          EOF
-          npm config set '//registry.npmjs.org/:_authToken' "${NPM_TOKEN}"
+        run: pnpm config set '//registry.npmjs.org/:_authToken' "${NPM_TOKEN}"
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
