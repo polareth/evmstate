@@ -1,5 +1,11 @@
 # @polareth/evmstate
 
+## 0.1.2
+
+### Patch Changes
+
+- [`bc303fe`](https://github.com/polareth/evmstate/commit/bc303fe65e1746ad9ded27c351eda37faea2f2ab) Thanks [@0xpolarzero](https://github.com/0xpolarzero)! - Add more descriptive @unsupported comments to Tracer class and react provider/hook.
+
 ## 0.1.1
 
 ### Patch Changes
