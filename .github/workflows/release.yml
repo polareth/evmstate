@@ -54,9 +54,11 @@ jobs:
 
       - name: Set deployment token
         run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-          echo "@polareth:registry=https://registry.npmjs.org/" >> ~/.npmrc
-          echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
+          cat << EOF > "$HOME/.npmrc"
+          @polareth:registry=https://registry.npmjs.org/
+          registry=https://registry.npmjs.org/
+          //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+          EOF
           npm config set '//registry.npmjs.org/:_authToken' "${NPM_TOKEN}"
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
