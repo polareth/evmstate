@@ -55,7 +55,7 @@
     "abitype": "^1.0.8",
     "debug": "^4.4.0",
     "tevm": "1.0.0-next.143",
-    "viem": "^2.21.1"
+    "viem": "^2.29.1"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^0.5.1",
@@ -94,6 +94,7 @@
     }
   },
   "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
     "access": "public"
   }
 }

@@ -62,7 +62,6 @@ jobs:
           npm config list
           npm config get registry
           npm config get always-auth
-          npm config get //registry.npmjs.org/:_authToken
           npm whoami
 
       - name: Publish to NPM
