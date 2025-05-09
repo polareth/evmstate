@@ -3,17 +3,16 @@ description: Setup pnpm and Node.js
 runs:
   using: composite
   steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v4
+
     - name: Setup node
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: 23.x
-        registry-url: https://registry.npmjs.org
-        scope: @polareth
-
-    - name: Install pnpm
-      run: |
-        npm i pnpm@10.10.0 --global && pnpm --version
-      shell: bash
+        registry-url: "https://registry.npmjs.org"
+        cache: "pnpm"
+        scope: "@polareth"
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
