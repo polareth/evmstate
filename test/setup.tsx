@@ -4,22 +4,29 @@ import { join } from "path";
 import { createCache } from "@tevm/bundler-cache";
 import { createMemoryClient } from "tevm";
 import type { Abi, ContractFunctionName } from "tevm";
+import type { Hex } from "tevm/actions";
 import { type FileAccessObject } from "tevm/bundler";
 import { type ResolvedCompilerConfig } from "tevm/bundler/config";
 import { EthjsAccount, parseEther } from "tevm/utils";
+import { useMemo } from "react";
 import { toFunctionSelector } from "viem";
 import { beforeEach, vi } from "vitest";
 
 import { ACCOUNTS, CONTRACTS } from "@test/constants.js";
-import type { TraceStateBaseOptions, TraceStateOptions, TraceStateTxParams, WatchStateOptions } from "@/index.js";
+import type {
+  TraceStateBaseOptions,
+  TraceStateOptions,
+  TraceStateResult,
+  TraceStateTxParams,
+  WatchStateOptions,
+} from "@/index.js";
 import * as react from "@/lib/react/index.js";
+import { TracerContext } from "@/lib/react/lib.js";
 import { createSolc, type SolcStorageLayout } from "@/lib/solc.js";
 import * as trace from "@/lib/trace/index.js";
 import * as storageLayout from "@/lib/trace/storage-layout.js";
 import * as watch from "@/lib/watch/index.js";
 import { logger } from "@/logger.js";
-import { useMemo } from "react";
-import { TracerContext } from "@/lib/react/lib.js";
 
 beforeEach(async () => {
   const client = createMemoryClient({ loggingLevel: "warn" });
@@ -199,7 +206,8 @@ const setupContractsMock = () => {
     return await originalWatchState({
       ...params,
       onStateChange: (state) => {
-        params.onStateChange(stripMetadataFromTrace({ "0x": state })["0x"]);
+        // @ts-expect-error - txHash not typed in
+        params.onStateChange(stripMetadataFromTrace(new Map([["0x", state]])).get("0x")!);
       },
     });
   };
@@ -237,33 +245,25 @@ const setupContractsMock = () => {
  *
  * This prevents slightly different snapshots depending on test environment just due to a different path structure.
  */
-function stripMetadataFromTrace(obj: any): any {
-  if (!obj) return obj;
-
+const stripMetadataFromTrace = <T extends TraceStateResult>(result: T): T => {
   // Process each address in the trace
-  for (const address of Object.keys(obj)) {
-    const addressData = obj[address];
-
+  for (const data of result.values()) {
     // Process code.current & code.next if they exist and are a hex string
-    ["current", "next"].forEach((key) => {
-      if (
-        addressData.code?.[key] &&
-        typeof addressData.code[key] === "string" &&
-        addressData.code[key].startsWith("0x")
-      ) {
-        addressData.code[key] = stripMetadataHash(addressData.code[key]);
+    (["current", "next"] as const).forEach((key) => {
+      if (data.code?.[key]) {
+        data.code[key] = stripMetadataHash(data.code[key]);
       }
     });
   }
 
-  return obj;
-}
+  return result;
+};
 
 /**
  * Replaces the metadata hash in Solidity bytecode with zeros while preserving compiler info Format can vary but
  * typically ends with something like: a2646970667358221220...64736f6c634300081c0033
  */
-function stripMetadataHash(bytecode: string): string {
+function stripMetadataHash(bytecode: Hex): Hex {
   // Look for the solc version marker which appears at the end
   // 64736f6c6343 = hex for "solc43"
   // followed by 6 digits for version (e.g., 00081c)
@@ -294,10 +294,10 @@ function stripMetadataHash(bytecode: string): string {
     // If no IPFS marker, just zero out a fixed length before the solc marker
     const hashStartIndex = Math.max(0, solcIndex - 64);
     const zeroFill = "0".repeat(solcIndex - hashStartIndex);
-    return bytecode.substring(0, hashStartIndex) + zeroFill + bytecode.substring(solcIndex);
+    return (bytecode.substring(0, hashStartIndex) + zeroFill + bytecode.substring(solcIndex)) as Hex;
   }
 
   // Zero out the entire metadata section from IPFS marker to the end
   const zeroFill = "0".repeat(bytecode.length - ipfsIndex);
-  return bytecode.substring(0, ipfsIndex) + zeroFill;
+  return (bytecode.substring(0, ipfsIndex) + zeroFill) as Hex;
 }
