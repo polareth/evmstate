@@ -39,7 +39,7 @@
     "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "build:clean": "rm -rf dist && rm -rf tsconfig.build.tsbuildinfo",
     "changeset": "changeset",
-    "changeset:publish": "pnpm build && changeset publish",
+    "changeset:publish": "pnpm build && changeset publish --access public",
     "changeset:version": "changeset version && pnpm install --lockfile-only",
     "docs:dev": "pnpm build && pnpm --filter @polareth/evmstate-docs dev",
     "docs:build": "pnpm build && pnpm --filter @polareth/evmstate-docs build",
