@@ -13,6 +13,7 @@ runs:
       with:
         node-version: 23.x
         cache: pnpm
+        registry-url: https://registry.npmjs.org
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
