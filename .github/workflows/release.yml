@@ -52,10 +52,12 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
 
-      - name: Prepare config
+      - name: Setup NPM config
         run: |
           echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
           echo "@polareth:registry=https://registry.npmjs.org/" >> ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to NPM
         uses: changesets/action@v1
