@@ -94,8 +94,6 @@
     }
   },
   "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/",
-    "@polareth:registry": "https://registry.npmjs.org/"
+    "access": "public"
   }
 }

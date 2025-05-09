@@ -52,16 +52,6 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
 
-      - name: Set deployment token
-        run: |
-          cat > ~/.npmrc << EOF
-          registry=https://registry.npmjs.org/
-          always-auth=true
-          //registry.npmjs.org/:_authToken=${NPM_TOKEN}
-          EOF
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Publish to NPM
         uses: changesets/action@v1
         with:
