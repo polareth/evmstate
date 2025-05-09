@@ -52,9 +52,6 @@ jobs:
       - name: Install dependencies
         uses: ./.github/actions/setup
 
-      - name: Build
-        run: pnpm build
-
       - name: Publish to NPM
         uses: changesets/action@v1
         with:
