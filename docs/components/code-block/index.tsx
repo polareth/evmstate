@@ -209,18 +209,24 @@ export const CodeBlock = forwardRef<CodeBlockRef, CodeBlockProps>(
         style={{ borderBottom: "0", borderBottomLeftRadius: "0", borderBottomRightRadius: "0" }}
       >
         {!!fileName && (
-          <div className="vocs_Tabs_list flex items-center gap-x-2 justify-between cursor-pointer">
-            <div className="vocs_Tabs_trigger">
-              {fileName} {!!caption && <div>{caption}</div>}
+          <div
+            className="vocs_Tabs_list flex items-end sm:items-center gap-x-2 justify-between cursor-pointer"
+            onClick={toggleCollapsed}
+          >
+            <div className="flex flex-col gap-y-2 vocs_Tabs_trigger !py-1 sm:!py-2">
+              <span className="text-xs sm:text-sm break-all">{fileName}</span>
+              {!!caption && <div className="text-xs sm:text-sm break-all">{caption}</div>}
             </div>
-            {collapsible && <CollapseButton toggle={toggleCollapsed} collapsed={collapsed} className="mr-[0.25rem]" />}
+            {collapsible && (
+              <CollapseButton toggle={toggleCollapsed} collapsed={collapsed} className="mr-[0.25rem] mb-2 sm:mb:0" />
+            )}
           </div>
         )}
         <div
           className={cn(
             "vocs_CodeBlock",
             collapsible && collapsed
-              ? "max-h-0 opacity-0 duration-200 ease-out"
+              ? "max-h-0 opacity-0 duration-200 ease-out pointer-events-none overflow-hidden"
               : "max-h-[5000px] opacity-100 duration-300 ease-in",
             className,
           )}

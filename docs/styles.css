@@ -84,4 +84,11 @@
   .vocs_Pre_wrapper:hover .vocs_CopyButton {
     opacity: 1 !important;
   }
+
+  /* Overrides */
+  @media (max-width: 640px) {
+    .vocs_CodeBlock code {
+      font-size: 12px !important;
+    }
+  }
 }

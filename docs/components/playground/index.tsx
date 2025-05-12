@@ -74,11 +74,13 @@ export const Playground = () => {
   return (
     <div className="playground">
       <div className="flex flex-col gap-y-2">
-        <div className="flex items-center gap-x-2 justify-between">
-          <div className="flex items-center gap-x-2 text-muted text-sm">
+        <div className="flex flex-row items-end sm:items-center gap-2 justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-x-2 text-muted text-sm">
             <div>sender</div>
             <div className="flex items-center gap-x-1">
-              <span className="vocs_Code">{callerAddress.toString()}</span>
+              <span className="vocs_Code">
+                {callerAddress.toString().slice(0, 12)}...{callerAddress.toString().slice(-4)}
+              </span>
               <CopyButton
                 copy={handleCopy}
                 copied={copied}
@@ -87,7 +89,7 @@ export const Playground = () => {
               />
             </div>
           </div>
-          <div className="flex items-center gap-x-2">
+          <div className="flex items-center gap-x-2 text-xs sm:text-sm">
             <Button variant="ghost" onClick={generateRandomArgs} className="text-muted">
               random args
             </Button>
@@ -95,7 +97,7 @@ export const Playground = () => {
         </div>
         <div>
           <label className="font-medium">Function</label>
-          <select value={selectedFunction?.name ?? ""} onChange={handleFunctionChange}>
+          <select className="text-xs sm:text-sm" value={selectedFunction?.name ?? ""} onChange={handleFunctionChange}>
             {Object.entries(functionDescriptions).map(([funcName, description]) => (
               <option key={funcName} value={funcName}>
                 {funcName} - {description}
@@ -118,6 +120,7 @@ export const Playground = () => {
                     value={args[index] ?? ""}
                     onChange={(e) => handleArgChange(index, e.target.value)}
                     placeholder={`Enter ${input.type} value`}
+                    className="text-xs sm:text-sm"
                   />
                 </label>
               </div>
@@ -136,10 +139,15 @@ export const Playground = () => {
       <div className="flex flex-col gap-y-2">
         <div className="flex items-center gap-x-2">
           <h3 className="text-xl font-medium flex-1">Traces</h3>
-          <Button variant="ghost" onClick={handleCollapseAllTraces} className="text-muted">
+          <Button variant="ghost" onClick={handleCollapseAllTraces} className="text-muted text-xs sm:text-sm">
             collapse all
           </Button>
-          <FeedbackButton action={handleReset} actionLabel="reset" variant="destructive" />
+          <FeedbackButton
+            action={handleReset}
+            actionLabel="reset"
+            variant="destructive"
+            className="text-xs sm:text-sm"
+          />
         </div>
         <div className="flex flex-col gap-y-1 pr-1">{codeBlocks}</div>
       </div>
