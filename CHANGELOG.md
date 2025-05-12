@@ -1,5 +1,11 @@
 # @polareth/evmstate
 
+## 0.1.3
+
+### Patch Changes
+
+- [`b4ba091`](https://github.com/polareth/evmstate/commit/b4ba0916ced445c374733200f3c97a37aac46012) Thanks [@0xpolarzero](https://github.com/0xpolarzero)! - Link to better usage examples
+
 ## 0.1.2
 
 ### Patch Changes
