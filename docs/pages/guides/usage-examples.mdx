@@ -4,34 +4,53 @@ import { Callout } from "vocs/components";
 
 This guide covers a few examples of how to use the library.
 
-## Custom Tevm client
-
-For greater control over the EVM environment, provide your own Tevm client; this is the recommended usage.
-
-See [the Tevm documentation](https://www.tevm.sh/) for [how to create and configure the client](https://node.tevm.sh/core/create-tevm-node).
-
-```typescript twoslash
-import { createMemoryClient, http } from "tevm";
-import { mainnet } from "tevm/common";
-import { traceState } from "@polareth/evmstate";
-
-// Create a fork client
-// [!include ~/snippets/client-fork.ts:client-fork]
-
-// [!include ~/snippets/trace-state.ts:options-client]
-```
-
-Benefits of using a custom client:
-
-- Configure specific fork point
-- Reuse the same client for multiple operations
-- More control over the simulation environment
-
-## Processing complex outputs
-
 <Callout type="tip">
   See the [playground](/playground) for an interactive demonstration of the output based on function calls.
 </Callout>
+
+## Monitoring ERC20 balances
+
+:::code-group
+
+```ts twoslash [example.ts]
+// [!include ~/snippets/client-fork.ts]
+// [!include ~/snippets/abi.ts]
+// [!include ~/snippets/layout.ts]
+// ---cut---
+import { createContract } from "tevm/contract";
+import { traceState, type LabeledState } from "@polareth/evmstate";
+
+// [!include ~/snippets/erc20.ts:args]
+
+// [!include ~/snippets/erc20.ts:approve]
+
+// [!include ~/snippets/erc20.ts:trace-swap]
+
+// [!include ~/snippets/erc20.ts:trace-parse]
+```
+
+```ts twoslash [client.ts]
+import { createMemoryClient, http } from "tevm";
+import { mainnet } from "tevm/common";
+
+// [!include ~/snippets/client-fork.ts:client-fork-no-highlight]
+```
+
+```ts twoslash [abis.ts]
+// [!include ~/snippets/abi.ts:erc20]
+
+// [!include ~/snippets/abi.ts:simple-dex]
+```
+
+
+```ts twoslash [layout.ts]
+// [!include ~/snippets/layout.ts:erc20]
+```
+
+:::
+
+## Processing complex outputs
+
 
 :::code-group
 

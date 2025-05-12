@@ -22,6 +22,7 @@ import { type StateChange, type WatchStateOptions } from "@/lib/watch/types.js";
  * @param options - {@link WatchStateOptions}
  * @returns Promise<() => void> - Unsubscribe function
  * @experimental
+ * @see {@link https://evmstate.polareth.org/guides/usage-examples} for usage examples
  */
 export const watchState = async <TStorageLayout extends DeepReadonly<SolcStorageLayout> | undefined = undefined>(
   options: WatchStateOptions<TStorageLayout>,

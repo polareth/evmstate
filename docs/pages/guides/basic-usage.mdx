@@ -51,15 +51,18 @@ import { traceState } from "@polareth/evmstate";
 
 There are various ways to configure the client:
 - Using an existing Tevm client (likely in forking mode)
-- Using a RPC url (which will internally create a Tevm)
+- Using a RPC url (which will internally create a Tevm memory client)
+
+See [the Tevm documentation](https://www.tevm.sh/) for [how to create and configure the client](https://node.tevm.sh/core/create-tevm-node).
 
 :::code-group
 
 ```typescript twoslash [tevm-client.ts]
-import { createMemoryClient } from "tevm";
+import { createMemoryClient, http } from "tevm";
+import { mainnet } from "tevm/common";
 import { traceState } from "@polareth/evmstate";
 
-const client = createMemoryClient(); // [!code hl]
+// [!include ~/snippets/client-fork.ts:client-fork]
 
 // [!include ~/snippets/trace-state.ts:options-client]
 ```
@@ -74,7 +77,7 @@ import { traceState } from "@polareth/evmstate";
 
 :::
 
-Finally, we recommend providing an url & API key for at least one supported explorer:
+Finally, you will need to provide an url & API key for at least one supported explorer, so it can fetch ABIs and storage layouts:
 
 ```typescript twoslash [explorers.ts]
 // [!include ~/snippets/client.ts]

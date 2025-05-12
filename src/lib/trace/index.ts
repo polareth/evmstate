@@ -33,6 +33,7 @@ import { logger } from "@/logger.js";
  * @param options - {@link TraceStateOptions}
  * @returns Promise<Record<Address, {@link LabeledState}>> - Storage access trace with labeled slots and labeled layout
  *   access for each touched account
+ * @see {@link https://evmstate.polareth.org/guides/usage-examples} for usage examples
  */
 export const traceState = async <
   TAbi extends Abi | readonly unknown[] = Abi,

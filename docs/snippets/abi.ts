@@ -214,11 +214,33 @@ export const erc20Abi = [
       { internalType: "address", name: "to", type: "address" },
       { internalType: "uint256", name: "amount", type: "uint256" },
     ],
-    outputs: [
-      { internalType: "bool", name: "", type: "bool" },
-    ],
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    name: "approve",
+    inputs: [{ internalType: "address", name: "spender", type: "address" }, { internalType: "uint256", name: "amount", type: "uint256" }],
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
     stateMutability: "nonpayable",
     type: "function",
   },
 ] as const;
 // [!endregion erc20]
+
+// [!region simple-dex]
+export const simpleDexAbi = [
+  {
+    inputs: [
+      { internalType: "address", name: "tokenIn", type: "address" },
+      { internalType: "address", name: "tokenOut", type: "address" },
+      { internalType: "uint256", name: "amountIn", type: "uint256" },
+      { internalType: "uint256", name: "amountOutMin", type: "uint256" },
+    ],
+    name: "swap",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+] as const;
+// [!endregion simple-dex]
