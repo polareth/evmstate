@@ -40,6 +40,17 @@ const state = await traceState({
     [outputToken.address]: erc20Layout,
   },
   fetchStorageLayouts: false,
+  // or if we don't provide the storage layouts/abi, we need to provide API keys
+  explorers: {
+    etherscan: {
+      baseUrl: "https://api.etherscan.io/api",
+      apiKey: "...",
+    },
+    blockscout: {
+      baseUrl: "https://api.blockscout.com/api",
+      apiKey: "...",
+    },
+  },
 });
 // [!endregion trace-swap]
 
