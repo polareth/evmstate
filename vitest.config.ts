@@ -8,5 +8,10 @@ export default defineConfig({
     testTimeout: 600_000,
     hookTimeout: 60_000,
     setupFiles: ["./test/setup.tsx"],
+    typecheck: {
+      enabled: true,
+      include: ["./test/types.test.ts"],
+      ignoreSourceErrors: true,
+    },
   },
 });
