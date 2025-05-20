@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, type ReactNode } from "react";
 
-import { type ExploreStorageConfig } from "@/lib/explore/config.js";
+import { type ExploreStorageConfig } from "@/lib/explore/types.js";
 import { Tracer } from "@/lib/trace/index.js";
 import type { TraceStateBaseOptions } from "@/lib/trace/types.js";
 

@@ -1,8 +1,8 @@
 import { type Abi, type Address, type Hex } from "tevm";
 import { abi } from "@shazow/whatsabi";
 
-import { type ExploreStorageConfig } from "@/lib/explore/config.js";
 import type { DeepReadonly } from "@/lib/explore/types.js";
+import { type ExploreStorageConfig } from "@/lib/explore/types.js";
 import { type SolcStorageLayout } from "@/lib/solc.js";
 import type { LabeledState, TraceStateBaseOptions } from "@/lib/trace/types.js";
 

@@ -110,6 +110,7 @@ const trace = await traceState({
 ```typescript
 import { createMemoryClient, http } from "tevm";
 import { mainnet } from "tevm/common";
+
 import { traceState } from "@polareth/evmstate";
 
 // Initialize client
@@ -137,6 +138,7 @@ The `Tracer` class provides an object-oriented interface for reusing client inst
 ```typescript
 import { createMemoryClient, http } from "tevm";
 import { mainnet } from "tevm/common";
+
 import { Tracer } from "@polareth/evmstate";
 
 // Initialize client
@@ -363,6 +365,7 @@ For more control over the environment, you can provide your own Tevm client:
 ```typescript
 import { createMemoryClient, http } from "tevm";
 import { mainnet } from "tevm/common";
+
 import { watchState } from "@polareth/evmstate";
 
 // Create custom client with specific configuration
@@ -412,3 +415,70 @@ The library combines several techniques to provide comprehensive state analysis:
 ## License
 
 MIT
+
+## Development Setup (Building from Source)
+
+If you want to contribute to `@polareth/evmstate` or build it from source, you'll need to set up your environment to compile both the TypeScript and the Zig code. The Zig code is compiled to WebAssembly (WASM) and called from TypeScript. Communication between TypeScript and Zig is handled using JSON strings (can be improved later with msgpack or flatbuffers).
+
+### Prerequisites
+
+1.  **Node.js and pnpm**:
+
+    - Node.js (LTS version recommended).
+    - [pnpm](https://pnpm.io/installation) (This project uses pnpm for package management). You can also use npm or yarn, but pnpm is preferred.
+
+2.  **Zig Compiler**:
+    - Install the Zig compiler (latest stable version recommended). Follow the official installation guide: [Zig Installation](https://ziglang.org/learn/getting-started/)
+    - Ensure `zig` is available in your system's PATH.
+
+### Build Steps
+
+1.  **Clone the Repository**:
+
+    ```bash
+    git clone https://github.com/polareth/evmstate.git
+    cd evmstate
+    ```
+
+2.  **Install Dependencies**:
+
+    ```bash
+    pnpm install
+    ```
+
+3.  **Compile Zig to WASM**:
+    Compile the Zig source code (in `src/zig/`) into a WebAssembly module:
+
+    ```bash
+    pnpm build:zig
+    ```
+
+    This will output the WASM file to `dist/wasm/`.
+
+4.  **Build the library**:
+    Compile both the TypeScript and Zig code:
+    ```bash
+    pnpm build
+    ```
+    This command bundles the TypeScript code and ensures the Zig WASM module (expected in `dist/wasm/`) can be loaded, into the final distributable files in the `dist/` directory.
+
+### Development Workflow
+
+For active development, you can use watch scripts that automatically rebuild parts of the project when files change:
+
+- **Watch Zig and TypeScript tests**:
+
+  ```bash
+  pnpm dev
+  ```
+
+  This will start parallel watchers for:
+
+  - Zig source files (`.zig` files): Recompiles the WASM module and runs the tests.
+  - TypeScript tests (`.test.ts` files): Runs the tests in watch mode.
+
+- **Update zabi**:
+
+  ```bash
+  zig fetch --save git+https://github.com/Raiden1411/zabi.git#zig_version_0.14.0
+  ```
