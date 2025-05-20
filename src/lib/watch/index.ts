@@ -2,7 +2,7 @@ import { type Address } from "tevm/utils";
 import { abi } from "@shazow/whatsabi";
 import { createPublicClient, http, toFunctionSignature } from "viem";
 
-import { labelStateDiff } from "@/lib/explore/label.js";
+import { labelStateDiff } from "@/lib/explore/index.js";
 import { type DeepReadonly } from "@/lib/explore/types.js";
 import { type SolcStorageLayout } from "@/lib/solc.js";
 import { debugTraceBlock } from "@/lib/trace/debug.js";
