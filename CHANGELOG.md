@@ -1,5 +1,11 @@
 # @polareth/evmstate
 
+## 0.1.4
+
+### Patch Changes
+
+- [`4a733fa`](https://github.com/polareth/evmstate/commit/4a733fad94718dd88c28f600e603b9cfdcbcdb0e) Thanks [@0xpolarzero](https://github.com/0xpolarzero)! - Fix args type for `traceState` to allow undefined (empty) args.
+
 ## 0.1.3
 
 ### Patch Changes
