@@ -5,6 +5,11 @@ pub fn build(b: *std.Build) void {
     // We'll use -Doptimize=ReleaseSmall in the package.json script.
     const optimize = b.standardOptimizeOption(.{});
 
+    // --- Zabi Dependency ---
+    // Add zabi as a dependency for the build.
+    // The .{} for the second argument means we are not overriding target or optimize for the dependency itself here.
+    const zabi = b.dependency("zabi", .{});
+
     // Explicitly define the target for our WASM build
     const wasm_target = b.resolveTargetQuery(.{
         .cpu_arch = .wasm32,
@@ -28,6 +33,7 @@ pub fn build(b: *std.Build) void {
     });
     wasm_exe.rdynamic = true; // Required for exported functions to be callable from JS
     wasm_exe.entry = .disabled; // Crucial: we are building a library, not an application
+    wasm_exe.root_module.addImport("zabi-abi", zabi.module("zabi-abi"));
 
     // Define the desired output path for the WASM file directly in the dist directory
     const wasm_install_path = "dist/wasm/evmstate.wasm";
@@ -57,6 +63,8 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize, // Use the same optimization mode as the rest of the build (can be overridden)
         // .filter = b.option([]const u8, "test-filter", "Filter for tests to run"), // Optional: allow test filtering
     });
+    // Make zabi available to your test code
+    // main_tests.root_module.addImport("zabi", zabi_module);
 
     // Create a "test" step that runs the test executable.
     const run_main_tests_step = b.addRunArtifact(main_tests);

@@ -23,6 +23,7 @@ export type LabelStateDiffArgs<
 > = {
   stateDiff: Record<
     Address,
+    // TODO: intrinsics should be in hex not bigints
     LabeledIntrinsicsState & { storage: Record<Hex, { current?: Hex; next?: Hex; modified: boolean }> }
   >;
   layouts: Record<Address, SolcStorageLayout>;
@@ -42,6 +43,8 @@ export const labelStateDiff = <
   structLogs,
   abiFunctions,
   options,
+  // TODO: we can return the result non-decoded so we don't have to parse or we can parse less(?) and keep hex
+  // then decode in typescript
 }: LabelStateDiffArgs<TAbi, TFunctionName>): TraceStateResult => {
   // Extract potential key/index values from the execution trace
   // Create a slim version of the trace with deduplicated stack values for efficiency

@@ -466,17 +466,19 @@ If you want to contribute to `@polareth/evmstate` or build it from source, you'l
 
 For active development, you can use watch scripts that automatically rebuild parts of the project when files change:
 
-- **Watch Zig and TypeScript components**:
+- **Watch Zig and TypeScript tests**:
 
   ```bash
-  pnpm dev:lib
+  pnpm dev
   ```
 
   This will start parallel watchers for:
 
-  - Zig source files (`.zig` files): Recompiles the WASM module.
-  - TypeScript files (`.ts` files): Recompiles the TypeScript parts.
+  - Zig source files (`.zig` files): Recompiles the WASM module and runs the tests.
+  - TypeScript tests (`.test.ts` files): Runs the tests in watch mode.
 
-- **Individual Watchers**:
-  - Watch Zig files: `pnpm watch:zig`
-  - Watch TypeScript files: `pnpm watch:ts`
+- **Update zabi**:
+
+  ```bash
+  zig fetch --save git+https://github.com/Raiden1411/zabi.git#zig_version_0.14.0
+  ```
