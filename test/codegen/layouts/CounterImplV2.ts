@@ -3,7 +3,7 @@ export default {
   "storage": [
     {
       "astId": 32,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/TransparentProxy.s.sol:CounterImplV2",
+      "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/TransparentProxy.s.sol:CounterImplV2",
       "label": "_count",
       "offset": 0,
       "slot": "0",
@@ -11,7 +11,7 @@ export default {
     },
     {
       "astId": 34,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/TransparentProxy.s.sol:CounterImplV2",
+      "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/TransparentProxy.s.sol:CounterImplV2",
       "label": "_paused",
       "offset": 0,
       "slot": "1",

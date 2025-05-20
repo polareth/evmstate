@@ -3,7 +3,7 @@ export default {
   "storage": [
     {
       "astId": 4,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Bytes.s.sol:Bytes",
+      "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Bytes.s.sol:Bytes",
       "label": "myString",
       "offset": 0,
       "slot": "0",
@@ -11,7 +11,7 @@ export default {
     },
     {
       "astId": 6,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Bytes.s.sol:Bytes",
+      "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Bytes.s.sol:Bytes",
       "label": "myBytes",
       "offset": 0,
       "slot": "1",

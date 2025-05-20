@@ -27,7 +27,7 @@ const cache = createCache(config.cacheDir, fileAccess, process.cwd());
 
 export const generateStorageLayouts = async () => {
   // Create output directory if it doesn't exist
-  const outputDir = join(process.cwd(), "test/generated/layouts");
+  const outputDir = join(process.cwd(), "test/codegen/layouts");
   await mkdir(outputDir, { recursive: true });
 
   // Get the contracts directory

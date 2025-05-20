@@ -4,7 +4,7 @@ import { mainnet } from "tevm/common";
 
 import * as contracts from "./contracts/index.js";
 
-export * as LAYOUTS from "./generated/layouts/index.js";
+export * as LAYOUTS from "./codegen/layouts/index.js";
 
 export const CONTRACTS = {
   StoragePacking: contracts.StoragePacking.withAddress(toHex("StoragePacking", { size: 20 })),

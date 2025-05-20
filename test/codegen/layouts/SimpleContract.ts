@@ -3,7 +3,7 @@ export default {
   "storage": [
     {
       "astId": 58,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Factory.s.sol:SimpleContract",
+      "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Factory.s.sol:SimpleContract",
       "label": "value",
       "offset": 0,
       "slot": "0",

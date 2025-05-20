@@ -27,12 +27,9 @@ describe("Structs", () => {
       // Set a basic struct
       expect(
         await traceState({
+          ...Structs.write.initializeStructs(),
           client,
           from: caller.toString(),
-          to: Structs.address,
-          abi: Structs.abi,
-          functionName: "initializeStructs",
-          args: [],
         }),
       ).toMatchSnapshot();
     });
@@ -50,12 +47,9 @@ describe("Structs", () => {
       // Now delete the struct
       expect(
         await traceState({
+          ...Structs.write.deleteStruct(),
           client,
           from: caller.toString(),
-          to: Structs.address,
-          abi: Structs.abi,
-          functionName: "deleteStruct",
-          args: [],
         }),
       ).toMatchSnapshot();
     });

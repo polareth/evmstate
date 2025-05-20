@@ -210,12 +210,9 @@ describe("Arrays", () => {
       // Create an outer array
       expect(
         await traceState({
+          ...Arrays.write.addNestedArray(),
           client,
           from: caller.toString(),
-          to: Arrays.address,
-          abi: Arrays.abi,
-          functionName: "addNestedArray",
-          args: [],
         }),
       ).toMatchSnapshot();
     });

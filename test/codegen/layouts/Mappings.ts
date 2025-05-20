@@ -3,7 +3,7 @@ export default {
   "storage": [
     {
       "astId": 5,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Mappings.s.sol:Mappings",
+      "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Mappings.s.sol:Mappings",
       "label": "balances",
       "offset": 0,
       "slot": "0",
@@ -11,7 +11,7 @@ export default {
     },
     {
       "astId": 11,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Mappings.s.sol:Mappings",
+      "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Mappings.s.sol:Mappings",
       "label": "allowances",
       "offset": 0,
       "slot": "1",
@@ -19,7 +19,7 @@ export default {
     },
     {
       "astId": 21,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Mappings.s.sol:Mappings",
+      "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Mappings.s.sol:Mappings",
       "label": "ridiculouslyNestedMapping",
       "offset": 0,
       "slot": "2",
@@ -27,7 +27,7 @@ export default {
     },
     {
       "astId": 33,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Mappings.s.sol:Mappings",
+      "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Mappings.s.sol:Mappings",
       "label": "userInfo",
       "offset": 0,
       "slot": "3",
@@ -35,7 +35,7 @@ export default {
     },
     {
       "astId": 38,
-      "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Mappings.s.sol:Mappings",
+      "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Mappings.s.sol:Mappings",
       "label": "purchases",
       "offset": 0,
       "slot": "4",
@@ -107,7 +107,7 @@ export default {
       "members": [
         {
           "astId": 23,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Mappings.s.sol:Mappings",
+          "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Mappings.s.sol:Mappings",
           "label": "balance",
           "offset": 0,
           "slot": "0",
@@ -115,7 +115,7 @@ export default {
         },
         {
           "astId": 25,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Mappings.s.sol:Mappings",
+          "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Mappings.s.sol:Mappings",
           "label": "lastUpdate",
           "offset": 0,
           "slot": "1",
@@ -123,7 +123,7 @@ export default {
         },
         {
           "astId": 27,
-          "contract": "/Users/polarzero/code/projects/transaction-access-list/test/contracts/Mappings.s.sol:Mappings",
+          "contract": "/Users/polarzero/code/projects/evmstate/test/contracts/Mappings.s.sol:Mappings",
           "label": "isActive",
           "offset": 0,
           "slot": "2",

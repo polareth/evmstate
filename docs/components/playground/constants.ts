@@ -1,8 +1,8 @@
 import { EthjsAddress } from "tevm/utils";
 import type { ExtractAbiFunctions } from "abitype";
 
+import * as LAYOUTS from "@test/codegen/layouts/index.js";
 import * as CONTRACTS from "@test/contracts/index.js";
-import * as LAYOUTS from "@test/generated/layouts/index.js";
 
 export const contract = CONTRACTS["Playground"].withAddress(
   EthjsAddress.fromString("0x987C2AF139EAEaBdF8D6d3d1723C1883bEa1f2AF").toString(),
