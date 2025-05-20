@@ -1,6 +1,6 @@
 {
   "name": "@polareth/evmstate",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "A TypeScript library for tracing, and visualizing EVM state changes with detailed human-readable labeling.",
   "keywords": [
     "evm",
