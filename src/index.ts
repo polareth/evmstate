@@ -19,7 +19,6 @@ export type {
 export { watchState } from "@/lib/watch/index.js";
 export type { WatchStateOptions, StateChange } from "@/lib/watch/types.js";
 
-export type { ExploreStorageConfig } from "@/lib/explore/config.js";
 export type {
   // Solidity type extraction (mapping, array, struct)
   ExtractMappingKeyType,
@@ -49,6 +48,8 @@ export type {
   // Helpers
   DeepReadonly,
   AbiTypeInplace,
+  // Explore
+  ExploreStorageConfig,
 } from "@/lib/explore/types.js";
 export { PathSegmentKind } from "@/lib/explore/types.js";
 

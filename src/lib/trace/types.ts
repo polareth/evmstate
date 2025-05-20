@@ -3,7 +3,6 @@ import { type Common } from "tevm/common";
 import { abi } from "@shazow/whatsabi";
 import { type AbiStateMutability, type ContractFunctionArgs } from "viem";
 
-import { type ExploreStorageConfig } from "@/lib/explore/config.js";
 import type {
   DeepReadonly,
   ParseSolidityType,
@@ -12,6 +11,7 @@ import type {
   VariableExpression,
   VariablePathSegments,
 } from "@/lib/explore/types.js";
+import { type ExploreStorageConfig } from "@/lib/explore/types.js";
 import { type SolcStorageLayout, type SolcStorageLayoutTypes } from "@/lib/solc.js";
 
 /* -------------------------------------------------------------------------- */

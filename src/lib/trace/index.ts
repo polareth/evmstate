@@ -2,8 +2,8 @@ import { type Abi, type AbiFunction, type Address, type ContractFunctionName } f
 import type { abi } from "@shazow/whatsabi";
 import { toFunctionSignature } from "viem";
 
-import { type ExploreStorageConfig } from "@/lib/explore/config.js";
 import { labelStateDiff } from "@/lib/explore/index.js";
+import { type ExploreStorageConfig } from "@/lib/explore/types.js";
 import { type SolcStorageLayout } from "@/lib/solc.js";
 import { debugTraceTransaction } from "@/lib/trace/debug.js";
 import { TraceStateResult } from "@/lib/trace/result.js";

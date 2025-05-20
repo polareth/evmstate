@@ -81,29 +81,32 @@ export const watchState = async <TStorageLayout extends DeepReadonly<SolcStorage
       if (!options.client) internalClient = createClient(options);
 
       const traces = await debugTraceBlock(client, block.hash);
-      traces.forEach(({ txHash, stateDiff, addresses, newAddresses, structLogs }) => {
+      for (const { txHash, stateDiff, addresses, newAddresses, structLogs } of traces) {
         const uniqueAddresses = [...new Set([...addresses, ...newAddresses])].map((addr) => addr.toLowerCase());
-        if (!uniqueAddresses.includes(address.toLowerCase())) return;
+        if (!uniqueAddresses.includes(address.toLowerCase())) continue;
 
         // TODO: we might want to return the tx params (input) for each tx in debug_traceBlock to extract potential function args; this would avoid including transactions in the block which is solely for this
         const tx = block.transactions.find((tx) => tx.hash === txHash);
-        const diff = labelStateDiff({
-          stateDiff,
-          layouts: storageLayout ? { [address.toLowerCase()]: storageLayout as SolcStorageLayout } : {},
-          uniqueAddresses: uniqueAddresses as Array<Address>,
-          structLogs,
-          abiFunctions,
-          // @ts-expect-error mismatch data
-          options: {
-            from: tx?.from,
-            to: tx?.to ?? undefined,
-            data: tx?.input,
-            value: tx?.value,
-          },
-        }).get(address);
+        // await because of loading wasm, which will probably be cached for later use
+        const diff = (
+          await labelStateDiff({
+            stateDiff,
+            layouts: storageLayout ? { [address.toLowerCase()]: storageLayout as SolcStorageLayout } : {},
+            uniqueAddresses: uniqueAddresses as Array<Address>,
+            structLogs,
+            abiFunctions,
+            // @ts-expect-error mismatch data
+            options: {
+              from: tx?.from,
+              to: tx?.to ?? undefined,
+              data: tx?.input,
+              value: tx?.value,
+            },
+          })
+        ).get(address);
 
         if (diff) onStateChange({ ...diff, txHash: txHash } as unknown as StateChange<TStorageLayout>);
-      });
+      }
     },
   });
 

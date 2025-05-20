@@ -1,18 +1,18 @@
 import type { AbiTypeToPrimitiveType } from "abitype";
 import { bytesToString, decodeAbiParameters, keccak256, padHex, toBytes, toHex, type Hex } from "viem";
 
-import { type ExploreStorageConfig } from "@/lib/explore/config.js";
-import { computeMappingSlot, sortCandidateKeys } from "@/lib/explore/mapping.js";
 import {
   PathSegmentKind,
   TypePriority,
   type AbiTypeInplace,
   type DecodedResult,
+  type ExploreStorageConfig,
   type PathSegment,
 } from "@/lib/explore/types.js";
-import { decodeSlotDiffForPrimitive, max, toHexFullBytes } from "@/lib/explore/utils.js";
 import type { SolcStorageLayout, SolcStorageLayoutMappingType } from "@/lib/solc.js";
 import { logger } from "@/logger.js";
+import { computeMappingSlot, sortCandidateKeys } from "@/zig/explore/mapping.js";
+import { decodeSlotDiffForPrimitive, max, toHexFullBytes } from "@/zig/explore/utils.js";
 
 /**
  * Memory-efficient implementation of storage exploration.

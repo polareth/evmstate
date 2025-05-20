@@ -336,3 +336,28 @@ export type DecodedResult = {
   path: Array<PathSegment>;
   note?: string;
 };
+
+/* -------------------------------------------------------------------------- */
+/*                                   CONFIG                                   */
+/* -------------------------------------------------------------------------- */
+
+export interface ExploreStorageConfig {
+  /**
+   * Optional exploration limit for mapping combinations per mapping.
+   *
+   * Set to `-1` to disable early termination.
+   */
+  mappingExplorationLimit?: number;
+  /**
+   * Optional maximum nesting depth for mappings to prevent excessive recursion and memory usage.
+   *
+   * Set to `-1` to disable early termination.
+   */
+  maxMappingDepth?: number;
+  /**
+   * Optional early termination threshold - stop processing keys if we've found this many matches.
+   *
+   * Set to `-1` to disable early termination.
+   */
+  earlyTerminationThreshold?: number;
+}
