@@ -127,7 +127,7 @@ export type TraceStateTxWithAbi<
   to: Address;
   abi: TAbi;
   functionName: TFunctionName;
-  args: ContractFunctionArgs<TAbi, AbiStateMutability, TFunctionName>;
+  args?: ContractFunctionArgs<TAbi, AbiStateMutability, TFunctionName>;
   value?: bigint;
 };
 

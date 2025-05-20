@@ -32,9 +32,9 @@ export const debugTraceTransaction = async <
 }> => {
   const { from, to, value, abi, functionName, args, txHash } = params;
   const data =
-    abi && functionName && args
+    abi && functionName
       ? // @ts-expect-error not assignable to union type
-        encodeFunctionData({ abi, functionName, args })
+        encodeFunctionData({ abi, functionName, args: args ?? [] })
       : params.data;
 
   // Trace a call with params
